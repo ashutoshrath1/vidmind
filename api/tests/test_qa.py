@@ -47,10 +47,7 @@ def test_unfinished_job_raises(tmp_path):
     raise AssertionError("expected FileNotFoundError")
 
 
-def test_a_question_the_video_doesnt_answer_gets_a_labelled_web_answer(tmp_path, monkeypatch):
+def test_a_question_the_video_doesnt_answer_says_so_and_never_searches_the_web(tmp_path, monkeypatch):
     stub(monkeypatch, {"answer": "Not covered.", "found": False})
-    monkeypatch.setattr(qa.syn, "general_answer", lambda q, title: ("Kafka was created at LinkedIn.",
-                                                                     [{"url": "https://kafka.apache.org", "title": "Kafka"}]))
     out = qa.answer(job(tmp_path), "Who made Kafka?")
-    assert not out.found and out.web and out.evidence == []  # never presented as coming from the video
-    assert out.answer == "Kafka was created at LinkedIn." and out.sources[0]["url"] == "https://kafka.apache.org"
+    assert not out.found and not out.web and out.evidence == [] and out.sources == []

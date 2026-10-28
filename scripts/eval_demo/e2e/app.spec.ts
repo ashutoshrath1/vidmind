@@ -92,6 +92,21 @@ test.describe("result page", () => {
     await expect(chart.getByText("Transcript", { exact: true })).toBeVisible();
   });
 
+  test("ask: the answer appears under the box, and the other suggestions move below it as what to ask next", async ({ page }) => {
+    await page.route("**/jobs/sample/ask", (r) => r.fulfill({ json: { answer: "Stubbed answer.", found: false, evidence: [] } }));
+    await page.getByRole("tab", { name: "Ask the video" }).click();
+    const first = page.getByRole("button", { name: /\?$/ }).first();
+    const asked = (await first.innerText()).trim();
+    await first.click();
+    const answer = page.getByText("Stubbed answer.");
+    await expect(answer).toBeVisible();
+    const next = page.getByRole("heading", { name: "Ask next" });
+    await expect(next).toBeVisible();
+    expect((await next.boundingBox())!.y).toBeGreaterThan((await answer.boundingBox())!.y);
+    await expect(page.getByRole("button", { name: asked })).toHaveCount(0); // an asked question isn't suggested again
+    await expect(page.getByText("Not in this video", { exact: true })).toBeVisible();
+  });
+
   test("models are open by default; models are named from the run log", async ({ page }) => {
     const panel = page.getByRole("region", { name: "Models in this video" });
     await expect(panel).toBeVisible();

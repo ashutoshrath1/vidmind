@@ -354,47 +354,6 @@ def read_screen(image: bytes) -> str:
     return (r.choices[0].message.content or "").strip()
 
 
-def _web(prompt: str) -> tuple[dict, list[dict], callable]:
-    """Spark with web search. Returns (the JSON object it replied with, the results the search really returned,
-    a URL normaliser). Links are only trusted when they are among those results."""
-    with _slots["muse"]:
-        resp = _client("muse").responses.create(model="muse-spark-1.3", reasoning={"effort": "minimal"},
-                                                tools=[{"type": "web_search"}], include=["web_search_call.results"],
-                                                input=prompt)
-    # The SDK has no type for the results yet, so they arrive as plain dicts.
-    found = [r if isinstance(r, dict) else vars(r) for item in resp.output if item.type == "web_search_call"
-             for r in (getattr(item, "results", None) or [])]
-    key = lambda u: re.sub(r"^https?://(www\.)?", "", str(u or "").split("#")[0]).rstrip("/").lower()  # noqa: E731
-    text = resp.output_text or ""
-    start, end = text.find("{"), text.rfind("}")
-    try:
-        reply = json.loads(text[start : end + 1]) if 0 <= start < end else {}
-    except json.JSONDecodeError:
-        reply = {}
-    return reply, found, key
-
-
-def _only_found(links: list[dict], found: list[dict], key, n: int) -> list[dict]:
-    """The model's links that the search returned; if it answered from memory, the search's own top results."""
-    seen = {key(r.get("url")) for r in found}
-    kept = [x for x in links if key(x.get("url")) in seen][:n]
-    if kept:
-        return kept
-    unique = {key(r["url"]): r for r in found if r.get("url") and r.get("title")}
-    return [{"url": r["url"], "title": r["title"], "why": (r.get("snippet") or "")[:140]} for r in unique.values()][:n]
-
-
-def general_answer(question: str, title: str) -> tuple[str, list[dict]]:
-    """For a question the video doesn't answer: a short answer from a web search, with the sources it used."""
-    reply, found, key = _web(
-        f"A viewer of a video titled {title!r} asks: {question}\nThe video doesn't cover this. Search the web and "
-        "answer in 1-3 plain sentences. Use ONLY pages your search returned. "
-        'Return ONLY JSON: {"answer": "...", "sources": [{"url": "...", "title": "..."}]}')
-    if not reply.get("answer"):
-        raise ValueError("web search gave no answer")
-    return str(reply["answer"]), _only_found(reply.get("sources", []), found, key, 2)
-
-
 def segment_at(image: bytes, x: int, y: int, w: int, h: int) -> tuple[int, int, int, int] | None:
     """SAM 3.1 with a point prompt: the box of whatever is at (x, y) in a w x h image, or None."""
     b64 = base64.b64encode(image).decode()

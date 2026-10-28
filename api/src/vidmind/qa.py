@@ -40,17 +40,8 @@ def answer(job_dir: Path, question: str) -> Answer:
         return checked.model_copy(update={"model": model, "rechecked": rechecked,
                                           "seconds": round(time.monotonic() - started, 2)})
 
-    result = hedged(syn.models(), attempt, "question")
-    if result.found:
-        return result
-    # The video doesn't answer it: answer anyway from a web search, clearly labelled as not from the video.
-    try:
-        title = json.loads((job_dir / "result.json").read_text()).get("title", "")
-        text, sources = syn.general_answer(question, title)
-    except Exception:
-        return result  # no web answer: "not in this video" stands
-    return result.model_copy(update={"answer": text, "web": True, "sources": sources,
-                                     "seconds": round(time.monotonic() - started, 2)})
+    return hedged(syn.models(), attempt, "question")  # not in the video: says so, never a web answer
+
 
 
 def _check(out: Answer, segments: list[Segment], frames: list[Frame], duration: float) -> tuple[Answer, list[str]]:

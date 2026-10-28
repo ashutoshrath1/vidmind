@@ -12,8 +12,8 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
   Notes that rest on hard-to-read screen text are labelled **Uncertain**.
 - **Keyframes and point-and-ask.** Up to 30 scene-change keyframes with their screen text. Point at part of a
   keyframe and ask about it; SAM 3.1 outlines what you pointed at.
-- **Ask the video.** Answers cite the transcript or a keyframe and go through the same check. When the video
-  doesn't answer it, a web search answers instead, labelled as not from the video, with its sources.
+- **Ask the video.** Answers cite the transcript or a keyframe and go through the same check.
+  When the video doesn't answer it, it says so; it never answers from the web.
 - **Diagram.** When the video explains a system or flow, a Mermaid diagram whose boxes each cite evidence.
 - **Summary card.** A Muse Image card from the checked result; its text is read back and the card is dropped
   unless every line matches.
@@ -26,7 +26,7 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 
 | Model | Does |
 |---|---|
-| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask, web search (answers the video does not cover); reads keyframes and short clips |
+| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask; reads keyframes and short clips |
 | Muse Spark 1.2 | backup when 1.3 is slow or fails (hedged); first for listen-first sections, where it was steadier |
 | Muse Voice Transcribe | speech to text, in ~6 s pieces sent in parallel, diarized, English and Hindi |
 | SAM 3.1 | finds diagrams in keyframes and outlines what was pointed at |

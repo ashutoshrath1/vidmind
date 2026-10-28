@@ -24,6 +24,23 @@ export default function AskPanel({ base, seek, ready, view, questions, keyTerms 
   // The model's own curiosity questions; results from before they existed fall back to the key terms.
   const suggestions = questions.length ? questions.slice(0, 3) : [...new Set(keyTerms)].slice(0, 3).map((k) => `Why does ${k} matter here?`);
 
+  // Before the first question they sit under the box; after it, under the latest answer, as what to ask next.
+  const next = suggestions.filter((s) => !asked.some((a) => a.question === s));
+  const suggest = ready && !busy && next.length > 0 && (
+    <ul className="divide-y divide-rule overflow-hidden rounded-lg ring-1 ring-rule">
+      {next.map((s) => (
+        <li key={s}>
+          <button type="button" onClick={() => void ask(s, performance.now())}
+            className="group flex min-h-11 w-full items-center gap-3 bg-sheet px-4 text-left transition hover:bg-lightbox">
+            <span aria-hidden className="text-scan-ink transition group-hover:scale-125">✦</span>
+            <span className="min-w-0 flex-1 truncate">{s}</span>
+            <span aria-hidden className="text-graphite transition group-hover:translate-x-1 group-hover:text-scan-ink">→</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+
   async function ask(q: string, started: number) {
     q = q.trim();
     if (q.length < 2 || busy) return;
@@ -44,7 +61,7 @@ export default function AskPanel({ base, seek, ready, view, questions, keyTerms 
     } catch {
       item = { question: q, error: "Could not reach the VidMind API. Check that it is running on port 8000." };
     }
-    setAsked((xs) => [item, ...xs]);
+    setAsked((xs) => [...xs, item]); // oldest first, like a chat: the newest answer sits above what to ask next
     setQuestion("");
     setBusy(null);
   }
@@ -76,37 +93,13 @@ export default function AskPanel({ base, seek, ready, view, questions, keyTerms 
             Ask ↵
           </Button>
         </div>
-        {ready && !busy && suggestions.length > 0 && (
-          <ul className="divide-y divide-rule overflow-hidden rounded-lg ring-1 ring-rule">
-            {suggestions.map((s) => (
-              <li key={s}>
-                <button type="button" onClick={() => void ask(s, performance.now())}
-                  className="group flex min-h-11 w-full items-center gap-3 bg-sheet px-4 text-left transition hover:bg-lightbox">
-                  <span aria-hidden className="text-scan-ink transition group-hover:scale-125">✦</span>
-                  <span className="min-w-0 flex-1 truncate">{s}</span>
-                  <span aria-hidden className="text-graphite transition group-hover:translate-x-1 group-hover:text-scan-ink">→</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {!asked.length && suggest}
         <p className="text-xs text-graphite">Answers come only from the video, checked, with the moment to jump to.</p>
       </form>
 
-      {busy && (
-        <div className="scanning rounded-lg bg-sheet p-5 ring-1 ring-rule" aria-live="polite">
-          <p className="font-semibold">{busy.question}</p>
-          <p className="tabular mt-2 text-sm text-graphite">
-            Reading {lines ? `${lines} transcript lines` : "the transcript"}
-            {frames ? ` and ${frames} keyframes` : ""}, then checking the answer&apos;s citations,{" "}
-            {formatSeconds((now - busy.started) / 1000)}
-          </p>
-        </div>
-      )}
-
       <ul className="space-y-4" aria-live="polite">
         {asked.map((a, i) => (
-          <li key={asked.length - i} className="arrive space-y-3 rounded-lg bg-sheet p-5 ring-1 ring-rule">
+          <li key={i} className="arrive space-y-3 rounded-lg bg-sheet p-5 ring-1 ring-rule">
             <p className="font-semibold">{a.question}</p>
             {a.error && <p className="text-sm text-strike">{a.error}</p>}
             {a.answer && (
@@ -117,19 +110,8 @@ export default function AskPanel({ base, seek, ready, view, questions, keyTerms 
                     <EvidenceChip key={ei} evidence={e} base={base} seek={seek} />
                   ))}
                 </div>
-                {a.answer.web && !!a.answer.sources?.length && (
-                  <ul className="flex flex-wrap gap-2 text-sm">
-                    {a.answer.sources.map((s) => (
-                      <li key={s.url}>
-                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="hit text-scan-ink underline underline-offset-4">
-                          {s.title} ↗
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
                 <p className="flex flex-wrap gap-1.5">
-                  {a.answer.found ? <Chip tone="proof">Checked against the video</Chip> : a.answer.web ? <Chip tone="scan">Not in this video. From the web</Chip> : <Chip>Not in this video</Chip>}
+                  {a.answer.found ? <Chip tone="proof">Checked against the video</Chip> : <Chip>Not in this video</Chip>}
                   {a.answer.model && (
                     <Chip>
                       {modelName(a.answer.model)}
@@ -144,6 +126,22 @@ export default function AskPanel({ base, seek, ready, view, questions, keyTerms 
           </li>
         ))}
       </ul>
+      {busy && (
+        <div className="scanning rounded-lg bg-sheet p-5 ring-1 ring-rule" aria-live="polite">
+          <p className="font-semibold">{busy.question}</p>
+          <p className="tabular mt-2 text-sm text-graphite">
+            Reading {lines ? `${lines} transcript lines` : "the transcript"}
+            {frames ? ` and ${frames} keyframes` : ""}, then checking the answer&apos;s citations,{" "}
+            {formatSeconds((now - busy.started) / 1000)}
+          </p>
+        </div>
+      )}
+      {!!asked.length && suggest && (
+        <div className="space-y-2">
+          <h3 className="font-display text-sm font-semibold text-graphite">Ask next</h3>
+          {suggest}
+        </div>
+      )}
     </div>
   );
 }
