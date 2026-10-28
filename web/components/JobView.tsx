@@ -2,7 +2,6 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ProofView from "@/components/Proof";
 import Workspace, { NotFound } from "@/components/Workspace";
 import { type JobStatus, type LearnResult, jobUrl } from "@/lib/api";
 import { saveRecent } from "@/lib/recent";
@@ -13,11 +12,10 @@ const REPLAY_S = 5; // every replay lasts this long, however long the real run t
 export default function JobView() {
   const { id } = useParams<{ id?: string }>();
   const params = useSearchParams();
-  const proof = params.get("view") === "proof"; // the read-only page a shared proof link opens
-  const at = Math.max(0, Math.floor(Number(params.get("t"))) || 0); // ?t=125: a proof or library link opens the video at that second
+  const at = Math.max(0, Math.floor(Number(params.get("t"))) || 0); // ?t=125: a library link opens the video at that second
   // Next keeps visited routes mounted in the background; keying by id stops one job's state leaking into another.
   if (!id) return null;
-  return proof ? <ProofView key={id} id={id} at={at} /> : <Job key={id} id={id} at={at} />;
+  return <Job key={id} id={id} at={at} />;
 }
 
 function Job({ id, at }: { id: string; at: number }) {
@@ -121,11 +119,10 @@ function Job({ id, at }: { id: string; at: number }) {
   const finishedTitle = job?.status === "done" ? result?.title : undefined;
   const createdAt = job?.created_at;
   const mode = result?.mode;
-  const keepUntil = job?.keep_until;
   useEffect(() => {
     if (finishedTitle)
-      saveRecent({ id, title: finishedTitle, at: (createdAt ?? Date.now() / 1000) * 1000, mode, keep_until: keepUntil ? keepUntil * 1000 : null });
-  }, [id, finishedTitle, createdAt, mode, keepUntil]);
+      saveRecent({ id, title: finishedTitle, at: (createdAt ?? Date.now() / 1000) * 1000, mode });
+  }, [id, finishedTitle, createdAt, mode]);
   const wall = tick || clock.wall;
   const live = view.end ? view.end.t : job?.created_at && wall ? Math.max(view.last, wall / 1000 + clock.offset - job.created_at) : view.last;
   const now = replaying ? Math.min(playhead, fullEnd) : live;

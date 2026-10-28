@@ -7,32 +7,26 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import shutil
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import fetch, jobs, mcp_server, qa, slack
+from . import fetch, jobs, qa
 from .pipeline import MAX_BYTES, MAX_DURATION_S, PIPELINE_VERSION, probe
 from .schema import Answer, LearnResult
 
 logging.basicConfig(level=logging.INFO)
 ALLOWED_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
-Mode = Literal["learn", "meet", "test"]  # the person's choice; omitted means the model detects it
-
-
-def _reuse(base: str, mode: Mode | None) -> tuple[str, str | None]:
-    """The job's cache key, and a finished job to reuse. Auto keeps the old key, so earlier results are still reused;
-    a chosen mode that Auto already detected for this video reuses that job instead of spending credit again."""
-    key = f"{base}:{mode}" if mode else base
-    return key, jobs.reuse_done(key) or (mode and jobs.reuse_done(base, mode=mode)) or None
+WEB_ORIGINS = os.environ.get("VIDMIND_WEB_ORIGIN", "http://localhost:3000").split(",")
 
 
 @asynccontextmanager
@@ -40,8 +34,7 @@ async def lifespan(_: FastAPI):
     jobs.sweep()
     jobs.start_workers()
     jobs.start_cleanup()
-    async with mcp_server.server.session_manager.run():
-        yield
+    yield
 
 
 app = FastAPI(title="VidMind API", lifespan=lifespan)
@@ -61,7 +54,7 @@ async def limit_upload(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=slack.WEB_ORIGINS,
+    allow_origins=WEB_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -80,7 +73,7 @@ def health():
 
 
 @app.post("/jobs", status_code=201)
-async def create_job(file: UploadFile, mode: Mode | None = Form(None)):
+async def create_job(file: UploadFile):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXT:
         raise HTTPException(400, f"Unsupported file type. Use one of: {', '.join(sorted(ALLOWED_EXT))}")
@@ -101,14 +94,15 @@ async def create_job(file: UploadFile, mode: Mode | None = Form(None)):
             raise HTTPException(400, str(e)) from None
         if duration > MAX_DURATION_S:
             raise HTTPException(400, f"Video is {duration / 3600:.1f} h; the limit is {MAX_DURATION_S // 3600} hours")
-        key, done = _reuse(f"{PIPELINE_VERSION}:sha256:{digest.hexdigest()}", mode)
+        key = f"{PIPELINE_VERSION}:sha256:{digest.hexdigest()}"
+        done = jobs.reuse_done(key)
         if done:  # same file analysed before: reuse it (the UI says so)
             shutil.rmtree(d, ignore_errors=True)
             return {"id": done, "reused": True}
     except BaseException:
         shutil.rmtree(d, ignore_errors=True)
         raise
-    jobs.write_status(d, cache_key=key, mode=mode)
+    jobs.write_status(d, cache_key=key)
     jobs.tracer(d)("source_ready", origin="upload", size_mb=round(size / 2**20, 1), duration=round(duration, 2))
     jobs.enqueue(job_id)
     return {"id": job_id, "reused": False}
@@ -117,7 +111,6 @@ async def create_job(file: UploadFile, mode: Mode | None = Form(None)):
 class LinkJob(BaseModel):
     url: str
     rights_confirmed: bool = False
-    mode: Mode | None = None
 
 
 @app.post("/jobs/from-url", status_code=201)
@@ -129,11 +122,11 @@ def create_link_job(body: LinkJob):
         info = fetch.check_url(body.url)
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
-    key, done = _reuse(f"{PIPELINE_VERSION}:{fetch.cache_key(info)}", body.mode)
+    key = f"{PIPELINE_VERSION}:{fetch.cache_key(info)}"
+    done = jobs.reuse_done(key)
     if done:
         return {"id": done, "title": info.get("title"), "reused": True}
-    job_id, d = jobs.create(source_url=info.get("webpage_url", body.url), source_title=info.get("title"), cache_key=key,
-                            mode=body.mode)
+    job_id, d = jobs.create(source_url=info.get("webpage_url", body.url), source_title=info.get("title"), cache_key=key)
     plan = fetch.stream_plan(info)
     if plan:
         # Separate from job.json, which the browser reads: signed stream URLs stay server-side.
@@ -250,50 +243,6 @@ def deck(job_id: str):
         raise HTTPException(502, "The model's cards couldn't be read. Try again.") from None
 
 
-class SlackPost(BaseModel):
-    webhook: str = Field(max_length=200)
-    origin: str | None = Field(default=None, max_length=200)  # the web app's origin, for proof links without YouTube
-
-
-@app.post("/jobs/{job_id}/actions/slack")
-def post_to_slack(job_id: str, body: SlackPost):
-    if not slack.WEBHOOK.fullmatch(body.webhook):
-        raise HTTPException(400, "Use a Slack incoming webhook (https://hooks.slack.com/services/...)")
-    if body.origin and not slack.web_origin_ok(body.origin):
-        raise HTTPException(400, "Unknown web origin")
-    path = _dir(job_id) / "result.json"
-    if not path.exists():
-        raise HTTPException(409, "Actions open once the video has finished processing")
-    result = LearnResult.model_validate_json(path.read_text())
-    if not result.actions:
-        raise HTTPException(409, "This video has no decisions or actions to post")
-    try:
-        slack.post(body.webhook, slack.message(result, job_id, body.origin))
-    except ValueError as e:
-        raise HTTPException(502, str(e)) from None
-    return {"posted": len(result.actions)}
-
-
-class Keep(BaseModel):
-    days: int = Field(ge=1, le=jobs.KEEP_MAX_DAYS, strict=True)
-
-
-@app.post("/jobs/{job_id}/keep")
-def keep(job_id: str, body: Keep):
-    _dir(job_id)
-    if job_id == jobs.SAMPLE_ID:  # never deleted, so there is nothing to extend
-        return {"keep_until": None, "permanent": True}
-    return {"keep_until": jobs.keep(job_id, body.days), "permanent": False}
-
-
-@app.delete("/jobs/{job_id}/keep")
-def unkeep(job_id: str):
-    _dir(job_id)
-    if job_id == jobs.SAMPLE_ID:
-        return {"keep_until": None, "permanent": True}
-    return {"keep_until": jobs.keep(job_id, None), "permanent": False}
-
-
 @app.delete("/jobs/{job_id}", status_code=204)
 def delete_job(job_id: str):
     _dir(job_id)
@@ -329,4 +278,3 @@ def get_frame(job_id: str, name: str):
     return FileResponse(path, media_type="image/webp" if name == "card.webp" else "image/jpeg")
 
 
-app.router.routes.extend(mcp_server.app.routes)  # the MCP SDK's /mcp route, served by this app (see README)

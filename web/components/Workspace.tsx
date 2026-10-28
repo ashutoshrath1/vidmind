@@ -8,13 +8,11 @@ import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import ModelsUsed from "@/components/ModelsUsed";
-import { Actions, SummaryCard, Tests } from "@/components/ModeOutput";
-import EvidenceMeter from "@/components/EvidenceMeter";
+import { SummaryCard } from "@/components/ModeOutput";
 import ProofSheet from "@/components/ProofSheet";
 import { ChapterView, SectionLive, chapterId } from "@/components/Sections";
 import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
-import ShareProof from "@/components/ShareProof";
 import Study from "@/components/Study";
 import Timeline from "@/components/Timeline";
 import { Button, Chip, type Seek, YT_ORIGIN, usePlayer } from "@/components/ui";
@@ -35,17 +33,12 @@ type Props = {
   onReplay?: () => void;
 };
 
-type Tab = "actions" | "tests" | "notes" | "study" | "frames" | "ask" | "trace";
+type Tab = "notes" | "study" | "frames" | "ask" | "trace";
 
 export default function Workspace({ jobId, at, job, result, view, now, error, replaying, celebrate, onReplay }: Props) {
   const router = useRouter();
   const [picked, setTab] = useState<Tab | null>(null);
-  // Meetings and demos open on what they are for; every video keeps its notes.
-  const extra: [Tab, string, number][] = [];
-  if (result?.actions?.length) extra.push(["actions", "Actions", result.actions.length]);
-  if (result?.scenarios?.length) extra.push(["tests", "Tests", result.scenarios.length]);
   const tabs: [Tab, string, number | null][] = [
-    ...extra,
     ["notes", "Notes", null],
     // Flashcards are written from the finished notes and takeaways, so the tab waits for them.
     ...(result && !result.pending && result.chapters.some((c) => c.notes.length) ? [["study", "Study", null] as [Tab, string, null]] : []),
@@ -53,7 +46,7 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
     ["ask", "Ask the video", null],
     ["trace", "Behind the scenes", null],
   ];
-  const tab = picked ?? extra[0]?.[0] ?? "notes";
+  const tab = picked ?? "notes";
   const base = jobUrl(jobId);
   const running = replaying || (!!job && job.status !== "done" && job.status !== "failed");
   const youtubeId = result?.youtube_id ?? view.source?.youtube_id ?? null;
@@ -113,10 +106,8 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
           ) : (
             <div className="scanning aspect-video w-full rounded-lg bg-black/85" aria-label="Opening the video" />
           )}
-          <Fold title="Fact check" open><EvidenceMeter result={result} view={view} running={running} /></Fold>
           <Fold title="Models in this video" open><ModelsUsed view={view} /></Fold>
           {result?.card_url && <Fold title="Summary card" open><SummaryCard result={result} base={base} /></Fold>}
-          {result && job?.status === "done" && <Fold title="Share" open><ShareProof jobId={jobId} job={job} /></Fold>}
           {result && jobId !== "sample" && !job?.shared && (
             <p className="text-xs text-graphite">
               <button onClick={deleteJob} className="hit underline underline-offset-4 hover:text-strike">
@@ -148,8 +139,6 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
             ))}
           </div>
 
-          {tab === "actions" && result && <Actions jobId={jobId} result={result} base={base} seek={seek} />}
-          {tab === "tests" && result && <Tests jobId={jobId} result={result} base={base} seek={seek} />}
           {tab === "notes" && result && !replaying && <Highlights result={result} base={base} seek={seek} />}
           {tab === "notes" && <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />}
           {tab === "study" && result && <Study jobId={jobId} base={base} seek={seek} youtubeId={youtubeId} title={title} />}
@@ -295,7 +284,7 @@ export function NotFound() {
       <div className="space-y-4 pt-10">
         <h1 className="font-display text-2xl font-bold">These notes aren&apos;t here any more</h1>
         <p className="text-lg leading-relaxed text-graphite">
-          Notes are deleted after 24 hours (30 days if kept), or the link is mistyped. Add the video again for fresh notes in seconds.
+          Notes are deleted after 24 hours, or the link is mistyped. Add the video again for fresh notes in seconds.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">

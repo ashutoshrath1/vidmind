@@ -389,12 +389,3 @@ def test_grabbed_frames_merge_into_a_new_sorted_list_without_duplicates(fixture_
     assert keys == before, "the keyframe list is never mutated"
 
 
-def test_chosen_mode_overrides_the_detected_one(fixture_clip, tmp_path, monkeypatch):
-    video, _ = fixture_clip
-    shutil.copy(video, tmp_path / "video.mp4")
-    monkeypatch.setenv("LLM_MODELS", "model-a")
-    monkeypatch.setattr(pipeline.syn, "ask", fake_ask_factory([]))  # its overview detects learn
-    ran = []
-    monkeypatch.setattr(pipeline, "_mode_output", lambda mode, *a, **k: ran.append(mode))
-    result = pipeline.run(tmp_path, lambda *a, **k: None, None, mode="meet")
-    assert result.mode == "meet" and ran == ["meet"]

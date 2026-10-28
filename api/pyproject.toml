@@ -10,7 +10,6 @@ dependencies = [
     "fastapi>=0.162.0",
     "faster-whisper>=1.2.1",
     "httpx>=0.28.1",
-    "mcp>=2.3.0",
     "ocrmac>=1.0.1 ; sys_platform == 'darwin'",
     "openai>=3.37.0",
     "parakeet-mlx>=0.5.3 ; platform_machine == 'arm64' and sys_platform == 'darwin'",

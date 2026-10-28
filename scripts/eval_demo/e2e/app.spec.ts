@@ -1,4 +1,3 @@
-import { readFileSync, readdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 // Processed fresh (paid, ~$0.45) the first time after a pipeline version change; reused for free afterwards.
@@ -34,31 +33,6 @@ test("a pasted link needs one click, which says what it confirms", async ({ page
   await expect(page).toHaveURL(/\/jobs\/\w+/, { timeout: 15_000 }); // a fresh run the first time, reused after
 });
 
-test("the chosen kind of video is sent with the link, Auto by default", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("canvas")).toHaveCount(1, { timeout: 15_000 });
-  const kind = page.getByRole("group", { name: "Kind of video" });
-  await expect(kind.getByRole("radio", { name: "Auto" })).toBeChecked();
-  await kind.getByRole("radio", { name: "Auto" }).focus();
-  await page.keyboard.press("ArrowRight"); // native radios: arrow keys move the choice
-  await page.keyboard.press("ArrowRight");
-  await expect(kind.getByRole("radio", { name: "Meeting" })).toBeChecked();
-  await expect(kind).toHaveAccessibleDescription("Owners and deadlines, to Slack or Jira"); // shown, not a tooltip
-  const sent = [];
-  // Answered here, so no job is made and no model is called.
-  await page.route("**/jobs/from-url", (route) => {
-    sent.push(route.request().postDataJSON());
-    return route.fulfill({ status: 400, json: { detail: "stopped by the test" } });
-  });
-  await page.getByLabel("Video link").fill(CACHED);
-  await page.getByRole("button", { name: "I have the rights — make notes" }).click();
-  await expect(page.getByText("stopped by the test")).toBeVisible();
-  await kind.getByText("Auto", { exact: true }).click(); // the label, as a person clicks it
-  await expect(kind.getByRole("radio", { name: "Auto" })).toBeChecked();
-  await page.getByRole("button", { name: "I have the rights — make notes" }).click();
-  await expect.poll(() => sent.length).toBe(2);
-  expect(sent.map((b) => b.mode)).toEqual(["meet", undefined]);
-});
 
 test.describe("result page", () => {
   // The saved sample (a real Muse run of a 4:44 video): stable and free, unlike processing a link per test.
@@ -70,7 +44,6 @@ test.describe("result page", () => {
   test("checked notes, under 11 s, one screen tall, no Lecture chip", async ({ page }) => {
     const total = await page.getByText(/^\d+(\.\d)? s$/).first().innerText();
     expect(parseFloat(total)).toBeLessThan(11);
-    await expect(page.getByText(/\d+\/\d+ notes proven/)).toBeVisible();
     await expect(page.getByText("Lecture", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(900); // one page scroll, no inner columns
     expect(await noSideScroll(page)).toBe(true);
@@ -127,8 +100,7 @@ test.describe("result page", () => {
     await expect(chart.getByText("Transcript", { exact: true })).toBeVisible();
   });
 
-  test("fact check and models are open by default; models are named from the run log", async ({ page }) => {
-    await expect(page.getByText(/\d+\/\d+ notes proven/)).toBeVisible();
+  test("models are open by default; models are named from the run log", async ({ page }) => {
     const panel = page.getByRole("region", { name: "Models in this video" });
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("muse-spark-1.2");
@@ -278,70 +250,6 @@ test("study: a failed deck request can be retried, and grading the last card kee
     await page.keyboard.press("2");
   }
   await expect(page.getByRole("status").filter({ hasText: "Nothing due now." })).toBeFocused();
-});
-
-test("proof view: the sample's read-only notes show each quote with a play-from control, and no tabs", async ({ page }) => {
-  await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html",
-    body: "<script>window.got = []; addEventListener('message', (e) => got.push(JSON.parse(e.data)));</script>" }));
-  await page.goto("/jobs/sample?view=proof");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("q").first()).toBeVisible();
-  await expect(page.getByRole("img", { name: /^The video at \d+:\d\d$/ }).first()).toBeVisible();
-  await expect(page.getByRole("tab")).toHaveCount(0);
-  const play = page.getByRole("list", { name: "Proof" }).first().getByRole("button", { name: /^Play from \d+:\d\d$/ }).first();
-  const at = (await play.getAttribute("aria-label"))!.match(/(\d+):(\d\d)/)!;
-  await play.click();
-  const player = page.frame({ url: /youtube-nocookie/ })!;
-  await expect.poll(() => player.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got.find((m) => m.func === "seekTo")?.args[0]))
-    .toBeCloseTo(+at[1] * 60 + +at[2], -0.5);
-  expect(await page.title()).toContain("| VidMind");
-});
-
-test("Share proof link copies the proof view's URL and says who can see it", async ({ page, context }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/jobs/sample");
-  await page.getByRole("button", { name: "Share proof link" }).click({ timeout: 15_000 });
-  await expect(page.getByText("Link copied")).toBeVisible();
-  await expect(page.getByText("Anyone with the link can see these notes and the video frames.")).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/jobs\/sample\?view=proof$/);
-});
-
-// A finished demo (test mode) job already on disk, e.g. the uploaded demo.mp4: read here so no video is processed.
-const testJob = () => {
-  const jobs = "../../api/data/jobs";
-  for (const id of readdirSync(jobs)) {
-    try {
-      if (JSON.parse(readFileSync(`${jobs}/${id}/result.json`, "utf8")).scenarios?.length) return id;
-    } catch {} // a job still running has no result yet
-  }
-  return null;
-};
-
-test("Tests tab: download the suite, copy repro steps linked to the second, Watch at plays that step", async ({ page, context }) => {
-  const id = testJob();
-  test.skip(!id, "no finished test-mode job on disk; upload a product demo once to make one");
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto(`/jobs/${id}`);
-  await expect(page.getByRole("tab", { name: /Tests/ })).toHaveAttribute("aria-selected", "true", { timeout: 15_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download test suite" }).click()]);
-  expect(download.suggestedFilename()).toMatch(/\.spec\.ts$/);
-  const suite = readFileSync(await download.path(), "utf8");
-  expect(suite.match(/from "@playwright\/test"/g)).toHaveLength(1);
-  expect(suite).toMatch(/^test\.describe\(".+", \(\) => \{$/m);
-  expect(suite).toMatch(/^ {2}\/\/ 1\. .+ \(shown at \d+:\d\d\)$/m);
-  await page.getByRole("button", { name: "Copy repro steps" }).click();
-  await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy repro steps" })).toBeVisible({ timeout: 5_000 });
-  const md = await page.evaluate(() => navigator.clipboard.readText());
-  expect(md).toMatch(new RegExp(`^1\\. .+ \\(\\[\\d+:\\d\\d\\]\\((https://www\\.youtube\\.com/watch\\?v=[\\w-]+&t=\\d+s|http://localhost:3000/jobs/${id}\\?view=proof&t=\\d+)\\)\\)$`, "m"));
-  const watch = page.getByRole("button", { name: /^Watch at \d+:\d\d$/ }).nth(1);
-  const at = (await watch.innerText()).match(/(\d+):(\d\d)/)!;
-  const video = page.locator("video");
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0);
-  await watch.click();
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThanOrEqual(+at[1] * 60 + +at[2] - 0.5);
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await noSideScroll(page)).toBe(true);
 });
 
 test("home: the Library link shows in the nav on a phone, even with no recent notes", async ({ page }) => {

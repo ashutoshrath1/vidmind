@@ -1,5 +1,5 @@
 // Notes as Markdown, to paste into a doc or keep. Relative imports only (runs under `node --test`).
-import type { Action, Card, Diagram, LearnResult, Note } from "./api.ts";
+import type { Card, Diagram, LearnResult } from "./api.ts";
 
 // Rounded first, so 59.6 s reads 1:00, not 0:60.
 const clock = (s: number) => `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
@@ -28,52 +28,7 @@ export function toMarkdown(r: LearnResult): string {
   return out.join("\n");
 }
 
-const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-
-/** How soon a deadline falls, as said ("Friday", "Nov 3"), for sorting. The meeting's date isn't known, so a weekday
- * counts as this week; deadlines it can't place come after the ones it can, and no deadline comes last. */
-export function dueRank(deadline: string | null): number {
-  if (!deadline) return 1e6;
-  const s = deadline.toLowerCase();
-  if (/\b(today|tonight|eod|end of (the )?day)\b/.test(s)) return 0;
-  if (/\btomorrow\b/.test(s)) return 1;
-  const day = WEEKDAYS.findIndex((d) => s.includes(d));
-  if (day >= 0) return (/\bnext\b/.test(s) ? 9 : 2) + day;
-  const date = s.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b/);
-  if (date) return 100 + MONTHS.indexOf(date[1]) * 31 + Number(date[2]);
-  return 1e5;
-}
-
-/** Actions soonest first (a stable sort, so equal deadlines keep the order they were said). */
-export const byDeadline = <T extends Pick<Action, "deadline">>(items: T[]) => [...items].sort((a, b) => dueRank(a.deadline) - dueRank(b.deadline));
-
-/** Only Slack's own webhook address; the server checks the same before posting. */
-export const isSlackWebhook = (url: string) => /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+$/.test(url);
-
-const label = (a: Action) => [a.owner, a.deadline && `due ${a.deadline}`].filter(Boolean).join(", ");
-
-/** Meeting outcomes as a Slack message (mrkdwn): decisions, then actions with owner and deadline. */
-export function toSlack(r: LearnResult): string {
-  const items = r.actions ?? [];
-  const out = [`*${r.title}*`];
-  const decisions = items.filter((a) => a.kind === "decision");
-  const actions = byDeadline(items.filter((a) => a.kind === "action"));
-  if (decisions.length) out.push("", "*Decisions*", ...decisions.map((a) => `• ${a.text}`));
-  if (actions.length) out.push("", "*Actions*", ...actions.map((a) => `• ${a.text}${label(a) ? ` (${label(a)})` : ""}`));
-  return out.join("\n");
-}
-
 const cell = (v: string) => `"${v.replaceAll('"', '""')}"`;
-
-/** Action items as a CSV for Jira's importer (Summary, Assignee, Due date, Description). */
-export function toJiraCsv(r: LearnResult): string {
-  const rows = byDeadline((r.actions ?? []).filter((a) => a.kind === "action")).map((a) => {
-    const proof = a.evidence.map((e) => (e.kind === "transcript" ? `Said at ${clock(e.start_seconds)}: ${e.quote}` : `On screen at ${clock(e.start_seconds)}: ${e.text}`));
-    return [a.text, a.owner ?? "", a.deadline ?? "", `From "${r.title}". ${proof.join(" | ")}`].map(cell).join(",");
-  });
-  return ["Summary,Assignee,Due date,Description", ...rows].join("\n");
-}
 
 /** Flashcards for Anki's importer (File → Import): front, back, and the moment in the video that holds the answer. */
 export function toAnkiCsv(cards: Card[], youtubeId?: string | null): string {
@@ -145,81 +100,4 @@ export function toX(r: LearnResult): string {
   const tags: string[] = [];
   for (const tag of hashtags(r)) if (xLength(build(points, [...tags, tag])) <= 280) tags.push(tag);
   return build(points, tags);
-}
-
-/** The second a step starts in the video: its earliest proof. */
-export const shownAt = (n: Note) => (n.evidence.length ? Math.min(...n.evidence.map((e) => e.start_seconds)) : null);
-
-/** A link to second `s`: YouTube's own when the video is there, else the proof view (`proofUrl`, ?view=proof) at it. */
-const videoAt = (r: LearnResult, proofUrl: string, s?: number) =>
-  r.youtube_id
-    ? `https://www.youtube.com/watch?v=${r.youtube_id}${s === undefined ? "" : `&t=${Math.floor(s)}s`}`
-    : `${proofUrl}${s === undefined ? "" : `&t=${Math.floor(s)}`}`;
-
-const oneLine = (t: string) => t.replace(/\s+/g, " ").trim();
-
-/** Scenario titles made unique ("Login", "Login (2)"): Playwright refuses two tests with the same name. */
-const uniqueTitles = (r: LearnResult) => {
-  const seen = new Map<string, number>();
-  return (r.scenarios ?? []).map((sc) => {
-    const t = oneLine(sc.title) || "Flow";
-    const n = (seen.get(t) ?? 0) + 1;
-    seen.set(t, n);
-    return n > 1 ? `${t} (${n})` : t;
-  });
-};
-
-/** Every scenario in one Playwright file: each test sits in a describe named after its flow, under comments giving
- * each step and the second the video shows it. Model imports are hoisted and merged so the file has one of each.
- * shortcut: only single-line imports are hoisted; join multi-line ones if the model starts writing them. */
-export function toTestSuite(r: LearnResult, proofUrl: string): string {
-  const names = new Set(["test", "expect"]);
-  const imports = new Set<string>();
-  const titles = uniqueTitles(r);
-  const blocks = (r.scenarios ?? []).map((sc, i) => {
-    const body: string[] = [];
-    for (const line of sc.playwright.split("\n")) {
-      const pw = line.match(/^\s*import\s*\{([^}]*)\}\s*from\s*["']@playwright\/test["'];?\s*$/);
-      if (pw) pw[1].split(",").map((n) => n.trim()).filter(Boolean).forEach((n) => names.add(n));
-      else if (/^\s*import\s/.test(line)) imports.add(line.trim());
-      else body.push(line);
-    }
-    const steps = sc.steps.map((s, j) => {
-      const at = shownAt(s);
-      return `  // ${j + 1}. ${oneLine(s.text)}${at === null ? "" : ` (shown at ${clock(at)})`}`;
-    });
-    const code = body.join("\n").trim();
-    return [`test.describe(${JSON.stringify(titles[i])}, () => {`, ...steps,
-      // Kept verbatim, not re-indented: indenting would change multi-line strings inside the test.
-      code || "test.fixme(\"write this test from the steps above\", async () => {});",
-      "});"].join("\n");
-  });
-  return [
-    `// Playwright tests for "${oneLine(r.title)}", written by VidMind from the demo video.`,
-    `// Video: ${videoAt(r, proofUrl)}`,
-    "// Each step comment gives the second the video shows it. Set baseURL to your app, then run: npx playwright test",
-    `import { ${[...names].join(", ")} } from "@playwright/test";`,
-    ...imports,
-    "",
-    blocks.join("\n\n"),
-    "",
-  ].join("\n");
-}
-
-/** Repro steps as Markdown: each flow's steps numbered, linked to the second the video shows them, with what the
- * screen showed then as the expected result. */
-export function toReproSteps(r: LearnResult, proofUrl: string): string {
-  const titles = uniqueTitles(r);
-  const out = [`# Repro steps: ${oneLine(r.title)}`, "", `Video: ${videoAt(r, proofUrl)}`, ""];
-  (r.scenarios ?? []).forEach((sc, i) => {
-    out.push(`## ${titles[i]}`, "");
-    sc.steps.forEach((s, j) => {
-      const at = shownAt(s);
-      out.push(`${j + 1}. ${oneLine(s.text)}${at === null ? "" : ` ([${clock(at)}](${videoAt(r, proofUrl, at)}))`}`);
-      const screen = s.evidence.filter((e) => e.kind === "frame").at(-1);
-      if (screen) out.push(`   - Expected: the screen shows “${oneLine(screen.text)}”`);
-    });
-    out.push("");
-  });
-  return out.join("\n");
 }

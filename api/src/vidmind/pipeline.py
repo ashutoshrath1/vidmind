@@ -23,8 +23,8 @@ import numpy as np
 
 from . import frames as fr
 from . import synthesize as syn
-from .schema import (FRAME_WINDOW_S, Chapter, Frame, LearnOutput, LearnResult, MeetOutput, Overview, QuizItem, Rejected, Scenario,
-                     SectionOutput, Segment, TestOutput, VisualOutput, _words, ground, ground_notes, snap_quote)
+from .schema import (FRAME_WINDOW_S, Chapter, Frame, LearnOutput, LearnResult, Overview, QuizItem, Rejected,
+                     SectionOutput, Segment, VisualOutput, _words, ground, ground_notes, snap_quote)
 from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
 
 log = logging.getLogger(__name__)
@@ -153,34 +153,6 @@ def _clip(src: Source, lo: float, hi: float, emit: Emit, task: str, pool: list[s
     return proc.stdout
 
 
-def _mode_output(mode, segments, frames, job_dir, duration, pool, state, emit: Emit = _quiet, src=None) -> None:
-    """Meet: checked decisions and actions. Test: test scenarios whose steps are checked. Same evidence rules as notes."""
-    # A demo is about motion (typing, clicking), so Test mode watches the whole video; Meet reads the talk.
-    whole = _clip(src, 0, duration, emit, mode, pool) if src and mode == "test" else None
-
-    def attempt(model: str):
-        clip = whole if syn.provider(model) == "muse" else None
-        if clip:
-            emit("watch", task=mode, model=model, seconds=round(duration, 2))
-        messages = syn.mode_messages(mode, segments, frames, duration, job_dir, syn.is_vision(model), clip)
-        cls = MeetOutput if mode == "meet" else TestOutput
-        out, raw = syn.ask(messages, model, cls)
-        checked = _check_mode(out, segments, frames, duration)
-        if checked[1]:  # one repair round, as for sections
-            out, _ = syn.ask(syn.repair_messages(messages, raw, checked[1]), model, cls)
-            checked = _check_mode(out, segments, frames, duration)
-        return checked
-
-    try:
-        items, problems, rejected = hedged(_model_order(pool, 0), attempt, mode, emit, mode)
-    except Exception:
-        log.exception("%s output failed; the notes stand alone", mode)
-        return
-    state["actions" if mode == "meet" else "scenarios"] = items
-    state["extra_rejected"].extend(rejected)  # runs alongside _visual; extend, never replace
-    emit(mode, items=len(items), rejected=len(rejected))
-
-
 def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quiet) -> None:
     """Takeaways and a diagram for the whole video. Takeaways and diagram boxes pass the evidence check; edges whose
     boxes were dropped go with them, and a diagram left with fewer than 2 connected boxes is not shown."""
@@ -212,25 +184,6 @@ def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quie
     state["takeaways"], state["diagram"], state["questions"] = takeaways, diagram, questions
     state["extra_rejected"].extend(rejected)
     emit("visual", takeaways=len(takeaways), diagram=diagram.kind if diagram else None)
-
-
-def _check_mode(out, segments, frames, duration) -> tuple[list, list[str], list[Rejected]]:
-    if isinstance(out, MeetOutput):
-        return ground_notes(out.items, segments, frames, duration)
-    kept, problems, rejected = [], [], []
-    for sc in out.scenarios:
-        steps, p, r = ground_notes(sc.steps, segments, frames, duration)
-        problems += [f"{sc.title}: {x}" for x in p]
-        rejected += r
-        if steps:
-            kept.append(Scenario(title=sc.title, steps=steps, playwright=sc.playwright))
-    return kept, problems, rejected
-
-
-CARD_PROMPT = """A clean one-page summary card for a video, in a flat editorial style: off-white background (#f6f6f1),
-near-black text, one vermillion accent (#ff5701), generous margins, large legible type, no photos, no logos.
-Show the title "{title}" at the top, then exactly these lines as a short list, word for word, and no other text:
-{lines}"""
 
 
 def _extras(assemble, job_dir: Path, state: dict, emit: Emit, lock: threading.Lock) -> None:
@@ -558,9 +511,13 @@ def _ground_section(out: SectionOutput, lo: float, segments: list[Segment], fram
     return ground(LearnOutput(title=out.title, chapters=[chapter], quiz=out.quiz), segments, frames, duration)
 
 
-def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, emit: Emit = _quiet,
-        mode: str | None = None) -> LearnResult:
-    """mode: the one the person chose (learn, meet or test); None lets the overview model detect it."""
+CARD_PROMPT = """A clean one-page summary card for a video, in a flat editorial style: off-white background (#f6f6f1),
+near-black text, one vermillion accent (#ff5701), generous margins, large legible type, no photos, no logos.
+Show the title "{title}" at the top, then exactly these lines as a short list, word for word, and no other text:
+{lines}"""
+
+
+def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, emit: Emit = _quiet) -> LearnResult:
     src = src or local_source(job_dir)
     duration = src.duration
     if duration > MAX_DURATION_S:  # uploads are checked earlier; links only know their real length here
@@ -610,7 +567,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             notes_checked=sum(p.checked for p in parts),
             citations_rechecked=sum(p.rechecked for p in parts),
             rejected=rejected,
-            mode=mode or (overview.mode if overview else "learn"),
+            mode=overview.mode if overview else "learn",
             actions=state["actions"],
             scenarios=state["scenarios"],
             card_url=state["card"],
@@ -696,7 +653,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         return [Segment(round(s.start + lo, 2), round(s.end + lo, 2), s.text) for s in local], engine, _since(started)
 
     def whole_video(all_segments: list[Segment], frames: list[Frame], ex: ThreadPoolExecutor) -> None:
-        """Title and summary, then takeaways and diagram (and Meet/Test output) beside each other."""
+        """Title and summary, then takeaways and diagram."""
         try:
             messages = syn.overview_messages(all_segments, frames)
             state["overview"] = hedged(_model_order(pool, len(sections)), lambda m: syn.ask(messages, m, Overview)[0],
@@ -704,12 +661,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             emit("overview", title=state["overview"].title, tldr=state["overview"].tldr)
         except Exception:
             log.exception("overview failed; falling back to the first chapter title")
-        chosen = mode or (state["overview"].mode if state["overview"] else "learn")
-        jobs = [ex.submit(_visual, all_segments, frames, job_dir, duration, pool, state, emit)]
-        if chosen != "learn":
-            jobs.append(ex.submit(_mode_output, chosen, all_segments, frames, job_dir, duration, pool, state, emit, src))
-        for f in jobs:
-            f.exception()  # each logs its own failure; the notes stand without them
+        ex.submit(_visual, all_segments, frames, job_dir, duration, pool, state, emit).exception()  # logs its own failure
 
     all_segments: list[Segment] = []
     # Muse ASR runs ~8 s per audio minute, so sections go out together (5 x 60 s: 10 s, vs 40 s for one 300 s

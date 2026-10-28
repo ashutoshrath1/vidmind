@@ -5,18 +5,6 @@ said, or what was on screen. Click any piece of evidence and the player jumps to
 
 Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 
-## Modes
-
-Pick the kind of video on the home page, or leave it on **Auto** and the model tells from what it hears and sees.
-
-| Mode | For | Adds to the notes |
-|---|---|---|
-| Lecture (`learn`) | lectures, talks, tutorials | takeaways, a diagram of what the video explains, posts for LinkedIn and X |
-| Meeting (`meet`) | meeting recordings | decisions and action items with owners and deadlines, soonest first; "Post to Slack", "Copy for Slack", "Download Jira CSV" |
-| Demo (`test`) | product demos, screen recordings | test scenarios, each with a Playwright test file |
-
-Every mode keeps the notes. Actions and test steps pass the same evidence check as notes.
-
 ## Features
 
 - **Verified notes.** Quotes must match the transcript within ±5 s and screen-text citations a real frame within
@@ -31,7 +19,7 @@ Every mode keeps the notes. Actions and test steps pass the same evidence check 
 - **Summary card.** A Muse Image card from the checked result; its text is read back and the card is dropped
   unless every line matches.
 - **Posts.** LinkedIn and X posts built from the takeaways, with a 1080x1350 image.
-- **Exports.** Markdown (copy), Slack message (copied, or posted through your incoming webhook), Jira CSV, Playwright tests, the card image. Timestamps link to the
+- **Exports.** Markdown (copy) and the card image. Timestamps link to the
   exact second on YouTube.
 - **Behind the scenes.** Every step is traced live (transcript, keyframes and their text, each model call and
   citation check) and can be replayed at half speed.
@@ -40,7 +28,7 @@ Every mode keeps the notes. Actions and test steps pass the same evidence check 
 
 | Model | Does |
 |---|---|
-| Muse Spark 1.3 | notes, overview and mode detection, takeaways and diagram, Meet/Test output, Ask, point-and-ask, web search (fact-check, sources, web answers); reads keyframes and short clips |
+| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask, web search (fact-check, sources, web answers); reads keyframes and short clips |
 | Muse Spark 1.2 | backup when 1.3 is slow or fails (hedged); first for listen-first sections, where it was steadier |
 | Muse Voice Transcribe | speech to text, in ~6 s pieces sent in parallel, diarized, English and Hindi |
 | SAM 3.1 | finds diagrams in keyframes and outlines what was pointed at |
@@ -61,7 +49,7 @@ FastAPI (api/)  ── validate → reuse a finished job for the same video and 
      │    sound at once, and the transcript checks their quotes afterwards)
      ├─ in parallel: scene detection → ≤30 keyframes → screen text (OCR)
      ├─ per section: notes, hedged across models; first grounded result wins; published as soon as it's checked
-     ├─ whole video: title, summary and mode; takeaways and diagram; Meet or Test output
+     ├─ whole video: title and summary; takeaways and diagram
      └─ after the notes: web fact-check, web sources, summary card
 ```
 
@@ -71,9 +59,6 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
 
 - The sample (a real Muse run of a 4:44 lecture): all notes in **10.35 s**; **19 of 19** notes passed the
   evidence check. The e2e tests check it stays under 11 s.
-- `scripts/eval_modes.py` on the synthetic fixtures (Oct 27): action-item F1 **1.0** (5/5, one shown only on a
-  slide); **3/3** generated Playwright tests pass against the recorded app; **47 min** saved per hour of video
-  (reading the notes vs watching, on the 5-minute lecture). Details: `docs/MODES_PLAN.md`.
 - Speech on 105 s of lecture audio (M2 Air): Parakeet TDT 0.6B 2.5 s, faster-whisper base 4.1 s, faster-whisper
   small 19.1 s.
 
@@ -118,7 +103,6 @@ cd api && uv run pytest                                          # API, pipeline
 cd web && npm test                                               # pure functions in web/lib
 cd scripts/eval_demo && npx playwright test -c e2e.config.ts     # end to end, against the running app
 python3 scripts/eval.py api/data/jobs/<id>/result.json fixtures/fixture.annotations.json   # Learn fixture
-uv run --project api --env-file .env python scripts/eval_modes.py                         # Meet/Test (~$0.10)
 ```
 
 The Learn fixture (`scripts/make_fixture.py`) has one fact that is **shown but never spoken**, so a
@@ -128,30 +112,15 @@ transcript-only summary cannot get it.
 
 | Method | Path | |
 |---|---|---|
-| POST | `/jobs` | multipart `file`, optional `mode` (`learn`, `meet`, `test`); returns `{id, reused}` |
-| POST | `/jobs/from-url` | JSON `{url, rights_confirmed, mode?}`; returns `{id, title, reused}` |
+| POST | `/jobs` | multipart `file`; returns `{id, reused}` |
+| POST | `/jobs/from-url` | JSON `{url, rights_confirmed}`; returns `{id, title, reused}` |
 | GET | `/jobs/{id}` | `{status, error, sections_done, sections_total}` |
 | GET | `/jobs/{id}/events` | status and trace as server-sent events until the job ends |
 | GET | `/jobs/{id}/result` | the result JSON; partial as soon as one section is done |
 | POST | `/jobs/{id}/ask` | `{question}` → `{answer, found, evidence, web, sources}` |
 | POST | `/jobs/{id}/point` | `{frame_url, x, y, question}` → an answer about that spot |
 | GET | `/jobs/{id}/video`, `/jobs/{id}/frames/{n}.jpg` | media |
-| POST | `/jobs/{id}/actions/slack` | `{webhook, origin?}` posts decisions and actions to a `https://hooks.slack.com/services/...` webhook |
 | DELETE | `/jobs/{id}` | removes the job's files |
-| POST | `/mcp` | MCP (Streamable HTTP), read-only: see below |
 
 `sample` works as a read-only job id.
 
-## Use the notes from Claude or ChatGPT (MCP)
-
-The API serves a read-only MCP server at `http://localhost:8000/mcp` (Streamable HTTP, no sign-in). Its tools:
-`get_notes(job_id)` (title, summary, takeaways and notes, each with its evidence seconds), `get_actions(job_id)`
-(decisions and actions with owner and deadline) and `ask_video(job_id, question)` (a checked answer that cites
-seconds; it calls the model, so it spends credit). `job_id` is the id in a result link, or `sample`.
-
-- **Claude Code:** `claude mcp add --transport http vidmind http://localhost:8000/mcp`
-- **Claude (custom connector) or ChatGPT (developer mode connector):** these call the server from the internet, so
-  they need a public HTTPS URL. Run a tunnel to port 8000 that sets the Host header to `localhost:8000` (the MCP
-  SDK's DNS-rebinding guard accepts only localhost), e.g. `ngrok http 8000 --host-header=localhost:8000`, and add
-  `https://<tunnel>/mcp` as the connector URL. Anyone with that URL can read any job whose id they know, and ask
-  questions on your model credit, so stop the tunnel when you're done.

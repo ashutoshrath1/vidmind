@@ -25,14 +25,6 @@ const sizeLabel = (bytes: number) => {
 };
 const typicalYoutube = estimate({ duration: 300, height: 360, subtitles: true }).total;
 
-// The kind of video, sent with the job; Auto (no value) lets the model tell from what it hears and sees.
-const MODES = [
-  ["", "spark", "Auto", "Picks the kind of video from what it hears and sees"],
-  ["learn", "lecture", "Lecture", "Notes, diagram, posts"],
-  ["meet", "meeting", "Meeting", "Owners and deadlines, to Slack or Jira"],
-  ["test", "demo", "Demo", "Playwright tests for each flow"],
-] as const;
-type Mode = (typeof MODES)[number][0];
 const NAV = [["/about", "How it works"], ["/jobs/sample", "Example"], ["/library", "Library"]] as const;
 
 export default function Home() {
@@ -153,7 +145,6 @@ function RotatingWord() {
 /** One input, the way you'd hand a task to an assistant: paste a link or add a file, then see the plan and the time. */
 function Composer({ onDone }: { onDone: (body: Created) => void }) {
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<Mode>("");
   const [file, setFile] = useState<File | null>(null);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +160,6 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
     setChecking(null);
     setProgress(null);
     setText("");
-    setMode("");
     setFile(null);
     setMeta(null);
     setError(null);
@@ -269,7 +259,6 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
     };
     const form = new FormData();
     form.append("file", file);
-    if (mode) form.append("mode", mode);
     xhr.send(form);
   }
 
@@ -280,7 +269,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       const res = await fetch(`${API_URL}/jobs/from-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: text.trim(), rights_confirmed: true, mode: mode || undefined }), // the button says what clicking confirms
+        body: JSON.stringify({ url: text.trim(), rights_confirmed: true }), // the button says what clicking confirms
         signal: AbortSignal.timeout(90_000),
       });
       const body = await res.json();
@@ -374,21 +363,6 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
             <div className="lane-fill h-full rounded-full bg-scan" style={{ width: `${share * 100}%` }} />
           </div>
         )}
-      </div>
-
-      <div className="space-y-2">
-      <fieldset disabled={busy} aria-describedby="mode-hint" className="flex flex-wrap gap-2">
-        <legend className="sr-only">Kind of video</legend>
-        {MODES.map(([value, icon, name]) => (
-          <label key={name}
-            className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm transition hover:ring-scan ${mode === value ? "bg-scan-soft ring-2 ring-scan" : "glass ring-1 ring-rule"} has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-scan has-disabled:cursor-default has-disabled:opacity-60`}>
-            <input type="radio" name="mode" value={value} checked={mode === value} onChange={() => setMode(value)} className="sr-only" />
-            <Icon name={icon} className="size-4 text-scan-ink" /><span className="font-display font-medium">{name}</span>
-          </label>
-        ))}
-      </fieldset>
-      {/* Visible, so touch and keyboard users see what each kind changes; live, so arrowing through announces it. */}
-      <p id="mode-hint" aria-live="polite" className="px-1 text-sm text-graphite">{MODES.find(([value]) => value === mode)?.[3]}</p>
       </div>
 
       {file && (

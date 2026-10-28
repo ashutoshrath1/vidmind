@@ -79,7 +79,6 @@ export type JobStatus = {
   sections_total?: number;
   created_at?: number;
   shared?: boolean; // reused by someone who added the same video, so it can't be deleted
-  keep_until?: number | null; // kept past the default 24 hours (up to 30 days), in server seconds
   server_time?: number; // sent with each event, to line the server's clock up with this browser's
 };
 

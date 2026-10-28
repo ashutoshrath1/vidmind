@@ -69,23 +69,6 @@ test("exports notes as Markdown with timestamps that link to the moment", async 
   assert.match(md, /1\. Target\?\n {3}- Answer: 40%/);
 });
 
-test("exports meeting actions for Slack and Jira, quoting commas and quotes safely", async () => {
-  const { toSlack, toJiraCsv } = await import("./export.ts");
-  const ev = [{ kind: "transcript" as const, start_seconds: 41, quote: "send the draft to legal" }];
-  const r = {
-    title: "Q4 sync", tldr: "", source: "live" as const, duration_seconds: 60, transcriber: "t", model: "m", dropped_notes: 0,
-    chapters: [], quiz: [], mode: "meet" as const,
-    actions: [
-      { kind: "decision" as const, text: "Pro stays at $12.", owner: null, deadline: null, evidence: ev, uncertain: false, uncertain_reason: null },
-      { kind: "action" as const, text: 'Send the "pricing" draft, v2, to legal.', owner: "Priya", deadline: "Friday", evidence: ev, uncertain: false, uncertain_reason: null },
-    ],
-  };
-  assert.equal(toSlack(r), "*Q4 sync*\n\n*Decisions*\n• Pro stays at $12.\n\n*Actions*\n• Send the \"pricing\" draft, v2, to legal. (Priya, due Friday)");
-  const csv = toJiraCsv(r).split("\n");
-  assert.equal(csv.length, 2); // decisions are not tickets
-  assert.equal(csv[1], '"Send the ""pricing"" draft, v2, to legal.","Priya","Friday","From ""Q4 sync"". Said at 0:41: send the draft to legal"');
-});
-
 test("diagrams become Mermaid with safe ids and labels; posts use only takeaways and fit X", async () => {
   const { toMermaid, toLinkedIn, toX } = await import("./export.ts");
   const ev = [{ kind: "transcript" as const, start_seconds: 1, quote: "q" }];

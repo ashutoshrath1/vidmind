@@ -19,7 +19,6 @@ DATA_DIR = Path(os.environ.get("VIDMIND_DATA", Path(__file__).parents[2] / "data
 SAMPLE_DIR = Path(__file__).parents[3] / "samples"
 SAMPLE_ID = "sample"
 RETENTION_S = 24 * 3600
-KEEP_MAX_DAYS = 30  # a kept job still goes this long after it was created, however often it is kept again
 DONE, FAILED = "done", "failed"
 # Jobs run in parallel: most of a job is waiting on hosted models. Local ASR is serialised in transcribe.py.
 WORKERS = int(os.environ.get("VIDMIND_WORKERS", "3"))
@@ -74,7 +73,7 @@ def create(**fields) -> tuple[str, Path]:
     return job_id, d
 
 
-def reuse_done(cache_key: str, mode: str | None = None) -> str | None:
+def reuse_done(cache_key: str) -> str | None:
     """A finished job for the same video and pipeline version, so it is not processed twice. Marks it shared:
     whoever submitted the same video now has its id too, so nobody may delete it for everyone else.
     shortcut: scans job folders (24 h retention keeps them few); keep an index if jobs grow to thousands."""
@@ -86,18 +85,9 @@ def reuse_done(cache_key: str, mode: str | None = None) -> str | None:
         except (OSError, json.JSONDecodeError):
             continue
         if status.get("cache_key") == cache_key and status.get("status") == DONE:
-            if mode and _result_mode(d) != mode:
-                continue
             write_status(d, shared=True)
             return status["id"]
     return None
-
-
-def _result_mode(d: Path) -> str | None:
-    try:
-        return json.loads((d / "result.json").read_text()).get("mode")
-    except (OSError, json.JSONDecodeError):
-        return None
 
 
 def delete(job_id: str) -> None:
@@ -106,14 +96,6 @@ def delete(job_id: str) -> None:
     if read_status(job_id).get("shared"):
         raise PermissionError("Others opened this same video, so it stays until it expires after 24 hours")
     shutil.rmtree(job_dir(job_id))
-
-
-def keep(job_id: str, days: int | None) -> float | None:
-    """Keep the job `days` from now (None: back to the default 24 hours). Returns keep_until."""
-    status = read_status(job_id)
-    until = min(time.time() + days * 86400, status["created_at"] + KEEP_MAX_DAYS * 86400) if days else None
-    write_status(job_dir(job_id), keep_until=until)
-    return until
 
 
 def enqueue(job_id: str) -> None:
@@ -139,7 +121,7 @@ def _work() -> None:
                 fetch.download(url, d)
                 emit("stage", name="fetch", state="end", seconds=round(time.monotonic() - started, 2))
             update = lambda step=None, **kw: write_status(d, **({"status": step} if step else {}), **kw)  # noqa: E731
-            pipeline.run(d, update, src, emit, read_status(job_id).get("mode"))
+            pipeline.run(d, update, src, emit)
             emit("done")  # before the status: the event stream closes as soon as it reads "done"
             write_status(d, status=DONE)
         except Exception as e:
@@ -179,7 +161,7 @@ def sweep(restart: bool = True) -> None:
         except (OSError, json.JSONDecodeError):
             shutil.rmtree(d, ignore_errors=True)
             continue
-        if now > max(status.get("created_at", 0) + RETENTION_S, status.get("keep_until") or 0):
+        if now > status.get("created_at", 0) + RETENTION_S:
             shutil.rmtree(d, ignore_errors=True)
         elif restart and status.get("status") not in (DONE, FAILED):
             write_status(d, status=FAILED, error="Server restarted before this job finished")

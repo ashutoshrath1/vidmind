@@ -154,14 +154,6 @@ class VisualOutput(BaseModel):
     diagram: Diagram | None = None
 
 
-class MeetOutput(BaseModel):
-    items: list[Action] = []
-
-
-class TestOutput(BaseModel):
-    scenarios: list[Scenario] = []
-
-
 class Rejected(BaseModel):
     """A note the model wrote that failed the evidence check; kept so the UI can show what was caught."""
 

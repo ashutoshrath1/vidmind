@@ -197,7 +197,7 @@ export default function Library() {
                 </div>
                 <p className="flex flex-wrap gap-1.5">
                   {mode && <Chip><Icon name={mode[0]} className="size-3.5" />{mode[1]}</Chip>}
-                  {expired ? <Chip tone="strike">Expired</Chip> : r.keep_until ? <Chip tone="proof">Kept until {when.format(r.keep_until)}</Chip> : null}
+                  {expired ? <Chip tone="strike">Expired</Chip> : null}
                 </p>
               </li>
             );
