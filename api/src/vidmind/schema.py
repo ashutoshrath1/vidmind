@@ -68,16 +68,6 @@ class QuizItem(BaseModel):
     evidence_start_seconds: float
 
 
-class Card(BaseModel):
-    """A study flashcard written from one checked note or takeaway; kept only if that note and second are real."""
-
-    front: str = Field(min_length=3, max_length=300)
-    back: str = Field(min_length=1, max_length=500)
-    kind: Literal["recall", "cloze"] = "recall"
-    start_seconds: float
-    source_note: str
-
-
 class SectionOutput(BaseModel):
     """What the model returns for one time-slice of the video."""
 
@@ -159,22 +149,6 @@ class Rejected(BaseModel):
 
     text: str
     reasons: list[str]
-
-
-class Answer(BaseModel):
-    """What the model returns for an "Ask the video" question."""
-
-    answer: str
-    found: bool = True
-    evidence: list[Evidence] = []
-    # Set by the server, for the page: which model answered, how long it took, and citations sent back for repair.
-    model: str | None = None
-    seconds: float | None = None
-    rechecked: int = 0
-    # Not in the video: a web answer, labelled as such, with the pages it came from ({url, title}).
-    web: bool = False
-    sources: list[dict] = []
-    box: list[int] | None = None  # point and ask: what the viewer pointed at, in the frame's pixels
 
 
 class LearnOutput(BaseModel):
@@ -319,28 +293,3 @@ def ground_notes[N: Note](
     wrapped = LearnOutput(title="", chapters=[Chapter(title="", start_seconds=0, notes=notes)], quiz=[])
     out, problems, dropped = ground(wrapped, segments, frames, duration)
     return (out.chapters[0].notes if out.chapters else []), problems, dropped
-
-
-DECK_MATCH_RATIO = 0.9  # a card's source_note must be (almost) word for word one of the checked notes
-DECK_MAX_CARDS = 15
-
-
-def check_deck(cards: list[dict], notes: list[Note]) -> tuple[list[Card], int]:
-    """Keep a card only if its source_note is one of `notes` and its second is one of that note's evidence seconds
-    (within FRAME_WINDOW_S). Kept cards carry the note's exact text and second. Returns (kept, number dropped)."""
-    kept: list[Card] = []
-    for raw in cards:
-        try:
-            card = Card.model_validate(raw)
-        except ValidationError:
-            continue
-        ratio, note = max(((SequenceMatcher(None, _words(card.source_note), _words(n.text)).ratio(), n) for n in notes),
-                          key=lambda x: x[0], default=(0.0, None))
-        if note is None or ratio < DECK_MATCH_RATIO or not note.evidence:
-            continue
-        at = min((e.start_seconds for e in note.evidence), key=lambda t: abs(t - card.start_seconds))
-        if abs(at - card.start_seconds) > FRAME_WINDOW_S or (card.kind == "cloze" and "___" not in card.front):
-            continue
-        if len(kept) < DECK_MAX_CARDS:
-            kept.append(card.model_copy(update={"source_note": note.text, "start_seconds": at}))
-    return kept, len(cards) - len(kept)

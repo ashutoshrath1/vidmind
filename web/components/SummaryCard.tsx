@@ -2,12 +2,6 @@
 
 import type { LearnResult } from "@/lib/api";
 
-export function save(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  Object.assign(document.createElement("a"), { href: url, download: name }).click();
-  URL.revokeObjectURL(url);
-}
-
 /** The Muse Image card. The server reads its text back and only keeps it if it matches the checked result. */
 export function SummaryCard({ result, base }: { result: LearnResult; base: string }) {
   if (!result.card_url) return null;

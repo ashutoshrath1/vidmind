@@ -17,8 +17,6 @@ export type Chapter = {
 };
 export type QuizItem = { question: string; answer: string; evidence_start_seconds: number };
 // A study flashcard; the server keeps it only if source_note is a checked note and start_seconds one of its seconds.
-export type Card = { front: string; back: string; kind: "recall" | "cloze"; start_seconds: number; source_note: string };
-export type Deck = { cards: Card[]; dropped: number };
 
 export type LearnResult = {
   title: string;
@@ -54,18 +52,6 @@ export type Diagram = {
 };
 export type Scenario = { title: string; steps: Note[]; playwright: string };
 export type Rejected = { text: string; reasons: string[] };
-
-export type Answer = {
-  answer: string;
-  found: boolean;
-  evidence: Evidence[];
-  model?: string | null;
-  seconds?: number | null;
-  rechecked?: number;
-  web?: boolean; // not in the video: answered from a web search, with its sources
-  sources?: { url: string; title: string }[];
-  box?: number[] | null; // point and ask: what was pointed at, in the frame's pixels
-};
 
 export type JobStatus = {
   id: string;

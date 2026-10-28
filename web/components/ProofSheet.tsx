@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Chip, EvidenceChip, type Seek, TimeButton } from "@/components/ui";
-import { type Answer, formatSeconds, formatTime } from "@/lib/api";
+import { Chip, type Seek, TimeButton } from "@/components/ui";
+import { formatSeconds, formatTime } from "@/lib/api";
 import type { View } from "@/lib/trace";
 
 /** The keyframes as a contact sheet. Each frame shows the scan line while OCR reads it, then what it found. */
@@ -74,7 +74,6 @@ export default function ProofSheet({ view, base, seek }: { view: View; base: str
                 <Chip tone="scan">Reading</Chip>
               )}
             </div>
-            <PointAsk key={picked.url} base={base} url={picked.url} at={picked.at} seek={seek} />
             {picked.read?.figure && picked.read.box && (
               <figure className="grid gap-2 sm:grid-cols-2">
                 <span className="relative block overflow-hidden rounded">
@@ -110,64 +109,5 @@ function Outline({ box, src }: { box: [number, number, number, number]; src: str
   return (
     <span aria-hidden className="pop absolute rounded-sm ring-2 ring-scan shadow-[0_0_0_9999px_rgb(0_0_0/0.35)]"
       style={{ left: `${(100 * x1) / size[0]}%`, top: `${(100 * y1) / size[1]}%`, width: `${(100 * (x2 - x1)) / size[0]}%`, height: `${(100 * (y2 - y1)) / size[1]}%` }} />
-  );
-}
-
-/** Point and ask: click anything on the frame. The segmentation model outlines what was clicked, and the notes model
- * explains it from the frame, a close-up and what was said around then, checked like any answer. */
-function PointAsk({ base, url, at, seek }: { base: string; url: string; at: number; seek: Seek }) {
-  const [spot, setSpot] = useState<{ x: number; y: number } | null>(null);
-  const [question, setQuestion] = useState("What is this?");
-  const [busy, setBusy] = useState(false);
-  const [answer, setAnswer] = useState<Answer | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function ask() {
-    if (!spot) return;
-    setBusy(true);
-    setError(null);
-    const res = await fetch(`${base}/point`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ frame_url: url, x: spot.x, y: spot.y, question }) }).catch(() => null);
-    setBusy(false);
-    if (res?.ok) setAnswer(await res.json());
-    else setError("Couldn't answer that. Try another spot.");
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-graphite">👆 Click anything on the frame to ask about it.</p>
-      <button type="button" aria-label={`Frame at ${formatTime(at)}: click a spot to ask about it`}
-        onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          setSpot({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
-          setAnswer(null);
-        }}
-        className={`relative block w-full cursor-crosshair overflow-hidden rounded ring-1 ring-rule ${busy ? "scanning" : ""}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
-        <img src={`${base}/${url}`} alt="" className="w-full" />
-        {answer?.box && <Outline box={answer.box as [number, number, number, number]} src={`${base}/${url}`} />}
-        {spot && !answer && (
-          <span aria-hidden className="pop absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-scan shadow-[0_0_0_4px_rgb(139_123_255/0.35)]"
-            style={{ left: `${spot.x * 100}%`, top: `${spot.y * 100}%` }} />
-        )}
-      </button>
-      {spot && (
-        <form onSubmit={(e) => { e.preventDefault(); void ask(); }} className="flex gap-2">
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={300} aria-label="Your question about the spot"
-            className="min-h-11 min-w-0 flex-1 rounded-full bg-sheet px-4 text-sm ring-1 ring-rule focus:ring-scan focus:outline-none" />
-          <Button type="submit" disabled={busy || question.trim().length < 2} working={busy}>Ask</Button>
-        </form>
-      )}
-      {error && <p className="text-sm text-strike">{error}</p>}
-      {answer && (
-        <div className="arrive space-y-2 rounded-lg bg-sheet p-3 ring-1 ring-rule">
-          <p className="leading-relaxed">{answer.answer}</p>
-          <p className="flex flex-wrap items-center gap-1.5">
-            {answer.found ? <Chip tone="proof">Checked against the video</Chip> : <Chip>Not in this video</Chip>}
-            {answer.evidence.map((e, i) => <EvidenceChip key={i} evidence={e} base={base} seek={seek} />)}
-          </p>
-        </div>
-      )}
-    </div>
   );
 }

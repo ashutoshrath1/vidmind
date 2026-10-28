@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import AskPanel from "@/components/AskPanel";
 import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import ModelsUsed from "@/components/ModelsUsed";
-import { SummaryCard } from "@/components/ModeOutput";
+import { SummaryCard } from "@/components/SummaryCard";
 import ProofSheet from "@/components/ProofSheet";
 import { ChapterView, SectionLive, chapterId } from "@/components/Sections";
 import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
-import Study from "@/components/Study";
 import Timeline from "@/components/Timeline";
 import { Button, Chip, type Seek, YT_ORIGIN, usePlayer } from "@/components/ui";
 import { type JobStatus, type LearnResult, formatTime, jobUrl } from "@/lib/api";
@@ -33,17 +31,14 @@ type Props = {
   onReplay?: () => void;
 };
 
-type Tab = "notes" | "study" | "frames" | "ask" | "trace";
+type Tab = "notes" | "frames" | "trace";
 
 export default function Workspace({ jobId, at, job, result, view, now, error, replaying, celebrate, onReplay }: Props) {
   const router = useRouter();
   const [picked, setTab] = useState<Tab | null>(null);
   const tabs: [Tab, string, number | null][] = [
     ["notes", "Notes", null],
-    // Flashcards are written from the finished notes and takeaways, so the tab waits for them.
-    ...(result && !result.pending && result.chapters.some((c) => c.notes.length) ? [["study", "Study", null] as [Tab, string, null]] : []),
     ["frames", "Keyframes", view.frames.length || null],
-    ["ask", "Ask the video", null],
     ["trace", "Behind the scenes", null],
   ];
   const tab = picked ?? "notes";
@@ -117,7 +112,7 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
           )}
         </section>
 
-        <section aria-label="Notes, quiz and questions" className="min-w-0">
+        <section aria-label="Notes and keyframes" className="min-w-0">
           {(result?.tldr || view.overview.result?.tldr) && (
             <div className="arrive mb-6 border-l-4 border-scan pl-4">
               <h2 className="font-display text-sm font-semibold text-scan-ink">In short</h2>
@@ -141,15 +136,11 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
 
           {tab === "notes" && result && !replaying && <Highlights result={result} base={base} seek={seek} />}
           {tab === "notes" && <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />}
-          {tab === "study" && result && <Study jobId={jobId} base={base} seek={seek} youtubeId={youtubeId} title={title} />}
           {tab === "frames" && (
             <div className="space-y-6">
               <ProofSheet view={view} base={base} seek={seek} />
               <ScreenText view={view} base={base} seek={seek} />
             </div>
-          )}
-          {tab === "ask" && (
-            <AskPanel base={base} seek={seek} ready={!running && !!result} view={view} questions={result?.questions ?? []} keyTerms={result?.chapters.flatMap((c) => c.key_terms) ?? []} />
           )}
           {tab === "trace" && <Timeline view={view} now={now} running={running} />}
         </section>

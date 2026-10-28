@@ -5,7 +5,7 @@ import ThemeSwitch from "@/components/ThemeSwitch";
 
 export const metadata = { title: "Library | VidMind" };
 
-/** Every note this browser made, and one question asked across them. No account: the list lives in this browser. */
+/** Every note this browser made. No account: the list lives in this browser. */
 export default function LibraryPage() {
   return (
     <main className="page-enter flex min-h-dvh w-full flex-col">

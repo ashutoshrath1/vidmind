@@ -14,7 +14,7 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "VidMind",
-  description: "Notes and a quiz from a lecture or demo video, with the exact moment behind every point",
+  description: "Notes from any video, with the exact moment behind every point",
 };
 
 // The browser's own chrome (address bar, overscroll) matches the page in each theme.

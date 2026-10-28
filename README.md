@@ -10,10 +10,7 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 - **Verified notes.** Quotes must match the transcript within ±5 s and screen-text citations a real frame within
   ±2 s. One repair round; notes that still fail are removed (never shown unverified) and listed with the reason.
   Notes that rest on hard-to-read screen text are labelled **Uncertain**.
-- **Keyframes and point-and-ask.** Up to 30 scene-change keyframes with their screen text. Point at part of a
-  keyframe and ask about it; SAM 3.1 outlines what you pointed at.
-- **Ask the video.** Answers cite the transcript or a keyframe and go through the same check.
-  When the video doesn't answer it, it says so; it never answers from the web.
+- **Keyframes.** Up to 30 scene-change keyframes with their screen text; SAM 3.1 finds diagrams and crops them.
 - **Diagram.** When the video explains a system or flow, a Mermaid diagram whose boxes each cite evidence.
 - **Summary card.** A Muse Image card from the checked result; its text is read back and the card is dropped
   unless every line matches.
@@ -26,7 +23,7 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 
 | Model | Does |
 |---|---|
-| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask; reads keyframes and short clips |
+| Muse Spark 1.3 | notes, overview, takeaways and diagram; reads keyframes and short clips |
 | Muse Spark 1.2 | backup when 1.3 is slow or fails (hedged); first for listen-first sections, where it was steadier |
 | Muse Voice Transcribe | speech to text, in ~6 s pieces sent in parallel, diarized, English and Hindi |
 | SAM 3.1 | finds diagrams in keyframes and outlines what was pointed at |
@@ -115,8 +112,6 @@ transcript-only summary cannot get it.
 | GET | `/jobs/{id}` | `{status, error, sections_done, sections_total}` |
 | GET | `/jobs/{id}/events` | status and trace as server-sent events until the job ends |
 | GET | `/jobs/{id}/result` | the result JSON; partial as soon as one section is done |
-| POST | `/jobs/{id}/ask` | `{question}` → `{answer, found, evidence, web, sources}` |
-| POST | `/jobs/{id}/point` | `{frame_url, x, y, question}` → an answer about that spot |
 | GET | `/jobs/{id}/video`, `/jobs/{id}/frames/{n}.jpg` | media |
 | DELETE | `/jobs/{id}` | removes the job's files |
 

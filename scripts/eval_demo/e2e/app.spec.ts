@@ -72,39 +72,14 @@ test.describe("result page", () => {
     await expect(page.getByText("Read in")).toHaveCount(0);
   });
 
-  test("point and ask: click a spot on a keyframe, get an outlined, checked answer", async ({ page }) => {
-    await page.getByRole("tab", { name: /Keyframes/ }).click();
-    await page.getByRole("button", { name: /Keyframe at/ }).first().click();
-    const frame = page.getByRole("button", { name: /click a spot to ask about it/ });
-    await frame.click({ position: { x: 200, y: 120 } });
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await expect(page.getByText(/Checked against the video|Not in this video/).last()).toBeVisible({ timeout: 60_000 });
-  });
-
-  test("tabs: keyframes, ask suggestions, behind the scenes", async ({ page }) => {
+  test("tabs: keyframes, behind the scenes", async ({ page }) => {
     await page.getByRole("tab", { name: /Keyframes/ }).click();
     await expect(page.getByText("Tap a frame for its text")).toBeVisible();
-    await page.getByRole("tab", { name: "Ask the video" }).click();
-    await expect(page.getByRole("button", { name: /\?/ }).first()).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Ask the video" })).toHaveCount(0);
     await page.getByRole("tab", { name: "Behind the scenes" }).click();
     const chart = page.getByRole("region", { name: "The run, step by step" });
     await expect(chart.getByText("Notes", { exact: true })).toBeVisible();
     await expect(chart.getByText("Transcript", { exact: true })).toBeVisible();
-  });
-
-  test("ask: the answer appears under the box, and the other suggestions move below it as what to ask next", async ({ page }) => {
-    await page.route("**/jobs/sample/ask", (r) => r.fulfill({ json: { answer: "Stubbed answer.", found: false, evidence: [] } }));
-    await page.getByRole("tab", { name: "Ask the video" }).click();
-    const first = page.getByRole("button", { name: /\?$/ }).first();
-    const asked = (await first.innerText()).trim();
-    await first.click();
-    const answer = page.getByText("Stubbed answer.");
-    await expect(answer).toBeVisible();
-    const next = page.getByRole("heading", { name: "Ask next" });
-    await expect(next).toBeVisible();
-    expect((await next.boundingBox())!.y).toBeGreaterThan((await answer.boundingBox())!.y);
-    await expect(page.getByRole("button", { name: asked })).toHaveCount(0); // an asked question isn't suggested again
-    await expect(page.getByText("Not in this video", { exact: true })).toBeVisible();
   });
 
   test("models are open by default; models are named from the run log", async ({ page }) => {
@@ -166,7 +141,7 @@ test("home → result → VidMind logo shows the home page again, and stays ther
 
 test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-anywhere", async ({ page }) => {
   await page.goto("/about");
-  for (const name of ["Notes with proof", "The diagram it explains", "Point and ask"]) {
+  for (const name of ["Notes with proof", "The diagram it explains"]) {
     const img = page.getByRole("img", { name: new RegExp(`^${name}: a real VidMind result`) });
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
@@ -190,27 +165,6 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
   await expect(page.getByLabel("Video link")).toHaveValue("https://www.youtube.com/watch?v=WeY-ZnRofsk");
 });
 
-test("study: flip a card, Again plays the moment that holds the answer, Got it counts it learned", async ({ page }) => {
-  // A stand-in YouTube player that records the commands the page sends it.
-  await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html",
-    body: "<script>window.got = []; addEventListener('message', (e) => got.push(JSON.parse(e.data)));</script>" }));
-  await page.goto("/jobs/sample");
-  const deck = page.waitForResponse((r) => r.url().endsWith("/jobs/sample/deck"));
-  await page.getByRole("tab", { name: "Study" }).click({ timeout: 15_000 });
-  const { cards } = await (await deck).json(); // the saved sample deck: no model call
-  await expect(page.getByText(`${cards.length} due now`)).toBeVisible();
-  await page.keyboard.press("Space"); // the card has focus
-  await expect(page.getByRole("button", { name: `Answer: ${cards[0].back}. Show the question` })).toBeVisible();
-  await page.getByRole("button", { name: /^Again/ }).click();
-  const player = page.frame({ url: /youtube-nocookie/ })!;
-  await expect.poll(() => player.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got))
-    .toContainEqual({ event: "command", func: "seekTo", args: [cards[0].start_seconds, true] });
-  await page.getByRole("button", { name: /^Question:/ }).click();
-  await page.keyboard.press("2");
-  await expect(page.getByText("1 learned")).toBeVisible();
-  expect(await noSideScroll(page)).toBe(true);
-});
-
 test("screen text: search a slide word, see it marked, click plays that moment; no match says so", async ({ page }) => {
   await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html",
     body: "<script>window.got = []; addEventListener('message', (e) => got.push(JSON.parse(e.data)));</script>" }));
@@ -229,24 +183,6 @@ test("screen text: search a slide word, see it marked, click plays that moment; 
   await expect(vault.getByRole("button", { name: "Copy all screen text" })).toBeVisible();
 });
 
-test("study: a failed deck request can be retried, and grading the last card keeps keyboard focus", async ({ page }) => {
-  let fail = true;
-  await page.route("**/jobs/sample/deck", (r) => (fail ? r.fulfill({ status: 500, contentType: "text/plain", body: "Internal Server Error" }) : r.fallback()));
-  await page.goto("/jobs/sample");
-  await page.getByRole("tab", { name: "Study" }).click({ timeout: 15_000 });
-  await expect(page.getByRole("alert").filter({ hasText: "Request failed (500)." })).toBeVisible();
-  fail = false;
-  const deck = page.waitForResponse((r) => r.url().endsWith("/jobs/sample/deck") && r.ok());
-  await page.getByRole("button", { name: "Try again" }).click();
-  const { cards } = await (await deck).json();
-  for (let i = 0; i < cards.length; i++) {
-    await page.getByRole("button", { name: /^Question:/ }).focus();
-    await page.keyboard.press("Space");
-    await page.keyboard.press("2");
-  }
-  await expect(page.getByRole("status").filter({ hasText: "Nothing due now." })).toBeFocused();
-});
-
 test("home: the Library link shows in the nav on a phone, even with no recent notes", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -256,31 +192,17 @@ test("home: the Library link shows in the nav on a phone, even with no recent no
   expect(await noSideScroll(page)).toBe(true);
 });
 
-test("library: the sample is listed after visiting it; ask across it, and a citation opens the video at that second", async ({ page }) => {
-  await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html", body: "<p>player</p>" }));
-  // The live answer costs Muse credit; the endpoint's validation and citation checks are covered in api/tests.
-  let sent: { job_ids: string[]; question: string } | null = null;
-  await page.route("**/ask-across", (r) => {
-    sent = r.request().postDataJSON();
-    return r.fulfill({ contentType: "application/json", body: JSON.stringify({ answer: "Requests go through the API Gateway.",
-      citations: [{ job_id: "sample", title: "Microservices Architecture with Spring Boot and Spring Cloud", start_seconds: 84.2, quote: "the API gateway" }] }) });
-  });
+test("library: the sample is listed after visiting it, search filters it, and the title opens its notes", async ({ page }) => {
   await page.goto("/jobs/sample");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("vidmind-recent") ?? ""), { timeout: 15_000 }).toContain('"sample"');
   await page.goto("/library");
   const row = page.getByRole("listitem").filter({ hasText: "Microservices Architecture" });
   await expect(row.getByRole("link", { name: /Microservices Architecture/ })).toBeVisible();
-  await expect(row.getByRole("checkbox")).toBeChecked(); // every live video is asked by default
   await page.getByLabel("Search by title").fill("kafka");
   await expect(page.getByText("No titles match “kafka”.")).toBeVisible();
   await page.getByLabel("Search by title").fill("");
-  await page.getByLabel(/Ask across 1 video/).fill("Where do requests go first?");
-  await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.getByText("Requests go through the API Gateway.")).toBeVisible();
-  expect(sent).toEqual({ job_ids: ["sample"], question: "Where do requests go first?" });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await noSideScroll(page)).toBe(true);
-  await page.getByRole("link", { name: /at 1:24: the API gateway/ }).click();
-  await expect(page).toHaveURL("/jobs/sample?t=84");
-  await expect(page.locator("iframe[src*='youtube-nocookie']")).toHaveAttribute("src", /&start=84$/);
+  await row.getByRole("link", { name: /Microservices Architecture/ }).click();
+  await expect(page).toHaveURL("/jobs/sample");
 });

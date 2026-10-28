@@ -12,17 +12,17 @@ import shutil
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from . import fetch, jobs, qa
+from . import fetch, jobs
 from .pipeline import MAX_BYTES, MAX_DURATION_S, PIPELINE_VERSION, probe
-from .schema import Answer, LearnResult
+from .schema import LearnResult
 
 logging.basicConfig(level=logging.INFO)
 ALLOWED_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
@@ -180,67 +180,6 @@ async def job_events(job_id: str, request: Request):
             await asyncio.sleep(0.25)
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
-
-
-class Question(BaseModel):
-    question: str = Field(min_length=2, max_length=500)
-
-
-@app.post("/jobs/{job_id}/ask", response_model=Answer)
-def ask(job_id: str, body: Question):
-    try:
-        return qa.answer(_dir(job_id), body.question.strip())
-    except FileNotFoundError:
-        raise HTTPException(409, "Questions open once the video has finished processing") from None
-    except RuntimeError as e:
-        raise HTTPException(502, str(e)) from None
-
-
-class AcrossQuestion(BaseModel):
-    job_ids: list[Annotated[str, Field(max_length=32)]] = Field(min_length=1, max_length=10)
-    question: str = Field(min_length=2, max_length=500)
-
-
-@app.post("/ask-across")
-def ask_across(body: AcrossQuestion):
-    dirs = {job_id: _dir(job_id) for job_id in dict.fromkeys(body.job_ids)}  # any unknown id: 404 before a model call
-    try:
-        return qa.across(dirs, body.question.strip())
-    except RuntimeError as e:
-        raise HTTPException(502, str(e)) from None
-    except ValueError:  # the reply wasn't the JSON asked for, even after one retry
-        raise HTTPException(502, "The model's answer couldn't be read. Try again.") from None
-
-
-class Pointed(BaseModel):
-    frame_url: str = Field(max_length=64)
-    x: float = Field(ge=0, le=1)  # fractions of the frame's width and height
-    y: float = Field(ge=0, le=1)
-    question: str = Field(default="What is this?", min_length=2, max_length=300)
-
-
-@app.post("/jobs/{job_id}/point", response_model=Answer)
-def point(job_id: str, body: Pointed):
-    try:
-        return qa.point(_dir(job_id), body.frame_url, body.x, body.y, body.question.strip())
-    except LookupError:
-        raise HTTPException(404, "That frame isn't part of this video") from None
-    except FileNotFoundError:
-        raise HTTPException(409, "Pointing opens once the video has finished processing") from None
-    except RuntimeError as e:
-        raise HTTPException(502, str(e)) from None
-
-
-@app.post("/jobs/{job_id}/deck")
-def deck(job_id: str):
-    try:
-        return qa.deck(_dir(job_id))
-    except FileNotFoundError:
-        raise HTTPException(409, "The study deck opens once the notes are finished") from None
-    except RuntimeError as e:
-        raise HTTPException(502, str(e)) from None
-    except ValueError:  # the reply wasn't the JSON asked for, even after one retry
-        raise HTTPException(502, "The model's cards couldn't be read. Try again.") from None
 
 
 @app.delete("/jobs/{job_id}", status_code=204)

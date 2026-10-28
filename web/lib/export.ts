@@ -1,5 +1,5 @@
 // Notes as Markdown, to paste into a doc or keep. Relative imports only (runs under `node --test`).
-import type { Card, Diagram, LearnResult } from "./api.ts";
+import type { Diagram, LearnResult } from "./api.ts";
 
 // Rounded first, so 59.6 s reads 1:00, not 0:60.
 const clock = (s: number) => `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
@@ -26,15 +26,6 @@ export function toMarkdown(r: LearnResult): string {
   }
   out.push(`_Made with VidMind. Every note above was checked against the video._`, "");
   return out.join("\n");
-}
-
-const cell = (v: string) => `"${v.replaceAll('"', '""')}"`;
-
-/** Flashcards for Anki's importer (File → Import): front, back, and the moment in the video that holds the answer. */
-export function toAnkiCsv(cards: Card[], youtubeId?: string | null): string {
-  const at = (s: number) => (youtubeId ? `https://youtu.be/${youtubeId}?t=${Math.floor(s)}` : clock(s));
-  const rows = cards.map((c) => [c.front, c.back, at(c.start_seconds)].map(cell).join(","));
-  return ["#separator:Comma", "#html:false", "#columns:Front,Back,Timestamp", ...rows].join("\n");
 }
 
 const plain = (t: string) => t.replace(/["|;\n<>{}[\]#]/g, " ").replace(/\s+/g, " ").trim();

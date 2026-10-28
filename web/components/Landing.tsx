@@ -54,7 +54,6 @@ export const STATS: [string, string][] = [
 const FEATURES: { icon: IconName; title: string; text: string; image: string; w: number; h: number; wide?: boolean }[] = [
   { icon: "check", title: "Notes with proof", text: "Every point links to the second it was said or shown.", image: "notes", w: 1200, h: 1104, wide: true },
   { icon: "diagram", title: "The diagram it explains", text: "Drawn from what the video says and shows.", image: "diagram", w: 1200, h: 658 },
-  { icon: "point", title: "Point and ask", text: "Click anything on a frame. It's outlined and explained.", image: "point", w: 1200, h: 1226 },
 ];
 
 /** A feature tile: tilts a little toward the pointer, with a glow that follows it. */
@@ -132,7 +131,7 @@ function RunReplay() {
 const MODELS: { icon: IconName; name: string; does: string }[] = [
   { icon: "spark", name: "Muse Spark", does: "Watches and hears each section, writes the notes, the diagram and the takeaways, and judges the web check" },
   { icon: "listen", name: "Muse Voice Transcribe", does: "Turns the speech into timed text, in 6-second pieces at once, so every quote can be checked" },
-  { icon: "frame", name: "SAM 3.1", does: "Tracks the diagrams through the video and outlines whatever you point at" },
+  { icon: "frame", name: "SAM 3.1", does: "Tracks the diagrams through the video, cropping them for the notes model" },
   { icon: "image", name: "Muse Image", does: "Draws a summary card, whose text is read back and must match the notes" },
 ];
 
