@@ -14,11 +14,9 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
   keyframe and ask about it; SAM 3.1 outlines what you pointed at.
 - **Ask the video.** Answers cite the transcript or a keyframe and go through the same check. When the video
   doesn't answer it, a web search answers instead, labelled as not from the video, with its sources.
-- **Web fact-check.** The takeaways are checked against the web: confirmed, outdated, disputed or unclear, with sources.
 - **Diagram.** When the video explains a system or flow, a Mermaid diagram whose boxes each cite evidence.
 - **Summary card.** A Muse Image card from the checked result; its text is read back and the card is dropped
   unless every line matches.
-- **Posts.** LinkedIn and X posts built from the takeaways, with a 1080x1350 image.
 - **Exports.** Markdown (copy) and the card image. Timestamps link to the
   exact second on YouTube.
 - **Behind the scenes.** Every step is traced live (transcript, keyframes and their text, each model call and
@@ -28,7 +26,7 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 
 | Model | Does |
 |---|---|
-| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask, web search (fact-check, sources, web answers); reads keyframes and short clips |
+| Muse Spark 1.3 | notes, overview, takeaways and diagram, Ask, point-and-ask, web search (answers the video does not cover); reads keyframes and short clips |
 | Muse Spark 1.2 | backup when 1.3 is slow or fails (hedged); first for listen-first sections, where it was steadier |
 | Muse Voice Transcribe | speech to text, in ~6 s pieces sent in parallel, diarized, English and Hindi |
 | SAM 3.1 | finds diagrams in keyframes and outlines what was pointed at |
@@ -50,7 +48,7 @@ FastAPI (api/)  ── validate → reuse a finished job for the same video and 
      ├─ in parallel: scene detection → ≤30 keyframes → screen text (OCR)
      ├─ per section: notes, hedged across models; first grounded result wins; published as soon as it's checked
      ├─ whole video: title and summary; takeaways and diagram
-     └─ after the notes: web fact-check, web sources, summary card
+     └─ after the notes: summary card
 ```
 
 The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`.

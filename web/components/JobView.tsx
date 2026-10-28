@@ -100,9 +100,9 @@ function Job({ id, at }: { id: string; at: number }) {
     const timer = setInterval(() => setTick(Date.now()), 100);
     return () => clearInterval(timer);
   }, [running]);
-  // The title, takeaways and diagram (listen-first runs), then the card and web sources, land a few seconds after
+  // The title, takeaways and diagram (listen-first runs), then the card, land a few seconds after
   // the notes; pick each up as it arrives.
-  const pending = job?.status === "done" && !!result && (!!result.pending || (!result.card_url && !result.further?.length));
+  const pending = job?.status === "done" && !!result && (!!result.pending || !result.card_url);
   useEffect(() => {
     if (!pending) return;
     let tries = 0;
@@ -111,7 +111,7 @@ function Job({ id, at }: { id: string; at: number }) {
       const body: LearnResult | null = await fetch(`${jobUrl(id)}/result`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (!body) return;
       setResult(body);
-      if (!body.pending && (body.card_url || body.further?.length || body.claims?.length)) clearInterval(timer);
+      if (!body.pending && body.card_url) clearInterval(timer);
     }, 1500);
     return () => clearInterval(timer);
   }, [pending, id]);

@@ -69,8 +69,8 @@ test("exports notes as Markdown with timestamps that link to the moment", async 
   assert.match(md, /1\. Target\?\n {3}- Answer: 40%/);
 });
 
-test("diagrams become Mermaid with safe ids and labels; posts use only takeaways and fit X", async () => {
-  const { toMermaid, toLinkedIn, toX } = await import("./export.ts");
+test("diagrams become Mermaid with safe ids and labels", async () => {
+  const { toMermaid } = await import("./export.ts");
   const ev = [{ kind: "transcript" as const, start_seconds: 1, quote: "q" }];
   const node = (id: string, text: string) => ({ id, text, evidence: ev, uncertain: false, uncertain_reason: null });
   const d = { kind: "sequence" as const, title: "Login", nodes: [node("client app", 'Client "web"'), node("api", "API; gateway")],
@@ -78,16 +78,6 @@ test("diagrams become Mermaid with safe ids and labels; posts use only takeaways
   assert.equal(toMermaid(d), "sequenceDiagram\n  participant n0 as Client web\n  participant n1 as API gateway\n  n0->>n1: POST /login");
   assert.equal(toMermaid({ ...d, kind: "architecture" }), 'flowchart LR\n  n0["Client web"]\n  n1["API gateway"]\n  n0 -->|POST /login| n1');
 
-  const take = (text: string) => ({ text, evidence: ev, uncertain: false, uncertain_reason: null });
-  const r = { title: "Microservices", tldr: "Why split.", source: "live" as const, duration_seconds: 60, transcriber: "t", model: "m",
-    dropped_notes: 0, quiz: [], takeaways: [take("Split by business capability."), take("x".repeat(260))],
-    chapters: [{ title: "c", start_seconds: 0, summary: "", cover_url: null, notes: [], key_terms: ["service mesh", "API"] }] };
-  assert.equal(toLinkedIn(r), "🎥 Microservices\n\nWhy split.\n\nWhat I took away, each point checked against the video:\n✅ Split by business capability. (0:01)\n✅ "
-    + "x".repeat(260) + " (0:01)\n\nNotes made with VidMind: every point links to the second it came from.\n\n#ServiceMesh #API");
-  const short = take("Keep teams small.");
-  const x = toX({ ...r, youtube_id: "abc", takeaways: [take("Split by business capability."), take("x".repeat(260)), short] });
-  // the long one doesn't fit whole, so the shorter one after it takes its place; the link counts as 23
-  assert.equal(x, "🎥 Microservices\n\n✅ Split by business capability. (0:01)\n✅ Keep teams small. (0:01)\n\nhttps://youtu.be/abc\n#ServiceMesh #API");
 });
 
 test("lists every model and what it did, from the trace alone", async () => {

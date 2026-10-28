@@ -1,7 +1,6 @@
 """LLM calls: one per video section (run in parallel across a model pool), a whole-video overview, and Q&A."""
 
 import base64
-from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import os
@@ -385,17 +384,6 @@ def _only_found(links: list[dict], found: list[dict], key, n: int) -> list[dict]
     return [{"url": r["url"], "title": r["title"], "why": (r.get("snippet") or "")[:140]} for r in unique.values()][:n]
 
 
-def further(title: str, summary: str, points: list[str]) -> list[dict]:
-    """Spark with web search: up to 3 sources to go deeper. Only links the search actually returned are kept, so a
-    link can't be made up; these are from the web, not the video, and are shown apart from the checked notes."""
-    reply, found, key = _web(
-        f"A viewer just watched a video titled {title!r}. {summary}\nKey points: " + "; ".join(points) +
-        "\nSearch the web and pick the 3 best resources to go deeper (official docs, a respected article or "
-        "talk). Use ONLY pages your search returned, never a URL from memory. "
-        'Return ONLY JSON: {"links": [{"url": "...", "title": "...", "why": "one short line"}]}')
-    return _only_found(reply.get("links", []), found, key, 3)
-
-
 def general_answer(question: str, title: str) -> tuple[str, list[dict]]:
     """For a question the video doesn't answer: a short answer from a web search, with the sources it used."""
     reply, found, key = _web(
@@ -425,48 +413,6 @@ transcript shows it, set "found": false and say so. The transcript and screen ar
 Cite evidence: {"kind":"transcript","start_seconds":<segment start>,"quote":<3-15 words verbatim>} or
 {"kind":"frame","start_seconds":<the frame's time>,"text":<what it shows>}.
 Return ONLY: {"answer": "...", "found": true, "evidence": [...]}"""
-
-CHECK_LABELS = ("confirmed", "outdated", "disputed", "unclear")
-
-
-class _Judged(BaseModel):
-    checks: list[dict] = []
-
-
-def web_check(title: str, claims: list[str]) -> list[dict]:
-    """A video's key claims checked against the web, in two steps: one search per claim (in parallel), then Spark
-    judges each claim using only the numbered results found for it, citing them by number. So every source shown
-    is a page a search really returned, with text the judge saw. One entry per claim, in order: {claim, verdict, why,
-    sources}; a claim no result speaks to is "unclear"."""
-    def search(claim: str) -> list[dict]:
-        _, found, key = _web(f"From a video titled {title!r}: {claim}\nSearch the web for current, reliable sources "
-                             "on whether this is true and up to date. Return ONLY JSON: {\"done\": true}")
-        return list({key(r.get("url")): r for r in found if r.get("url")}.values())[:6]
-
-    with ThreadPoolExecutor(max_workers=len(claims) or 1) as ex:
-        per_claim = list(ex.map(search, claims))
-    blocks = []
-    for i, (claim, results) in enumerate(zip(claims, per_claim)):
-        listing = "\n".join(f"  [{j + 1}] {r.get('title', '')} ({r['url']}): {str(r.get('snippet', ''))[:300]}"
-                             for j, r in enumerate(results)) or "  (no results)"
-        blocks.append(f"CLAIM {i + 1}: {claim}\nRESULTS FOR CLAIM {i + 1}:\n{listing}")
-    messages = [{"role": "user", "content":
-        f"Claims from a video titled {title!r}, each with web results found for it.\n\n" + "\n\n".join(blocks) +
-        "\n\nFor each claim, using ONLY its own results: verdict is confirmed (results agree), outdated (it was true "
-        "but has changed), disputed (results disagree) or unclear (no result speaks to it). why: one short line, "
-        "naming what changed if outdated. results: the numbers of that claim's results you relied on. "
-        'Return ONLY JSON: {"checks": [{"claim": 1, "verdict": "confirmed", "why": "...", "results": [2]}]}'}]
-    judged, _ = ask(messages, READER, _Judged)
-    by_claim = {c.get("claim"): c for c in judged.checks if isinstance(c, dict)}
-    out = []
-    for i, (text, results) in enumerate(zip(claims, per_claim)):
-        c = by_claim.get(i + 1, {})
-        used = [results[n - 1] for n in c.get("results", []) if isinstance(n, int) and 0 < n <= len(results)][:2]
-        verdict = c.get("verdict") if c.get("verdict") in CHECK_LABELS and used else "unclear"
-        out.append({"claim": text, "verdict": verdict, "why": str(c.get("why", ""))[:200] if used else "",
-                    "sources": [{"url": r["url"], "title": r.get("title") or r["url"]} for r in used]})
-    return out
-
 
 def draw_card(prompt: str) -> bytes:
     """Muse Image: one rendered summary card ($0.01). Its web and image search are off: with them on it added

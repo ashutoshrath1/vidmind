@@ -230,30 +230,6 @@ def test_a_muse_key_means_muse_models_only(monkeypatch):
     assert syn.models() == ["groq:gpt-oss", "nvidia:x"]
 
 
-def test_web_sources_keep_only_links_the_search_returned(monkeypatch):
-    from types import SimpleNamespace as NS
-
-    from vidmind import synthesize as syn
-
-    hit = NS(type="web_search_call", results=[NS(url="https://kafka.apache.org/documentation/")])
-    reply = '{"links": [{"url": "https://kafka.apache.org/documentation", "title": "Docs", "why": "a"}, ' \
-            '{"url": "https://made-up.example/kafka", "title": "Invented", "why": "b"}]}'
-    fake = NS(responses=NS(create=lambda **kw: NS(output=[hit], output_text=reply)))
-    monkeypatch.setattr(syn, "_client", lambda prov: fake)
-    assert [x["title"] for x in syn.further("Kafka 101", "", [])] == ["Docs"]  # the invented link is dropped
-
-
-def test_web_sources_fall_back_to_real_results_when_the_model_answers_from_memory(monkeypatch):
-    from types import SimpleNamespace as NS
-
-    from vidmind import synthesize as syn
-
-    hit = NS(type="web_search_call", results=[{"url": "https://docs.confluent.io/x", "title": "Consumer", "snippet": "How groups work"}])
-    reply = '{"links": [{"url": "https://www.baeldung.com/kafka", "title": "From memory", "why": "b"}]}'
-    monkeypatch.setattr(syn, "_client", lambda prov: NS(responses=NS(create=lambda **kw: NS(output=[hit], output_text=reply))))
-    assert syn.further("Kafka", "", []) == [{"url": "https://docs.confluent.io/x", "title": "Consumer", "why": "How groups work"}]
-
-
 def test_listen_first_writes_before_the_transcript_then_checks_against_it(fixture_clip, tmp_path, monkeypatch):
     import time as _time
 
@@ -387,5 +363,3 @@ def test_grabbed_frames_merge_into_a_new_sorted_list_without_duplicates(fixture_
     assert times == sorted(times) and 12.0 in times and 45.0 in times
     assert "frames/12.jpg" in urls and "frames/at450.jpg" in urls, "the keyframe wins; a new second is added"
     assert keys == before, "the keyframe list is never mutated"
-
-

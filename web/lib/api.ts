@@ -41,9 +41,7 @@ export type LearnResult = {
   takeaways?: Note[];
   diagram?: Diagram | null;
   questions?: string[]; // the model's suggestions for Ask the video
-  further?: { url: string; title: string; why: string }[]; // web sources to go deeper: from a web search, not the video
   pending?: boolean; // notes done; title, takeaways and diagram still being written
-  claims?: { claim: string; verdict: "confirmed" | "outdated" | "disputed" | "unclear"; why: string; sources: { url: string; title: string }[] }[];
 };
 
 export type Action = Note & { kind: "decision" | "action"; owner: string | null; deadline: string | null };

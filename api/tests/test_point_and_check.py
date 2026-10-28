@@ -49,16 +49,3 @@ def test_point_and_ask_segments_the_spot_and_checks_the_answer(job, monkeypatch)
 def test_point_and_ask_only_accepts_the_jobs_own_frames(job):
     r = client.post(f"/jobs/{JOB}/point", json={"frame_url": "../../etc/passwd", "x": 0.5, "y": 0.5})
     assert r.status_code == 404
-
-
-def test_web_check_judges_only_from_the_search_results_it_got(monkeypatch):
-    found = [{"url": "https://kafka.apache.org/docs", "title": "Docs", "snippet": "KRaft replaced ZooKeeper"},
-             {"url": "https://example.org/b", "title": "B", "snippet": "brokers"}]
-    monkeypatch.setattr(syn, "_web", lambda prompt: ({}, found, lambda u: str(u or "").rstrip("/").lower()))
-    judged = {"checks": [{"claim": 1, "verdict": "outdated", "why": "KRaft replaced ZooKeeper", "results": [1]},
-                         {"claim": 2, "verdict": "disputed", "why": "no result cited", "results": []},
-                         {"claim": 3, "verdict": "confirmed", "why": "out of range", "results": [9]}]}
-    monkeypatch.setattr(syn, "ask", lambda messages, model, cls: (cls.model_validate(judged), "{}"))
-    out = syn.web_check("Kafka", ["Kafka needs ZooKeeper", "Brokers store messages", "Producers write"])
-    assert [c["verdict"] for c in out] == ["outdated", "unclear", "unclear"]  # a verdict needs a real result behind it
-    assert out[0]["sources"] == [{"url": "https://kafka.apache.org/docs", "title": "Docs"}]

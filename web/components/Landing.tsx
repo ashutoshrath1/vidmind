@@ -55,9 +55,6 @@ const FEATURES: { icon: IconName; title: string; text: string; image: string; w:
   { icon: "check", title: "Notes with proof", text: "Every point links to the second it was said or shown.", image: "notes", w: 1200, h: 1104, wide: true },
   { icon: "diagram", title: "The diagram it explains", text: "Drawn from what the video says and shows.", image: "diagram", w: 1200, h: 658 },
   { icon: "point", title: "Point and ask", text: "Click anything on a frame. It's outlined and explained.", image: "point", w: 1200, h: 1226 },
-  { icon: "search", title: "Fact-checked on the web", text: "Takeaways marked confirmed, outdated or disputed, with sources.", image: "factcheck", w: 1200, h: 523, wide: true },
-  { icon: "chat", title: "Meetings become actions", text: "Owners and deadlines, ready for Slack or Jira.", image: "actions", w: 1200, h: 1306 },
-  { icon: "code", title: "Demos become tests", text: "Playwright tests for every flow it shows.", image: "tests", w: 1200, h: 1217 },
 ];
 
 /** A feature tile: tilts a little toward the pointer, with a glow that follows it. */
@@ -141,8 +138,7 @@ const MODELS: { icon: IconName; name: string; does: string }[] = [
 
 const MEASURED: [string, string][] = [
   ["10.4 s", "A 4-minute talk, start to checked notes (was 17 s before listen-first)"],
-  ["1.0", "Action-item F1 on a test meeting: 5 of 5 decisions and actions, none invented"],
-  ["3 / 3", "Playwright tests generated from a product demo pass against the real app"],
+  ["19 / 19", "Notes on the sample that passed the evidence check against the transcript and keyframes"],
   ["0", "Notes shown without proof: anything the video can't back is thrown out, with the reason"],
 ];
 
@@ -150,7 +146,6 @@ const FAQ: [string, string][] = [
   ["What happens to my video?", "It's processed on this server and deleted after 24 hours. The video, its transcript and screen text go to Meta's Model API to write the notes."],
   ["How is a note “proven”?", "Every quote must match the transcript within seconds of when it was said, and every on-screen citation must match a real frame. Notes that fail are fixed once or thrown out, and the page shows what was thrown out and why."],
   ["What can it read?", "Uploads up to 12 hours and 2 GB (MP4, MOV, WebM, MKV), or YouTube, Vimeo and direct links. Paid and copy-protected courses aren't supported."],
-  ["What's the web fact-check?", "After the notes, each takeaway is searched on the web and judged only from the pages found: confirmed, outdated, disputed, or unclear when no page speaks to it."],
 ];
 
 /** Everything below the hero. */
@@ -222,9 +217,9 @@ export default function Landing() {
       <section aria-labelledby="measured-title" className="mx-auto max-w-6xl px-4 py-16 sm:px-8">
         <Reveal>
           <h2 id="measured-title" className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Measured, not claimed</h2>
-          <p className="mt-3 text-graphite">From our test runs, including synthetic meetings and demos. These are not user reviews.</p>
+          <p className="mt-3 text-graphite">From our test runs. These are not user reviews.</p>
         </Reveal>
-        <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {MEASURED.map(([n, what], i) => (
             <Reveal key={what} delay={i * 60} className="rounded-2xl glass p-5 ring-1 ring-rule">
               <dt className="tabular font-display text-3xl font-bold text-scan-ink">{n}</dt>
@@ -242,19 +237,6 @@ export default function Landing() {
           <p id="saved" className="mt-3 text-lg" aria-live="polite">
             About <b className="tabular text-proof">{Math.floor(saved / 60)} h {saved % 60} min</b> back every week, at {MINUTES_SAVED_PER_HOUR} min saved per hour of video.
           </p>
-        </Reveal>
-      </section>
-
-      <section aria-labelledby="share-title" className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-8 md:grid-cols-2">
-        <Reveal>
-          <h2 id="share-title" className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Share what you learned</h2>
-          <p className="mt-3 max-w-[48ch] text-graphite">One click turns the diagram and the checked takeaways into a post for LinkedIn or X, image and text together.</p>
-          <p className="mt-4 flex items-center gap-2 text-sm text-graphite"><Icon name="share" className="size-4 text-scan-ink" />Only proven points make it into the post.</p>
-        </Reveal>
-        <Reveal delay={120} className="mx-auto w-full max-w-xs">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a static capture of a real post image */}
-          <img src="/landing/post.webp" alt="A real post image made by VidMind: the diagram and the takeaways" width={770} height={962} loading="lazy"
-            className="w-full rotate-[-2deg] rounded-2xl shadow-2xl ring-1 ring-rule" />
         </Reveal>
       </section>
 

@@ -49,7 +49,7 @@ test.describe("result page", () => {
     expect(await noSideScroll(page)).toBe(true);
   });
 
-  test("diagram first, then takeaways with proof pills, then the post preview", async ({ page }) => {
+  test("diagram first, then takeaways with proof pills", async ({ page }) => {
     const highlights = page.getByRole("region", { name: "Key takeaways" });
     await expect(highlights.locator("[data-diagram] svg")).toBeVisible({ timeout: 15_000 });
     const diagramY = (await highlights.locator("[data-diagram]").boundingBox())!.y;
@@ -58,9 +58,6 @@ test.describe("result page", () => {
     const pill = highlights.locator("ol [data-seek]").first(); // a takeaway's pill (the per-box proof list is folded)
     await pill.hover();
     await expect(pill.getByRole("tooltip")).toBeVisible();
-    await expect(highlights.getByRole("img", { name: "The image that will be posted" })).toBeVisible({ timeout: 15_000 });
-    await expect(highlights.getByRole("button", { name: "Post on LinkedIn" })).toBeEnabled();
-    await expect(highlights.getByRole("button", { name: "Post on X" })).toBeEnabled();
   });
 
   test("compact run card: segmented step bar with fact cards, one Copy .md, no banner or language picker", async ({ page }) => {
@@ -73,11 +70,6 @@ test.describe("result page", () => {
     await expect(page.getByRole("button", { name: "Download .md" })).toHaveCount(0);
     await expect(page.getByText(/analysed live on/)).toHaveCount(0);
     await expect(page.getByText("Read in")).toHaveCount(0);
-  });
-
-  test("takeaways carry their web fact-check", async ({ page }) => {
-    await expect(page.getByText(/Checked against the web:/)).toBeVisible();
-    await expect(page.getByText(/✓ Confirmed|⚠ Outdated|✗ Disputed|\? Unclear/).first()).toBeVisible();
   });
 
   test("point and ask: click a spot on a keyframe, get an outlined, checked answer", async ({ page }) => {
@@ -159,7 +151,7 @@ test("home → result → VidMind logo shows the home page again, and stays ther
 
 test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-anywhere", async ({ page }) => {
   await page.goto("/about");
-  for (const name of ["Notes with proof", "Point and ask", "Fact-checked on the web", "Meetings become actions", "Demos become tests"]) {
+  for (const name of ["Notes with proof", "The diagram it explains", "Point and ask"]) {
     const img = page.getByRole("img", { name: new RegExp(`^${name}: a real VidMind result`) });
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
@@ -181,18 +173,6 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
     document.body.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true }));
   });
   await expect(page.getByLabel("Video link")).toHaveValue("https://www.youtube.com/watch?v=WeY-ZnRofsk");
-});
-
-test("Post on LinkedIn copies the image before opening the post (a copy after the new tab takes focus fails)", async ({ page, context }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await context.route("https://www.linkedin.com/**", (r) => r.fulfill({ body: "<title>stub</title>", contentType: "text/html" }));
-  await page.goto("/jobs/sample");
-  await expect(page.getByAltText("The image that will be posted")).toBeVisible({ timeout: 20_000 });
-  const [post] = await Promise.all([context.waitForEvent("page"), page.getByRole("button", { name: "Post on LinkedIn" }).click()]);
-  expect(new URL(post.url()).searchParams.get("text")).toContain("✅");
-  await page.bringToFront();
-  await expect(page.getByText(/Image copied\. Click into the LinkedIn post/)).toBeVisible();
-  expect(await page.evaluate(async () => (await navigator.clipboard.read()).flatMap((i) => i.types))).toContain("image/png");
 });
 
 test("study: flip a card, Again plays the moment that holds the answer, Got it counts it learned", async ({ page }) => {

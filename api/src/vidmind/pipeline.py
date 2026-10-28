@@ -187,44 +187,10 @@ def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quie
 
 
 def _extras(assemble, job_dir: Path, state: dict, emit: Emit, lock: threading.Lock) -> None:
-    side = [threading.Thread(target=f, args=(assemble, state, emit)) for f in (_further, _fact_check)]
-    for t in side:
-        t.start()
     _card(assemble, job_dir, state, emit)
-    for t in side:
-        t.join()
     with lock:
         (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
-    emit("extras", card=state["card"], further=len(state["further"]))
-
-
-def _fact_check(assemble, state: dict, emit: Emit = _quiet) -> None:
-    """The takeaways checked against the web (confirmed / outdated / disputed); never fails the job."""
-    r = assemble()
-    if not r.takeaways:
-        return
-    started = time.monotonic()
-    emit("stage", name="factcheck", state="start", detail="Checking the takeaways against the web", model=syn.READER)
-    try:
-        state["claims"] = syn.web_check(r.title, [t.text for t in r.takeaways])
-        emit("stage", name="factcheck", state="end", seconds=_since(started), model=syn.READER,
-             verdicts=[c["verdict"] for c in state["claims"]])
-    except Exception as e:
-        log.warning("fact check failed: %s", e)
-        emit("stage", name="factcheck", state="end", seconds=_since(started), model=syn.READER, error=type(e).__name__)
-
-
-def _further(assemble, state: dict, emit: Emit = _quiet) -> None:
-    """Web sources to go deeper, from Spark's web search; never fails the job."""
-    started = time.monotonic()
-    emit("stage", name="web", state="start", detail="Searching the web for sources to go deeper", model="muse:muse-spark-1.3")
-    try:
-        r = assemble()
-        state["further"] = syn.further(r.title, r.tldr, [t.text for t in r.takeaways])
-        emit("stage", name="web", state="end", seconds=_since(started), model="muse:muse-spark-1.3", found=len(state["further"]))
-    except Exception as e:
-        log.warning("web sources failed: %s", e)
-        emit("stage", name="web", state="end", seconds=_since(started), model="muse:muse-spark-1.3", error=f"{type(e).__name__}")
+    emit("extras", card=state["card"])
 
 
 def _card(assemble, job_dir: Path, state: dict, emit: Emit = _quiet) -> None:
@@ -547,7 +513,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     done: dict[int, Part] = {}
     state = {"transcriber": "creator subtitles" if src.captions is not None else "none (no audio track)",
              "overview": None, "actions": [], "scenarios": [], "extra_rejected": [], "card": None, "takeaways": [],
-             "diagram": None, "questions": [], "further": [], "pending": False, "claims": []}
+             "diagram": None, "questions": [], "pending": False}
 
     def assemble() -> LearnResult:
         parts = [done[i] for i in sorted(done)]
@@ -574,9 +540,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             takeaways=state["takeaways"],
             diagram=state["diagram"],
             questions=state["questions"],
-            further=state["further"],
             pending=state["pending"],
-            claims=state["claims"],
         )
 
     grabbed: list[Frame] = []  # frames grabbed at the seconds Spark cited, listen-first only
