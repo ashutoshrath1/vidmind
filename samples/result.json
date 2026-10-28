@@ -1,0 +1,774 @@
+{
+  "title": "Microservices Architecture with Spring Boot and Spring Cloud",
+  "chapters": [
+    {
+      "title": "Microservices Architecture using Spring Boot and Spring Cloud - Overview",
+      "start_seconds": 0.0,
+      "notes": [
+        {
+          "text": "Architecture diagram titled 'Microservices Architecture using Spring boot and Spring Cloud' shows flow from React App -> API Gateway -> three microservices (Employee Service, Department Service, Organization Service) -> Spring Cloud infrastructure, with Databases below the services.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 1.0,
+              "text": "Diagram titled Microservices Architecture using Spring boot and Spring Cloud showing React App, API Gateway, Employee Service, Department Service, Organization Service, Databases, and GitHub/Config Server/Service Registry/Spring Cloud Sleuth/ZIPKIN panel",
+              "frame_url": "frames/0.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Three core backend microservices are Employee Service (red), Department Service (green), and Organization Service (dark blue), all connected to a shared Databases block and routed through the API Gateway.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 1.0,
+              "text": "Three stacked service boxes labeled Employee Service, Department Service, Organization Service with arrow from API Gateway and arrow to infrastructure panel, plus Databases icon below",
+              "frame_url": "frames/0.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Supporting infrastructure on the right includes GitHub at top, plus Config Server, Service Registry, Spring Cloud Sleuth, and ZIPKIN, indicating centralized configuration, service discovery, and distributed tracing.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 1.0,
+              "text": "Right gray panel with GitHub logo and four rows: Config Server, Service Registry, Spring Cloud Sleuth, ZIPKIN",
+              "frame_url": "frames/0.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "This section introduces a microservices architecture built with Spring Boot and Spring Cloud, showing a React frontend, API Gateway, three core backend microservices, and supporting Spring Cloud infrastructure components.",
+      "key_terms": [
+        "Microservices Architecture",
+        "Spring Boot",
+        "Spring Cloud",
+        "API Gateway",
+        "React App",
+        "Employee Service"
+      ],
+      "cover_url": "frames/1.jpg"
+    },
+    {
+      "title": "Microservices Communication and Service Discovery",
+      "start_seconds": 40.0,
+      "notes": [
+        {
+          "text": "Diagram shows Microservices Architecture using Spring boot and Spring Cloud with React App \u2192 API Gateway \u2192 three services (Employee Service, Department Service, Organization Service) connected to Databases, and supporting components Config Server, Service Registry, Spring Cloud Sleuth, ZIPKIN linked to GitHub.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 40.0,
+              "text": "Microservices Architecture using Spring boot and Spring Cloud diagram showing React App, API Gateway, Employee/Department/Organization Services, Databases, and Config Server/Service Registry/Spring Cloud Sleuth/ZIPKIN with GitHub",
+              "frame_url": "frames/at400.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Inter-service communication will be demonstrated using three approaches: RestTemplate, WebClient, and SpringCloud Open Feign, highlighted by a red overlay arrow pointing between API Gateway and the services.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 65.0,
+              "text": "Red overlay box listing RestTemplate, WebClient, SpringCloud Open Feign with arrow pointing to services",
+              "frame_url": "frames/1.jpg"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 64.35,
+              "quote": "will use arrest template will use web"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Service discovery pattern will be implemented using Spring Cloud Netflix Eureka Server, shown as a red overlay labeled Spring Cloud Netflix Eureka Server pointing to the Service Registry area.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 87.83,
+              "text": "Red overlay box labeled Spring Cloud Netflix Eureka Server pointing toward services",
+              "frame_url": "frames/3.jpg"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 88.79,
+              "quote": "service registry and discovery pattern in our"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "The section explains the database-per-service pattern and introduces inter-service communication using RestTemplate, WebClient, and Spring Cloud Open Feign, followed by the service discovery pattern implemented with Spring Cloud Netflix Eureka Server.",
+      "key_terms": [
+        "Microservices Architecture",
+        "API Gateway",
+        "RestTemplate",
+        "WebClient",
+        "SpringCloud Open Feign",
+        "Service Discovery"
+      ],
+      "cover_url": "frames/1.jpg"
+    },
+    {
+      "title": "Spring Cloud Netflix Eureka and Config Server in Microservices",
+      "start_seconds": 88.8,
+      "notes": [
+        {
+          "text": "Spring Cloud Netflix Eureka Server is presented as a very essential pattern to avoid hardcoding hostname and ports, enabling service registry and discovery for microservices.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 88.79,
+              "quote": "Spring Cloud Cloud Netflix Eureka"
+            },
+            {
+              "kind": "frame",
+              "start_seconds": 87.83,
+              "text": "Diagram shows red callout 'Spring Cloud Netflix Eureka Server' pointing to Service Registry in Microservices Architecture using Spring boot and Spring Cloud",
+              "frame_url": "frames/3.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Diagram shows overall architecture: React App \u2192 API Gateway \u2192 three microservices (Employee Service, Department Service, Organization Service) connected to Databases, with supporting infrastructure on right including GitHub, Config Server, Service Registry, Spring Cloud Sleuth, and ZIPKIN.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 98.5,
+              "text": "Diagram titled 'Microservices Architecture using Spring boot and Spring Cloud' showing React App, API Gateway, Employee/Department/Organization Services, Databases, and right panel with GitHub, Config Server, Service Registry, Spring Cloud Sleuth, ZIPKIN",
+              "frame_url": "frames/4.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Spring Cloud Config Server is introduced to externalize the configurations of all microservices into a central place that is Git repository, with a red callout highlighting it over the microservices in the diagram.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 106.39,
+              "quote": "will implement topic server to externalize"
+            },
+            {
+              "kind": "frame",
+              "start_seconds": 117.97,
+              "text": "Diagram shows red callout 'Spring Cloud Config Server' pointing to Config Server / GitHub area",
+              "frame_url": "frames/5.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "The section explains using Spring Cloud Netflix Eureka Server for service registry and discovery to avoid hardcoding hostnames and ports, and Spring Cloud Config Server to externalize microservice configurations into a central Git repository.",
+      "key_terms": [
+        "Spring Cloud Netflix Eureka Server",
+        "Service Registry and Discovery",
+        "Spring Cloud Config Server"
+      ],
+      "cover_url": "frames/1.jpg"
+    },
+    {
+      "title": "API Gateway in Microservices Architecture",
+      "start_seconds": 137.6,
+      "notes": [
+        {
+          "text": "The architecture diagram shows a React App sending requests to a central API Gateway, which then routes to three microservices: Employee Service (red), Department Service (green), and Organization Service (blue), all connected to Databases and to supporting infrastructure including GitHub, Config Server, Service Registry, Spring Cloud Sleuth and ZIPKIN.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 138.0,
+              "text": "Microservices Architecture using Spring boot and Spring Cloud diagram showing React App -> API Gateway -> Employee/Department/Organization Services -> Config Server/Service Registry/Spring Cloud Sleuth/ZIPKIN with Databases below",
+              "frame_url": "frames/at1380.jpg"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 140.11,
+              "quote": "API gateway plays a very important role"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "When a client wants to make a call to different microservices, the client has to remember the host name and ports of all microservices, so the solution is a central component where a client can send a request to the central component.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 144.31,
+              "quote": "a client want to make a"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "The API Gateway handles routing based on configuration: when a client sends a request to the backend microservices, it sends it to the API Gateway first, and the gateway routes the request to the appropriate microservice using routing rules.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 163.87,
+              "quote": "microservices then client have to send a request to the"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Spring Cloud Gateway is the implementation used to provide the API Gateway pattern in this microservices architecture, as highlighted by a red callout label pointing to the API Gateway in the diagram.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 181.3,
+              "text": "Red callout label 'Spring Cloud Gateway' pointing to the API Gateway block in the architecture diagram",
+              "frame_url": "frames/7.jpg"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 180.51,
+              "quote": "spring cloud gateway module module to implement API"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "The section explains the role of the API Gateway as the single entry point for client requests in a Spring Boot and Spring Cloud microservices architecture, routing requests to backend services and integrating with Spring Cloud Gateway.",
+      "key_terms": [
+        "API Gateway",
+        "Spring Cloud Gateway",
+        "Microservices Architecture"
+      ],
+      "cover_url": "frames/1.jpg"
+    },
+    {
+      "title": "Distributed Tracing and Next Steps in Microservices Architecture",
+      "start_seconds": 186.4,
+      "notes": [
+        {
+          "text": "Spring Cloud provides the Spring Cloud Sleuth module to implement distributed tracing in the microservices project, used together with Zipkin to visualize tracing log information through a user interface that tracks trace information via a web application.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 180.51,
+              "quote": "While spring cloud provides spring cloud"
+            },
+            {
+              "kind": "frame",
+              "start_seconds": 198.27,
+              "text": "Diagram highlights red overlay 'Spring Cloud Sleuth module' pointing to Spring Cloud Sleuth and ZIPKIN boxes on right side",
+              "frame_url": "frames/9.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "Architecture diagram titled 'Microservices Architecture using Spring boot and Spring Cloud' shows React App -> API Gateway -> three services (Employee Service red, Department Service green, Organization Service dark blue) connected to Databases, with right panel containing GitHub, Config Server, Service Registry, Spring Cloud Sleuth, and ZIPKIN.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 186.3,
+              "text": "Full microservices diagram with React App, API Gateway, Employee/Department/Organization Services, Databases, and Config Server/Service Registry/Sleuth/ZIPKIN panel",
+              "frame_url": "frames/8.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "After distributed tracing, the plan is to create a simple React application to make REST API calls to backend microservices and to implement the Circuit breaker pattern in the Employee Service, with a callout label 'Circuit breaker pattern' appearing on the Employee Service box.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 232.3,
+              "text": "Diagram shows red callout 'Circuit breaker pattern' pointing to Employee Service box",
+              "frame_url": "frames/11.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "The section introduces implementing distributed tracing using Spring Cloud Sleuth with Zipkin for visualization, and previews building a React frontend and applying the Circuit breaker pattern to the Employee Service.",
+      "key_terms": [
+        "Spring Cloud Sleuth",
+        "Zipkin",
+        "distributed tracing",
+        "API Gateway",
+        "Circuit breaker pattern"
+      ],
+      "cover_url": "frames/1.jpg"
+    },
+    {
+      "title": "Circuit Breaker Pattern in Microservices Architecture",
+      "start_seconds": 235.2,
+      "notes": [
+        {
+          "text": "The diagram shows a Microservices Architecture using Spring boot and Spring Cloud with a React App calling an API Gateway, which routes to three services: Employee Service, Department Service, and Organization Service backed by Databases, plus infrastructure components Config Server, Service Registry, Spring Cloud Sleuth, ZIPKIN, and GitHub.",
+          "evidence": [
+            {
+              "kind": "frame",
+              "start_seconds": 235.67,
+              "text": "Diagram titled Microservices Architecture using Spring boot and Spring Cloud showing React App -> API Gateway -> Employee Service, Department Service, Organization Service, Databases, and side panel with GitHub, Config Server, Service Registry, Spring Cloud Sleuth, ZIPKIN, with Circuit breaker pattern label",
+              "frame_url": "frames/12.jpg"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "When the Department Service is down and Employee Service won't get a response, the Employee Service will send an internal server error to the API Gateway, which then sends that error back to the client.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 241.17,
+              "quote": "department service. Isn't it? And then"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 241.17,
+              "quote": "then employee service won't get a response from"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        },
+        {
+          "text": "The Circuit Breaker pattern helps avoid continuous calls to a down service: it returns a default response to the client and sends a fallback response, preventing the API Gateway from repeatedly calling the failed Department Service.",
+          "evidence": [
+            {
+              "kind": "transcript",
+              "start_seconds": 256.69,
+              "quote": "so, this circuit breaker pattern helps employee"
+            },
+            {
+              "kind": "transcript",
+              "start_seconds": 250.99,
+              "quote": "avoid this kind of issue, we can use"
+            }
+          ],
+          "uncertain": false,
+          "uncertain_reason": null
+        }
+      ],
+      "summary": "This section explains how the Circuit Breaker pattern prevents cascading failures when a dependent service is down, using Employee and Department services as an example, and introduces a simple Spring Boot and Spring Cloud microservices project structure.",
+      "key_terms": [
+        "Circuit breaker pattern",
+        "API Gateway",
+        "Microservices Architecture",
+        "Spring Boot",
+        "Spring Cloud"
+      ],
+      "cover_url": "frames/1.jpg"
+    }
+  ],
+  "quiz": [],
+  "source": "precomputed",
+  "tldr": "This lecture outlines building an employee management project as microservices architecture using Spring Boot and Spring Cloud. The viewer learns the plan for three core services with separate MySQL databases, inter-service communication, service registry with Eureka, Config Server, API Gateway, distributed tracing with Sleuth and Zipkin, and circuit breaker plus React frontend.",
+  "duration_seconds": 284.0,
+  "transcriber": "muse-voice-transcribe-1.0",
+  "model": "muse:muse-spark-1.2",
+  "dropped_notes": 0,
+  "youtube_id": "WeY-ZnRofsk",
+  "notes_checked": 19,
+  "citations_rechecked": 4,
+  "rejected": [],
+  "mode": "learn",
+  "actions": [],
+  "scenarios": [],
+  "card_url": "frames/card.webp",
+  "takeaways": [
+    {
+      "text": "Three core services \u2014 employee, department, organization \u2014 each have their own MySQL database.",
+      "evidence": [
+        {
+          "kind": "transcript",
+          "start_seconds": 29.1,
+          "quote": "three core backend microservices employee service department"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 35.8,
+          "quote": "all these three microservices have their own"
+        },
+        {
+          "kind": "frame",
+          "start_seconds": 1.0,
+          "text": "Diagram shows Employee Service, Department Service, Organization Service with Databases",
+          "frame_url": "frames/0.jpg"
+        }
+      ],
+      "uncertain": false,
+      "uncertain_reason": null
+    },
+    {
+      "text": "Services call each other via RestTemplate, WebClient, or Spring Cloud OpenFeign.",
+      "evidence": [
+        {
+          "kind": "transcript",
+          "start_seconds": 64.3,
+          "quote": "will use arrest template will use"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 70.2,
+          "quote": "OpenFeign library"
+        },
+        {
+          "kind": "frame",
+          "start_seconds": 65.0,
+          "text": "Overlay lists RestTemplate WebClient SpringCloud Open Feign pointing to services",
+          "frame_url": "frames/1.jpg"
+        }
+      ],
+      "uncertain": false,
+      "uncertain_reason": null
+    },
+    {
+      "text": "Eureka service registry and discovery avoids hardcoding hostnames and ports.",
+      "evidence": [
+        {
+          "kind": "transcript",
+          "start_seconds": 88.8,
+          "quote": "Spring Cloud Cloud Netflix Eureka based service"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 103.3,
+          "quote": "to avoid hardcoding hostname and ports"
+        },
+        {
+          "kind": "frame",
+          "start_seconds": 87.83,
+          "text": "Overlay Spring Cloud Netflix Eureka Server pointing to Service Registry",
+          "frame_url": "frames/3.jpg"
+        }
+      ],
+      "uncertain": false,
+      "uncertain_reason": null
+    },
+    {
+      "text": "Config Server externalizes all service configurations into a central Git repository.",
+      "evidence": [
+        {
+          "kind": "transcript",
+          "start_seconds": 115.9,
+          "quote": "Spring Cloud provides Spring Cloud Config module"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 124.8,
+          "quote": "files of all these three microservices"
+        },
+        {
+          "kind": "frame",
+          "start_seconds": 117.97,
+          "text": "Overlay Spring Cloud Config Server pointing to Config Server",
+          "frame_url": "frames/5.jpg"
+        }
+      ],
+      "uncertain": false,
+      "uncertain_reason": null
+    },
+    {
+      "text": "API Gateway routes client requests, with Sleuth plus Zipkin for tracing and circuit breaker for resilience.",
+      "evidence": [
+        {
+          "kind": "transcript",
+          "start_seconds": 163.9,
+          "quote": "to the backend microservices then client have"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 198.2,
+          "quote": "spring cloud stream module which we can"
+        },
+        {
+          "kind": "transcript",
+          "start_seconds": 256.7,
+          "quote": "circuit breaker pattern helps employee service to"
+        },
+        {
+          "kind": "frame",
+          "start_seconds": 232.3,
+          "text": "Diagram shows React App -> API Gateway -> services plus Circuit breaker pattern label",
+          "frame_url": "frames/11.jpg"
+        }
+      ],
+      "uncertain": false,
+      "uncertain_reason": null
+    }
+  ],
+  "diagram": {
+    "kind": "architecture",
+    "title": "Spring Boot Microservices Architecture",
+    "nodes": [
+      {
+        "text": "React App",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows React App client on left",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "a"
+      },
+      {
+        "text": "API Gateway",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows API Gateway central component",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "b"
+      },
+      {
+        "text": "Employee Service",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Employee Service box",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "c"
+      },
+      {
+        "text": "Department Service",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Department Service box",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "d"
+      },
+      {
+        "text": "Organization Service",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Organization Service box",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "e"
+      },
+      {
+        "text": "Databases",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Databases below services",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "f"
+      },
+      {
+        "text": "Config Server",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Config Server with GitHub",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "g"
+      },
+      {
+        "text": "Service Registry",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Service Registry box",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "h"
+      },
+      {
+        "text": "Sleuth Zipkin",
+        "evidence": [
+          {
+            "kind": "frame",
+            "start_seconds": 1.0,
+            "text": "Diagram shows Spring Cloud Sleuth ZIPKIN",
+            "frame_url": "frames/0.jpg"
+          }
+        ],
+        "uncertain": false,
+        "uncertain_reason": null,
+        "id": "i"
+      }
+    ],
+    "edges": [
+      {
+        "source": "a",
+        "target": "b",
+        "label": "sends request"
+      },
+      {
+        "source": "b",
+        "target": "c",
+        "label": "routes"
+      },
+      {
+        "source": "b",
+        "target": "d",
+        "label": "routes"
+      },
+      {
+        "source": "b",
+        "target": "e",
+        "label": "routes"
+      },
+      {
+        "source": "c",
+        "target": "f",
+        "label": "uses"
+      },
+      {
+        "source": "c",
+        "target": "g",
+        "label": "config"
+      },
+      {
+        "source": "c",
+        "target": "h",
+        "label": "registers"
+      },
+      {
+        "source": "c",
+        "target": "i",
+        "label": "traces"
+      }
+    ]
+  },
+  "questions": [
+    "Why avoid hardcoding hostnames and ports?",
+    "How does API Gateway route client requests?",
+    "Why return a default response when a service is down?"
+  ],
+  "further": [
+    {
+      "url": "https://docs.spring.io/spring-cloud-netflix/docs/4.0.2/reference/html/",
+      "title": "Spring Cloud Netflix",
+      "why": "Official docs for Eureka registry, discovery, and client-side communication."
+    },
+    {
+      "url": "https://docs.spring.io/spring-cloud-config/docs/3.0.0-M5/reference/html/",
+      "title": "Spring Cloud Config",
+      "why": "Official guide to centralizing configs with Config Server and Git backend."
+    },
+    {
+      "url": "https://github.com/spring-guides/gs-service-registration-and-discovery",
+      "title": "Service Registration and Discovery :: Learn how to register and find services with Eureka",
+      "why": "Hands-on official guide building Eureka server plus communicating services."
+    }
+  ],
+  "pending": false,
+  "claims": [
+    {
+      "claim": "Three core services \u2014 employee, department, organization \u2014 each have their own MySQL database.",
+      "verdict": "unclear",
+      "why": "",
+      "sources": []
+    },
+    {
+      "claim": "Services call each other via RestTemplate, WebClient, or Spring Cloud OpenFeign.",
+      "verdict": "confirmed",
+      "why": "Multiple results list RestTemplate vs Feign vs WebClient as sync client options.",
+      "sources": [
+        {
+          "url": "https://github.com/zaineb232/-tude-de-cas-clients-synchrones-resttemplate-vs-feign-vs-webclient-",
+          "title": "zaineb232/-tude-de-cas-clients-synchrones-resttemplate-vs-feign-vs-webclient-"
+        },
+        {
+          "url": "https://github.com/pradhansoumik/microservice-design-patterns/blob/HEAD/00-fundamentals/01-SERVICE-COMMUNICATION.md",
+          "title": "pradhansoumik/microservice-design-patterns - 00-fundamentals/01-SERVICE-COMMUNICATION.md"
+        }
+      ]
+    },
+    {
+      "claim": "Eureka service registry and discovery avoids hardcoding hostnames and ports.",
+      "verdict": "unclear",
+      "why": "",
+      "sources": []
+    },
+    {
+      "claim": "Config Server externalizes all service configurations into a central Git repository.",
+      "verdict": "confirmed",
+      "why": "Results explicitly describe externalizing config with Config Server and storing properties in Git.",
+      "sources": [
+        {
+          "url": "https://github-wiki-see.page/m/ganomkar/learners/wiki/Externalize-Configuration-with-Spring-Cloud-Config-Server",
+          "title": "Externalize Configuration with Spring Cloud Config Server - ganomkar/learners GitHub Wiki"
+        },
+        {
+          "url": "https://studyx.ai/questions/4lfrxeh/question-no-21-spring-cloud-config-server-allows-you-to-store-properties-in-git-o-false-o",
+          "title": "Question No 21 Spring Cloud Config server"
+        }
+      ]
+    },
+    {
+      "claim": "API Gateway routes client requests, with Sleuth plus Zipkin for tracing and circuit breaker for resilience.",
+      "verdict": "unclear",
+      "why": "Results confirm gateway routing but none mention Sleuth plus Zipkin or circuit breaker.",
+      "sources": [
+        {
+          "url": "https://github.com/sumit2011/api-gateway-microservice",
+          "title": "sumit2011/api-gateway-microservice \u2014 Implementation of api gateway design pattern in microservices using spring boot."
+        },
+        {
+          "url": "https://dev.to/ashifur_nahid_c0cbfcc7105/spring-cloud-gateway-explained-simply-routing-filters-and-real-life-use-cases-fg8",
+          "title": "Spring Cloud Gateway Explained Simply: Routing, Filters, and Real-Life Use Cases"
+        }
+      ]
+    }
+  ]
+}

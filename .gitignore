@@ -1,0 +1,13 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+api/.venv/
+api/data/
+fixtures/
+.env*
+.playwright-mcp/
+node_modules/
+.agents/
+.claude/
+skills-lock.json
+samples.previous/

@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Taskly: the tiny app the Test-mode demo video is recorded from, and that generated tests run against. -->
+<html lang="en"><head><meta charset="utf-8"><title>Taskly</title>
+<style>
+  body { font: 28px/1.4 -apple-system, Helvetica, sans-serif; margin: 48px 96px; background: #fff; color: #111 }
+  h1 { font-size: 56px; margin: 0 0 24px } input[type=text] { font-size: 28px; padding: 10px 14px; width: 520px }
+  button { font-size: 28px; padding: 10px 20px; margin-left: 8px } ul { list-style: none; padding: 0 }
+  li { margin: 12px 0 } li.done label { text-decoration: line-through; color: #888 } input[type=checkbox] { width: 28px; height: 28px }
+</style></head>
+<body>
+  <h1>Taskly</h1>
+  <form id="f"><input type="text" placeholder="What needs doing?" aria-label="New task"><button>Add</button></form>
+  <ul id="list"></ul>
+  <p id="count">0 tasks left</p>
+  <button id="clear" type="button">Clear completed</button>
+<script>
+  const list = document.getElementById("list"), input = document.querySelector("input[type=text]");
+  const count = () => { const n = list.querySelectorAll("li:not(.done)").length;
+    document.getElementById("count").textContent = `${n} task${n === 1 ? "" : "s"} left`; };
+  document.getElementById("f").onsubmit = (e) => {
+    e.preventDefault(); const text = input.value.trim(); if (!text) return;
+    const li = document.createElement("li"), id = "t" + Date.now();
+    li.innerHTML = `<input type="checkbox" id="${id}"> <label for="${id}"></label>`;
+    li.querySelector("label").textContent = text;
+    li.querySelector("input").onchange = (ev) => { li.classList.toggle("done", ev.target.checked); count(); };
+    list.append(li); input.value = ""; count();
+  };
+  document.getElementById("clear").onclick = () => { list.querySelectorAll("li.done").forEach((li) => li.remove()); count(); };
+</script></body></html>

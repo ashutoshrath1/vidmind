@@ -1,0 +1,31 @@
+[project]
+name = "vidmind"
+version = "0.1.0"
+description = "VidMind API: grounded notes and quizzes from short videos"
+authors = [
+    { name = "ashutoshrath1", email = "ashutosh.rath@outlook.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.0",
+    "faster-whisper>=1.2.1",
+    "httpx>=0.28.1",
+    "mcp>=2.3.0",
+    "ocrmac>=1.0.1 ; sys_platform == 'darwin'",
+    "openai>=3.37.0",
+    "parakeet-mlx>=0.5.3 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "pydantic>=2.14.1",
+    "pytesseract>=0.3.13",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.54.0",
+    "yt-dlp>=2026.10.21",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

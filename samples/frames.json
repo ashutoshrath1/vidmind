@@ -1,0 +1,226 @@
+[
+  {
+    "t": 1.0,
+    "url": "frames/0.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/0_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 40.0,
+    "url": "frames/at400.jpg",
+    "ocr_text": "",
+    "ocr_conf": 0.0,
+    "low_conf": false,
+    "figure_url": "frames/1_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 65.0,
+    "url": "frames/1.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nRestTemplate\nWebClient\nSpringCloud Open Feign\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/2_fig.jpg",
+    "figure_box": [
+      238,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 78.47,
+    "url": "frames/2.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nGitHub\nConfig\nServer\nDepartment\nService\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/3_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 87.83,
+    "url": "frames/3.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nSpring Cloud Netflix\nEureka Server\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/4_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 98.5,
+    "url": "frames/4.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/5_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 117.97,
+    "url": "frames/5.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nReact\nGitHub\nSpring Cloud\nConfig Server\nConfig\nApp\nAPI\nServer\nDepartment\nGateway\nService\nService\nRegistry\nOrganization\nSpring Cloud\nService\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/6_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 122.97,
+    "url": "frames/6.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/7_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 138.0,
+    "url": "frames/at1380.jpg",
+    "ocr_text": "",
+    "ocr_conf": 0.0,
+    "low_conf": false,
+    "figure_url": "frames/8_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 181.3,
+    "url": "frames/7.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nGitHub\nEmployee\nService\nReact\nConfig\nServer\nApp\nAPI\nSpring Cloud\nGateway\nGateway\nService\nRegistry\nService\nSpring Cloud\nSleuth\nOrganization\nService\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/9_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 186.3,
+    "url": "frames/8.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/10_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 198.27,
+    "url": "frames/9.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nSpring Cloud\nSleuth module\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/11_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 203.27,
+    "url": "frames/10.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/12_fig.jpg",
+    "figure_box": [
+      20,
+      148,
+      1050,
+      676
+    ]
+  },
+  {
+    "t": 232.3,
+    "url": "frames/11.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nCircuit\nbreaker\npattern\nEmployee\nService\nGitHub\nReact\nApp\nAPI\nGateway\nDepartment\nService\nConfig\nServer\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/13_fig.jpg",
+    "figure_box": [
+      0,
+      114,
+      1122,
+      698
+    ]
+  },
+  {
+    "t": 235.67,
+    "url": "frames/12.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/14_fig.jpg",
+    "figure_box": [
+      0,
+      114,
+      1124,
+      698
+    ]
+  },
+  {
+    "t": 274.43,
+    "url": "frames/13.jpg",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nGitHub\nDepartment\nService\nConfig\nServer\nOrganization\nService\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": "frames/15_fig.jpg",
+    "figure_box": [
+      0,
+      114,
+      1124,
+      698
+    ]
+  }
+]
