@@ -1,139 +1,125 @@
 # VidMind
 
-VidMind turns a video into notes where every point is checked against the exact second it came from: what was
-said, or what was on screen. Click any piece of evidence and the player jumps to that moment.
+**Paste a video link and get notes in about 5 seconds. Each note is checked against the second of the video it came from.**
 
-Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
+![VidMind demo](docs/demo.gif)
 
-## Features
+Live demo: (link to add)
 
-- **Verified notes.** Quotes must match the transcript within ±5 s and screen-text citations a real frame within
-  ±2 s. One repair round; notes that still fail are removed (never shown unverified) and listed with the reason.
-  Notes that rest on hard-to-read screen text are labelled **Uncertain**.
-- **Keyframes.** Up to 30 scene-change keyframes with their screen text; SAM 3.1 finds diagrams and crops them.
-- **Diagram.** When the video explains a system or flow, a Mermaid diagram whose boxes each cite evidence.
-- **Summary card.** A Muse Image card from the checked result; its text is read back and the card is dropped
-  unless every line matches.
-- **Exports.** Markdown (copy) and the card image. Timestamps link to the
-  exact second on YouTube.
-- **Behind the scenes.** Every step is traced live (transcript, keyframes and their text, each model call and
-  citation check) and can be replayed at half speed.
+Built for the Meta AI Developer Hackathon, 2026.
 
-## Models
+## What it does
 
-| Model | Does |
-|---|---|
-| Muse Spark 1.2 | notes from each section's transcript and keyframes, overview, takeaways and diagram (12 sections at once: 5.7 s vs 6.85 s on 1.3) |
-| Muse Spark 1.3 | backup when 1.2 is slow or fails (hedged); reads the keyframes' screen text after the notes |
-| Muse Voice Transcribe | speech to text, in ~6 s pieces sent in one wave over kept-alive connections, slow pieces re-sent; diarized, English and Hindi |
-| SAM 3.1 | finds diagrams in keyframes and crops them |
-| Muse Image | the summary card |
+- **Notes you can check.** A blog-style article where every point has a ✓ time link that plays that second. Hover
+  it to see the words that were quoted. Notes the video does not support are removed and listed at the end
+  ("Removed: N claims").
+- **On screen.** Goes through the video slide by slide: what the notes say, what was said, and the text on screen.
+- **How it was made.** For this run: time to the first note, time to all notes, % proven, the dropped notes with
+  reasons, every step, and a chart.
 
-Without `MODEL_API_KEY`, notes use the `LLM_MODELS` pool (Groq, NVIDIA; see `.env.example`) and speech uses
-Parakeet (Apple Silicon, English) or faster-whisper. Creator subtitles, when present, replace speech recognition.
-Every result records which models and transcriber produced it.
+## Architecture
 
-## How it works
-
-```
-Next.js (web/)  ── upload or link, live progress (server-sent events), player, notes + evidence, tabs per mode
-     │  HTTP
-FastAPI (api/)  ── validate → reuse a finished job for the same video and mode, else a file-backed job
-     ├─ media: an uploaded file, or YouTube streamed with ranged requests (no download)
-     ├─ transcript: creator subtitles, else Muse Voice Transcribe (with Muse, sections go to Spark as clips with
-     │    sound at once, and the transcript checks their quotes afterwards)
-     ├─ in parallel: scene detection → ≤30 keyframes → screen text (OCR)
-     ├─ per section: notes, hedged across models; first grounded result wins; published as soon as it's checked
-     ├─ whole video: title and summary; takeaways and diagram
-     └─ after the notes: summary card
+```mermaid
+flowchart TD
+    A[YouTube link or uploaded file] --> B{Captions of the original audio?}
+    B -- yes --> T[Transcript]
+    B -- no --> C[Audio decoded in 4 parallel ranges, sped up 2x] --> D[Muse Voice Transcribe 1.0<br/>3 s pieces, one pool] --> T
+    A --> K[Keyframe-only scene scan<br/>ffmpeg / PyAV]
+    T --> N[Muse Spark 1.2 and 1.3 at once<br/>notes per section, text only]
+    N --> G[Check: quote and time against transcript]
+    G -- streamed --> UI[Web page]
+    K --> O[Muse Spark<br/>reads keyframes, adds on-screen notes]
+    O --> G2[Check: cited frame within 2 s] --> UI
+    K --> S[SAM 3.1<br/>diagram crops]
+    N --> X[Muse Spark<br/>title, takeaways, diagram]
+    X --> UI
+    G --> I[Muse Image 1.0<br/>summary card, its text read back and checked] --> UI
 ```
 
-The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`.
+All model calls go to Meta. Media processing is open source: ffmpeg, PyAV, yt-dlp.
 
-## Measured
+## Benchmarks
 
-- A 595 s (10-minute) YouTube talk, start to checked notes: **4.2-5.1 s** over 4 runs (Oct 29; 3 of 4 under 5 s),
-  from 16.9 s. Captions in ~0.4 s (two requests raced), every section sent to Spark 1.2 and 1.3 at once without
-  waiting for keyframes. Trade-off: on this route notes cite the transcript only; keyframes feed the takeaways,
-  diagram and Keyframes tab. Earlier: 8.8-9.1 s.
-  YouTube's own captions of the original audio in ~0.4 s, keyframes ~3.5 s, notes ~4 s a section, all 12 at
-  once. YouTube route after keyframe-only scanning: 7.4-7.8 s. Any file or link without captions (Muse speech
-  recognition, the generic route): 9.0-9.4 s on a warm server (3 runs), from 9.6-11.3 s: speech sent at 2x
-  (atempo; word error 4.9% vs 5.1%), 3 s pieces in one pool, diagram tracking after the notes.
-- First notes on screen (generic route, warm server, Oct 29): 4.0-6.5 s over 6 runs (3 under 5 s; the laptop was
-  under outside load for some). The first section is 20 s and its speech pieces are queued before the rest's.
-  Speech at 2.5x: word error 7.4-7.7%, at 3x 17-19% (2x: 4.5-5.0%), so 2x stays.
-- On-screen pass: section notes are text-only, then one Spark call over the keyframes adds 5-7 checked notes about
-  what is only on screen, about 5 s after the notes.
-- Muse Voice Transcribe is throughput-bound: 10 minutes takes ~4 s however many pieces run at once (60: 6.5 s,
-  120: 4.1 s, 198: 4.1 s). With Spark's ~2.9 s (first token ~2.0 s), the generic route's floor is about 7 s.
-- YouTube rate-limits caption downloads (HTTP 429) after many requests from one IP; the job then falls back to
-  speech recognition (the generic route) on its own.
-- Benchmarks on that file (Oct 29): keyframe-only scene scan 0.36-0.48 s vs 6.22 s decoding every frame; audio
-  decode in 4 ranges 0.31 s vs 0.81 s; Muse Voice Transcribe 4.8 s (word error 3.9% vs YouTube's captions).
-  A Spark notes call takes ~4.2 s whatever the section length (50, 25 or 15 s).
-- The sample (a real Muse run of a 4:44 lecture): all notes in **10.35 s**; **19 of 19** notes passed the
-  evidence check. The e2e tests check it stays under 11 s.
-- Speech on 105 s of lecture audio (M2 Air): Parakeet TDT 0.6B 2.5 s, faster-whisper base 4.1 s, faster-whisper
-  small 19.1 s.
+Measured on one 10-minute English talk on an M2 MacBook Air, warm server.
+
+| Route | Video length | First notes | All checked notes | Runs | Setup |
+|---|---|---|---|---|---|
+| YouTube link with captions | 10 min | – | 4.2-5.1 s (3 of 4 under 5 s) | 4 | M2 MacBook Air, warm server |
+| Any video, no captions (Muse speech recognition) | 10 min | 4.0-6.5 s | 9.0-9.4 s | 6 / 3 | M2 MacBook Air, warm server |
+
+Before the speed work, the YouTube route took 16.9 s.
+
+## How every note is checked
+
+1. **Quotes.** A note's quote must fuzzy-match the transcript (60% word match) within 5 s of the time it cites.
+   A quote that is close but not exact (45% or more) is replaced by the transcript's actual words.
+2. **Frames.** A note that cites the screen must point at a real keyframe within ±2 s.
+3. **Repair.** If fewer than half of a section's notes pass, Spark gets one repair round with the problems listed.
+4. **Drop.** Notes that still fail are never shown as checked. They are removed and listed with the reason.
+
+The rules live in `api/src/vidmind/schema.py` (`ground`, `snap_quote`) and `api/src/vidmind/pipeline.py`.
+
+## Why it's fast
+
+All measured on the same talk:
+
+- **Captions first.** YouTube's own captions of the original audio track (we were transcribing an AI dub before
+  this was fixed).
+- **Keyframe-only scene scan:** 0.36-0.48 s instead of 6.22 s decoding every frame.
+- **Audio decode in 4 parallel ranges:** 0.31 s instead of 0.81 s.
+- **Muse Voice Transcribe at 2x speed.** Word error 4.5-5.0% vs 5.1% at 1x. At 2.5x it was 7.4-7.7% and at 3x
+  17-19%, so 2x stays.
+- **3 s pieces in one pool.** Muse speech recognition is limited by throughput (about 4 s per 10 minutes however
+  many pieces run at once).
+- **Two models at once.** Each section goes to Spark 1.2 and 1.3 together; the first checked answer wins.
+- **Streaming.** Notes reach the page as they are written, each one checked first.
+- **Text-only notes.** Images add 0.6 s per call. One on-screen pass then reads the keyframes and adds checked
+  on-screen notes.
+
+What we benchmarked: 11 audio methods, 12 keyframe methods, 12+ speech engines. Muse Voice Transcribe took 4.8 s
+(3.9% word error). Groq Whisper turbo took 1.1 s but is not a Meta model, so it is not used. Local whisper.cpp,
+mlx-whisper, faster-whisper, Parakeet and Moonshine took 6.4-110 s.
 
 ## Run it locally
 
-Requirements: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20+, ffmpeg, and optionally Tesseract for OCR
-outside macOS. On Apple Silicon, `uv sync` also installs Parakeet (MLX) and Apple Vision OCR.
+Requirements: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20+, ffmpeg.
 
 ```bash
-cp .env.example .env              # then set MODEL_API_KEY (or a Groq/NVIDIA key)
+cp .env.example .env              # then set MODEL_API_KEY (the Meta key); see .env.example for the rest
 
 cd api && uv run --env-file ../.env uvicorn vidmind.main:app --port 8000   # API
 cd web && npm install && npm run dev                                       # web, in another terminal
 ```
 
-Open http://localhost:3000, or the precomputed sample at `/jobs/sample` (labelled as precomputed in the UI;
-regenerate it with `scripts/make_sample.sh <job-id>`).
+Open http://localhost:3000, or the precomputed sample at `/jobs/sample` (a real Muse run of a 4:44 lecture:
+18 of 18 notes checked, none dropped).
 
-## Video sources
-
-- **Upload:** MP4, MOV, M4V, WebM or MKV, including screen recordings. A text subtitle track inside the file is
-  used as the transcript.
-- **Link:** YouTube, Vimeo, a direct video URL, or another site [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-  supports. YouTube is streamed, not downloaded, and plays in YouTube's player; others are downloaded (≤720p).
-  The user must confirm they own the video or that it is openly licensed. Playlists, live streams, private or
-  local network addresses, and paid or DRM-protected platforms are refused.
-
-## Limits and data handling
-
-- Up to **12 hours** and **2 GB** per video.
-- Jobs live under `api/data/jobs/<id>/` and are deleted after **24 hours** (checked hourly and at startup).
-  "Delete from server" removes one sooner, unless someone else submitted the same video. Audio stays in memory.
-- The video, transcript and screen text go to the AI model provider (Meta, with `MODEL_API_KEY`).
-- Muse Voice Transcribe times whole speech turns, so citations are as fine as a ~6 s piece.
-- A finished result is reused when the same file (SHA-256) or link is submitted again with the same mode
-  choice, and the page says so.
-
-## Tests and evaluation
+## Tests
 
 ```bash
 cd api && uv run pytest                                          # API, pipeline, checks (models stubbed)
 cd web && npm test                                               # pure functions in web/lib
 cd scripts/eval_demo && npx playwright test -c e2e.config.ts     # end to end, against the running app
-python3 scripts/eval.py api/data/jobs/<id>/result.json fixtures/fixture.annotations.json   # Learn fixture
 ```
-
-The Learn fixture (`scripts/make_fixture.py`) has one fact that is **shown but never spoken**, so a
-transcript-only summary cannot get it.
 
 ## API
 
 | Method | Path | |
 |---|---|---|
+| GET | `/health` | liveness |
 | POST | `/jobs` | multipart `file`; returns `{id, reused}` |
 | POST | `/jobs/from-url` | JSON `{url, rights_confirmed}`; returns `{id, title, reused}` |
 | GET | `/jobs/{id}` | `{status, error, sections_done, sections_total}` |
 | GET | `/jobs/{id}/events` | status and trace as server-sent events until the job ends |
 | GET | `/jobs/{id}/result` | the result JSON; partial as soon as one section is done |
-| GET | `/jobs/{id}/video`, `/jobs/{id}/frames/{n}.jpg` | media |
+| GET | `/jobs/{id}/video`, `/jobs/{id}/frames/{name}` | media |
 | DELETE | `/jobs/{id}` | removes the job's files |
 
 `sample` works as a read-only job id.
 
+## Known limits
+
+- YouTube may rate-limit caption downloads (HTTP 429). The job then falls back to Muse speech recognition (9.0-9.4 s).
+- All numbers come from one laptop and one 10-minute English talk.
+- Not deployed yet.
+- Jobs are deleted after 24 hours. The video, transcript and screen text go to the AI model provider.

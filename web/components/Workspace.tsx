@@ -116,6 +116,28 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
                 {result && !replaying && <Highlights result={result} seek={seek} />}
                 <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />
               </div>
+              {result && !result.pending && !replaying && (
+                // The cheapest proof the check is real: what it threw out, and why.
+                <details className="mt-16 border-t border-rule pt-8 text-[1.05rem]">
+                  <summary className="cursor-pointer font-display font-semibold">
+                    {result.rejected?.length
+                      ? `Removed: ${result.rejected.length} claim${result.rejected.length === 1 ? "" : "s"} the video didn't support`
+                      : `Every one of the ${result.notes_checked ?? ""} claims was checked; none had to be removed`}
+                  </summary>
+                  {result.rejected?.length ? (
+                    <ul className="mt-4 space-y-3">
+                      {result.rejected.map((r, i) => (
+                        <li key={i} className="border-l-2 border-strike/50 pl-3">
+                          <p className="text-graphite line-through decoration-strike/60">{r.text}</p>
+                          <p className="text-sm text-strike">{r.reasons.join("; ")}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-graphite">Each quote was found in the transcript within seconds of where it says, and each screen citation is a real keyframe.</p>
+                  )}
+                </details>
+              )}
               {result?.card_url && !replaying && (
                 <section aria-labelledby="share-card" className="mt-16 border-t border-rule pt-10">
                   <h2 id="share-card" className="font-display text-xl font-bold">Share this summary</h2>

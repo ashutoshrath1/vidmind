@@ -11,3 +11,4 @@ node_modules/
 .claude/
 skills-lock.json
 samples.previous/
+scripts/eval_demo/video/

@@ -12,15 +12,18 @@ export function Cite({ evidence: e, seek }: { evidence: Evidence; seek: Seek }) 
   return (
     <button
       onClick={() => seek(e.start_seconds)}
-      aria-label={`${label}: ${said}. Play from here`}
+      aria-label={`${label}, checked: ${said}. Play from here`}
       data-seek={e.start_seconds}
       className="cite group relative ml-1 rounded-sm align-super text-[0.7rem] leading-none whitespace-nowrap text-scan-ink hover:underline"
     >
+      {/* Every citation on the page passed the check; the tick says so without a word. */}
+      <span aria-hidden className="mr-0.5 text-proof">✓</span>
       <span className="tabular">{formatTime(e.start_seconds)}</span>
       {e.kind === "frame" && <span className="ml-0.5 text-graphite"> on screen</span>}
       <span role="tooltip" className={tip}>
         <span className="block text-lightbox/60">{label}</span>
         {said}
+        <span className="mt-1 block text-proof">✓ Checked against the {e.kind === "frame" ? "keyframe" : "transcript"}</span>
       </span>
     </button>
   );

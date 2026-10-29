@@ -1,20 +1,63 @@
-// Records the Taskly demo (video only); make_mode_fixtures.py adds the narration at the same times.
+// Records the VidMind demo as one uncut take (video only; add narration in an editor): paste a link, notes stream
+// in, a citation plays its moment, the check is shown, then On screen and How it was made.
+// Usage (web on :3000, API on :8000): node record.mjs <youtube-url>   → prints the .webm path.
+// A link processed in the last 24 h is reused instantly; pick a fresh one to show notes streaming in.
 import { chromium } from "@playwright/test";
-import { spawn } from "node:child_process";
 
-const server = spawn("python3", ["-m", "http.server", "4173", "-d", "../demo_app"], { stdio: "ignore" });
-await new Promise((r) => setTimeout(r, 800));
+const url = process.argv[2];
+if (!url) throw new Error("usage: node record.mjs <youtube-url>");
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir: "video", size: { width: 1280, height: 720 } } });
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 900 },
+  recordVideo: { dir: "video", size: { width: 1440, height: 900 } },
+  colorScheme: "dark",
+});
 const page = await context.newPage();
-const t0 = Date.now(), at = (s) => new Promise((r) => setTimeout(r, Math.max(0, t0 + s * 1000 - Date.now())));
-await page.goto("http://localhost:4173");
-const box = page.getByPlaceholder("What needs doing?");
-await at(3); await box.pressSequentially("Buy milk", { delay: 80 }); await page.getByRole("button", { name: "Add" }).click();
-await at(9); await box.pressSequentially("Call the bank", { delay: 80 }); await box.press("Enter");
-await at(15); await page.getByLabel("Buy milk").check();
-await at(20); await page.getByRole("button", { name: "Clear completed" }).click();
-await at(26);
+const pause = (s) => page.waitForTimeout(s * 1000);
+const glide = async (dy) => {
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, dy / 12), await pause(0.05);
+};
+
+await page.goto("http://localhost:3000/");
+await page.locator("canvas").first().waitFor({ timeout: 15_000 });
+await pause(2);
+// 0-10 s: the problem in one action — a long video in, notes out.
+await page.getByLabel("Video link").pressSequentially(url, { delay: 25 });
+await pause(1);
+await page.getByRole("button", { name: /make notes/ }).click();
+await page.waitForURL(/\/jobs\//, { timeout: 30_000 });
+// 10-30 s: notes stream in, each already checked; the run card counts the seconds.
+await page.getByRole("heading", { level: 2 }).first().waitFor({ timeout: 60_000 });
+await pause(6);
+await glide(500);
+await pause(2);
+// 30-60 s: trust — hover a citation (the quoted words, "Checked"), click it (plays that second).
+const cite = page.locator("button.cite").first();
+await cite.scrollIntoViewIfNeeded();
+await cite.hover();
+await pause(3);
+await cite.click();
+await pause(6);
+await page.keyboard.press("Escape");
+// 60-75 s: what the check threw out, at the end of the article.
+await page.locator("details").filter({ hasText: /Removed|checked/ }).first().scrollIntoViewIfNeeded();
+await page.locator("details").filter({ hasText: /Removed|checked/ }).first().locator("summary").click();
+await pause(4);
+// 75-105 s: On screen — each slide with what the notes say about it.
+await page.getByRole("tab", { name: /On screen/ }).click();
+await pause(3);
+await glide(700);
+await pause(4);
+// 105-135 s: How it was made — the real seconds, the models, the steps.
+await page.getByRole("tab", { name: "How it was made" }).click();
+await page.evaluate(() => window.scrollTo(0, 0));
+await pause(5);
+await glide(900);
+await pause(4);
+await glide(900);
+await pause(3);
+
 const path = await page.video().path();
-await context.close(); await browser.close(); server.kill();
+await context.close();
+await browser.close();
 console.log(path);

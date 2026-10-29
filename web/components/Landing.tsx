@@ -45,7 +45,7 @@ export function Magnetic({ children }: { children: React.ReactNode }) {
 }
 
 export const STATS: [string, string][] = [
-  ["~10 s", "for a 5-minute video"],
+  ["4.5 s", "a 10-minute YouTube talk to checked notes"],
   ["100%", "of notes backed by the video, in the sample"],
   [`${MINUTES_SAVED_PER_HOUR} min`, "saved per hour of video"],
   ["4", "Meta models on every video"],
