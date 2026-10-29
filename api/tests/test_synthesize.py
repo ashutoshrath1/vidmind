@@ -53,7 +53,7 @@ def test_server_error_with_images_retries_text_only(twelve_frames, monkeypatch):
     messages = syn.section_messages([], frames, 0, 240, job_dir, vision=True)
     sent = []
 
-    def fake(msgs, model):
+    def fake(msgs, model, on_text=None):
         sent.append(msgs)
         if images(msgs):
             raise openai.InternalServerError("boom", response=httpx.Response(500, request=httpx.Request("POST", "x")), body=None)
@@ -62,3 +62,12 @@ def test_server_error_with_images_retries_text_only(twelve_frames, monkeypatch):
     monkeypatch.setattr(syn, "_complete", fake)
     assert syn.complete(messages, "m") == "{}"
     assert len(sent) == 2 and images(sent[0]) and not images(sent[1])
+
+
+def test_finished_items_returns_only_whole_notes_of_a_reply_still_streaming():
+    from vidmind.synthesize import finished_items
+
+    head = '{"title": "a { b", "notes": [{"text": "x } \\" {", "evidence": [{"kind": "frame"}]}, {"text": "half'
+    assert finished_items(head) == ['{"text": "x } \\" {", "evidence": [{"kind": "frame"}]}']
+    assert len(finished_items(head + '"}], "key_terms": [{"no": 1}]}')) == 2  # stops at the end of "notes"
+    assert finished_items('{"title": "t"') == []

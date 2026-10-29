@@ -122,3 +122,13 @@ test("turns the trace into lanes of bars: stages, transcription parts, and model
     ["Summary card", [[5.5, 7, "img", "running"]]],
   ]);
 });
+
+test("checked notes show under their section as they arrive, before the section is done", () => {
+  const note = { text: "Welcome.", uncertain: false, uncertain_reason: null, evidence: [{ kind: "transcript" as const, start_seconds: 1, quote: "welcome" }] };
+  const v = buildView([
+    { t: 0, kind: "plan", sections: [[0, 20], [20, 60]] },
+    { t: 2.1, kind: "note", task: "s1", model: "muse:muse-spark-1.2", note },
+  ]);
+  assert.deepEqual(v.sections.map((s) => s.notes.length), [0, 1]);
+  assert.equal(v.sections[1].done, undefined);
+});

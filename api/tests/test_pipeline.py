@@ -13,7 +13,7 @@ from vidmind.schema import Overview, SectionOutput, Segment, VisualOutput
 def fake_ask_factory(calls):
     """Stub for synthesize.ask: cites the section's first transcript line and keyframe, like a good model would."""
 
-    def fake_ask(messages, model, cls):
+    def fake_ask(messages, model, cls, on_text=None):
         if cls is Overview:
             return Overview(title="Product analytics 101", tldr="Activation, retention and the north star."), "raw"
         if cls is VisualOutput:
@@ -126,7 +126,7 @@ def test_sections_written_before_the_keyframes_get_checked_on_screen_notes_after
     sections_ask = fake_ask_factory([])
     seen_screen = []
 
-    def fake_ask(messages, model, cls):
+    def fake_ask(messages, model, cls, on_text=None):
         if messages[0]["content"] is pipeline.syn.SCREEN_SYSTEM:
             text = messages[1]["content"][0]["text"]
             frame_t = float(re.findall(r"\[frame ([\d.]+)s\]", text)[-1])  # a real keyframe
@@ -155,6 +155,34 @@ def test_sections_written_before_the_keyframes_get_checked_on_screen_notes_after
     assert [len(c["notes"]) for c in later["chapters"]] == [2 if k == home else 1 for k in range(len(starts))]
 
 
+def test_notes_are_shown_as_they_are_written_but_only_after_the_evidence_check(fixture_clip, tmp_path, monkeypatch):
+    video, _ = fixture_clip
+    monkeypatch.setattr(pipeline, "SECTION_S", 60.0)
+    monkeypatch.setattr(pipeline, "FIRST_S", 60.0)
+    monkeypatch.setenv("LLM_MODELS", "model-a")
+    captions = [Segment(1, 4, "welcome to product analytics today"), Segment(21, 24, "retention tells us how many users")]
+    reply = json.dumps({"title": "T", "notes": [
+        {"text": "Welcome.", "evidence": [{"kind": "transcript", "start_seconds": 1, "quote": "welcome to product analytics"}]},
+        {"text": "Made up.", "evidence": [{"kind": "transcript", "start_seconds": 21, "quote": "pricing doubles next year"}]},
+        {"text": "Retention.", "evidence": [{"kind": "transcript", "start_seconds": 21, "quote": "retention tells us how many"}]}]})
+
+    def fake_ask(messages, model, cls, on_text=None):
+        if cls is not SectionOutput or messages[0]["content"] is pipeline.syn.SCREEN_SYSTEM:
+            return fake_ask_factory([])(messages, model, cls)
+        for k in [*range(20, len(reply), 20), len(reply)]:  # streams in pieces, then the end
+            on_text and on_text(reply[:k])
+        return SectionOutput.model_validate_json(reply), reply
+
+    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
+    events = []
+    src = pipeline.Source(str(video), 60.0, audio=str(video), captions=captions)
+    pipeline.run(tmp_path, lambda *a, **k: None, src, lambda kind, **d: events.append((kind, d)))
+    kinds = [k for k, _ in events]
+    shown = [d["note"]["text"] for k, d in events if k == "note"]
+    assert shown == ["Welcome.", "Retention."]  # the made-up quote never reached the page
+    assert kinds.index("note") < kinds.index("section")  # before the section was finished
+
+
 def test_probe_rejects_non_video(tmp_path):
     bad = tmp_path / "notes.mp4"
     bad.write_text("not a video")
@@ -181,7 +209,7 @@ def test_slow_model_is_hedged_by_the_next(monkeypatch, tmp_path):
     monkeypatch.setattr(pipeline, "HEDGE_S", 0.2)
     seg = [Segment(1.0, 4.0, "the quick brown fox jumps")]
 
-    def fake_ask(messages, model, cls):
+    def fake_ask(messages, model, cls, on_text=None):
         if model == "slow":
             time.sleep(2)
         out = SectionOutput(title=model, notes=[Note(text="n", evidence=[

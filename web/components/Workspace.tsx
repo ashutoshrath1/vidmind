@@ -223,7 +223,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
         return chapter ? (
           <ChapterView key={s.i} chapter={chapter} base={base} seek={seek} section={s} fresh={fresh} />
         ) : (
-          <SectionLive key={s.i} section={s} now={now} failed={!!s.done && !s.done.ok} />
+          <SectionLive key={s.i} section={s} now={now} failed={!!s.done && !s.done.ok} base={base} seek={seek} />
         );
       })}
     </div>

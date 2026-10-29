@@ -23,7 +23,7 @@ import numpy as np
 
 from . import frames as fr
 from . import synthesize as syn
-from .schema import (Chapter, Frame, LearnOutput, LearnResult, Overview, QuizItem, Rejected,
+from .schema import (Chapter, Frame, LearnOutput, LearnResult, Note, Overview, QuizItem, Rejected,
                      SectionOutput, Segment, VisualOutput, _words, ground, ground_notes, snap_quote)
 from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
 
@@ -381,17 +381,18 @@ def hedged[T](order: list[str], attempt: Callable[[str], T], what: str, emit: Em
 
 def write_section(
     lo: float, hi: float, segments: list[Segment], frames: list[Frame], job_dir: Path, duration: float,
-    model_order: list[str], emit: Emit = _quiet, i: int = 0,
+    model_order: list[str], emit: Emit = _quiet, i: int = 0, preview: Callable[[str, str], None] | None = None,
 ) -> Part:
-    """One section → its chapter, quiz and evidence-check audit; hedged across model_order."""
-    return hedged(model_order, lambda m: _attempt(m, lo, hi, segments, frames, job_dir, duration, emit, i),
+    """One section → its chapter, quiz and evidence-check audit; hedged across model_order. preview(model, note
+    JSON) gets each note the moment the model has written it."""
+    return hedged(model_order, lambda m: _attempt(m, lo, hi, segments, frames, job_dir, duration, emit, i, preview),
                   f"section {lo:.0f}-{hi:.0f}s", emit, f"s{i}")
 
 
-def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0) -> Part:
+def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0, preview=None) -> Part:
     started = time.monotonic()
     try:
-        result = _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit, i)
+        result = _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit, i, preview)
         log.info("section %.0f-%.0fs: %s answered in %.1fs", lo, hi, model, time.monotonic() - started)
         return result
     except Exception:
@@ -399,11 +400,20 @@ def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _q
         raise
 
 
-def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0) -> Part:
+def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0,
+                   preview=None) -> Part:
     # Text only: transcript and the keyframes' timestamps and screen text. Images added ~0.6 s to every call (first
     # token 2.5-2.7 s vs 2.0 s); the keyframe images go to the whole-video pass (takeaways, diagram) instead.
     messages = syn.section_messages(segments, frames, lo, hi, job_dir, False)
-    out, raw = syn.ask(messages, model, SectionOutput)
+    shown = 0
+
+    def on_text(text: str) -> None:
+        nonlocal shown
+        for note in syn.finished_items(text)[shown:]:
+            shown += 1
+            preview(model, note)
+
+    out, raw = syn.ask(messages, model, SectionOutput, on_text if preview else None)
     out = _snap(out, segments)
     clean, problems, rejected = _ground_section(out, lo, segments, frames, duration)
     kept = sum(len(c.notes) for c in clean.chapters)
@@ -522,6 +532,22 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             pending=state["pending"],
         )
 
+    live: dict[int, str] = {}  # section → the model whose notes are shown as they are written
+
+    def show_note(i: int, lo: float, segs: list[Segment], seen: list[Frame], model: str, raw: str) -> None:
+        """A note the moment the model has written it, after the same evidence check; the section's final checked
+        notes replace these when they land. The first model to write one owns the section's live notes."""
+        with lock:
+            if live.setdefault(i, model) != model or i in done:
+                return
+        try:
+            out = _snap(SectionOutput(title="", notes=[Note.model_validate_json(raw)]), segs)
+        except ValueError:
+            return  # not a note after all: the full reply is parsed and checked anyway
+        clean, _, _ = _ground_section(out, lo, segs, seen, duration)
+        if clean.chapters:
+            emit("note", task=f"s{i}", model=model, note=clean.chapters[0].notes[0].model_dump())
+
     def section(i: int, lo: float, hi: float, segs: list[Segment]) -> None:
         # Publishes inside the task, not in a done-callback: callbacks run after waiters wake, so the card once read
         # an empty result and drew an invented list.
@@ -530,8 +556,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             # Never waits for the keyframes: with captions the transcript is in at 0.4 s and keyframes at ~2.2 s.
             # Ready ones go in (always, without captions: speech recognition takes longer than keyframes).
             seen = frames_f.result() if frames_f.done() else []
-            part = write_section(lo, hi, segs, [x for x in seen if lo <= x.t < hi], job_dir, duration,
-                                 _model_order(pool, i), emit, i)
+            mine = [x for x in seen if lo <= x.t < hi]
+            part = write_section(lo, hi, segs, mine, job_dir, duration, _model_order(pool, i), emit, i,
+                                 lambda model, raw: show_note(i, lo, segs, mine, model, raw))
         except Exception:
             log.exception("section %d failed on every model", i)
             part = Part(None, [], "failed")

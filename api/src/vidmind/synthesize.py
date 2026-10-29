@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import threading
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 
@@ -29,11 +30,11 @@ Rules:
 - 2-4 notes for this section.
 - Do not invent facts.
 
-Return ONLY one JSON object with exactly this shape (values are placeholders):
-{"title": "Section title", "summary": "1-2 sentence summary of the section", "key_terms": ["term", "term"],
- "notes": [{"text": "One factual note.", "uncertain": false, "uncertain_reason": null,
+Return ONLY one JSON object with exactly this shape, notes first (values are placeholders):
+{"notes": [{"text": "One factual note.", "uncertain": false, "uncertain_reason": null,
    "evidence": [{"kind": "transcript", "start_seconds": 12.3, "quote": "exact words from that segment"},
-                {"kind": "frame", "start_seconds": 30.0, "text": "what the frame shows"}]}]}"""
+                {"kind": "frame", "start_seconds": 30.0, "text": "what the frame shows"}]}],
+ "title": "Section title", "summary": "1-2 sentence summary of the section", "key_terms": ["term", "term"]}"""
 
 OVERVIEW_SYSTEM = """You read a video's transcript and on-screen text and return ONLY this JSON:
 {"title": "Short descriptive title of the video", "tldr": "2-3 sentence summary of what the viewer learns",
@@ -194,18 +195,18 @@ def _without_images(messages: list[dict]) -> list[dict]:
     ]
 
 
-def complete(messages: list[dict], model: str) -> str:
+def complete(messages: list[dict], model: str, on_text: Callable[[str], None] | None = None) -> str:
     try:
-        return _complete(messages, model)
+        return _complete(messages, model, on_text)
     except openai.InternalServerError:
         # Hosted vision endpoints fail opaquely on image payloads; text + OCR still produces grounded notes.
         if _without_images(messages) == messages:
             raise
         log.warning("%s: server error with images; retrying text-only", model)
-        return _complete(_without_images(messages), model)
+        return _complete(_without_images(messages), model, on_text)
 
 
-def _complete(messages: list[dict], model: str) -> str:
+def _complete(messages: list[dict], model: str, on_text: Callable[[str], None] | None = None) -> str:
     prov = provider(model)
     client = _client(prov)
     # A section's JSON is ~1-2K tokens; the cap stops a degenerate stream (NVIDIA's gpt-oss-20b once sent whitespace
@@ -229,6 +230,8 @@ def _complete(messages: list[dict], model: str) -> str:
                     if chunk.choices:
                         parts.append(chunk.choices[0].delta.content or "")
                         finish = chunk.choices[0].finish_reason or finish
+                        if on_text and chunk.choices[0].delta.content:
+                            on_text("".join(parts))  # the reply so far, for notes shown as they are written
             if finish == "length":
                 log.warning("%s hit max_tokens=%d; reply is likely cut off", model, max_tokens)
             return "".join(parts)
@@ -236,6 +239,34 @@ def _complete(messages: list[dict], model: str) -> str:
             if i == len(variants) - 1:
                 raise
     raise AssertionError("unreachable")
+
+
+def finished_items(text: str, key: str = "notes") -> list[str]:
+    """The complete JSON objects so far in the `key` array of a reply still being streamed, in order. Strings are
+    tracked, so braces inside quoted text don't count."""
+    at = text.find(f'"{key}"')
+    start = text.find("[", at) if at >= 0 else -1
+    if start < 0:
+        return []
+    items, depth, begin, in_str, esc = [], 0, -1, False, False
+    for k in range(start + 1, len(text)):
+        c = text[k]
+        if in_str:
+            esc, in_str = (False, True) if esc else (c == "\\", c != '"')
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+            if depth == 1:
+                begin = k
+        elif c == "}":
+            depth -= 1
+            if depth == 0 and begin >= 0:
+                items.append(text[begin : k + 1])
+        elif c == "]" and depth == 0:
+            break
+    return items
 
 
 def _parse[T: BaseModel](text: str, cls: type[T]) -> T:
@@ -246,9 +277,11 @@ def _parse[T: BaseModel](text: str, cls: type[T]) -> T:
     return cls.model_validate(json.loads(text[start : end + 1]))
 
 
-def ask[T: BaseModel](messages: list[dict], model: str, cls: type[T]) -> tuple[T, str]:
-    """Returns (parsed reply, raw text). Retries once if the reply is not valid JSON for `cls`."""
-    raw = complete(messages, model)
+def ask[T: BaseModel](messages: list[dict], model: str, cls: type[T],
+                       on_text: Callable[[str], None] | None = None) -> tuple[T, str]:
+    """Returns (parsed reply, raw text). Retries once if the reply is not valid JSON for `cls`.
+    on_text gets the reply so far as it streams in (first attempt only)."""
+    raw = complete(messages, model, on_text)
     try:
         return _parse(raw, cls), raw
     except ValueError as e:  # pydantic ValidationError and JSONDecodeError are both ValueErrors

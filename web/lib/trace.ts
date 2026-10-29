@@ -1,5 +1,6 @@
 // The job's trace (api: jobs.tracer / pipeline emit) streamed as server-sent events, folded into what the page shows.
 // Relative .ts imports only: `node --test lib/*.test.ts` runs this file without the Next toolchain.
+import type { Note } from "./api.ts";
 import { estimate } from "./estimate.ts";
 
 export type Rejected = { text: string; reasons: string[] };
@@ -27,6 +28,7 @@ export type TraceEvent = { t: number } & (
   | { kind: "model"; task: string; model: string; state: "start" | "end" | "fail" | "win"; reason?: string; seconds?: number; error?: string }
   | { kind: "check"; task: string; model: string; round: number; notes: number; problems: string[]; kept: number; rejected?: Rejected[] }
   | { kind: "section"; task: string; ok: boolean; model: string; title: string | null; notes: number; rejected: number }
+  | { kind: "note"; task: string; model: string; note: Note } // a checked note, shown while its section is still being written
   | { kind: "overview"; title: string; tldr: string }
   | { kind: "keyframes_failed"; error: string }
   | { kind: "clip"; task: string; at: [number, number]; kb: number; seconds: number }
@@ -56,6 +58,7 @@ export type SectionView = {
   transcribeSeconds?: number;
   attempts: Attempt[];
   checks: Check[];
+  notes: Note[]; // checked notes so far, before the section's final notes land
   done?: Extract<TraceEvent, { kind: "section" }>;
 };
 
@@ -100,7 +103,7 @@ export function buildView(events: TraceEvent[]): View {
         break;
       }
       case "plan":
-        v.sections = e.sections.map(([lo, hi], i) => ({ i, lo, hi, attempts: [], checks: [] }));
+        v.sections = e.sections.map(([lo, hi], i) => ({ i, lo, hi, attempts: [], checks: [], notes: [] }));
         break;
       case "transcript": {
         const s = section(e.task);
@@ -132,6 +135,9 @@ export function buildView(events: TraceEvent[]): View {
       }
       case "check":
         section(e.task)?.checks.push(e);
+        break;
+      case "note":
+        section(e.task)?.notes.push(e.note);
         break;
       case "section": {
         const s = section(e.task);

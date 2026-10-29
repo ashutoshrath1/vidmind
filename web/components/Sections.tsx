@@ -1,20 +1,22 @@
 import { Chip, EvidenceChip, type Seek, TimeButton } from "@/components/ui";
-import { type Chapter, formatSeconds, formatTime, modelHost, modelName } from "@/lib/api";
+import { type Chapter, type Note, formatSeconds, formatTime, modelHost, modelName } from "@/lib/api";
 import type { Attempt, Check, SectionView } from "@/lib/trace";
 
 const range = (s: SectionView) => `${formatTime(s.lo)} to ${formatTime(s.hi)}`;
 
 /** A section still being worked on: its transcript arriving, the models racing on it, and its citation check. */
-export function SectionLive({ section: s, now, failed }: { section: SectionView; now: number; failed: boolean }) {
+export function SectionLive({ section: s, now, failed, base, seek }: { section: SectionView; now: number; failed: boolean; base: string; seek: Seek }) {
   const state = failed
     ? "Every model failed on this section"
     : !s.lines
       ? "Waiting for its transcript"
       : !s.attempts.length
-        ? "Waiting for the keyframes to be read"
-        : s.checks.length
-          ? "Checking every citation against the video"
-          : "Models are writing";
+        ? "Sending it to the notes model"
+        : s.notes.length
+          ? `Writing: ${s.notes.length} checked note${s.notes.length === 1 ? "" : "s"} so far`
+          : s.checks.length
+            ? "Checking every citation against the video"
+            : "Models are writing";
   return (
     <article aria-label={`Section ${s.i + 1}`} aria-busy={!failed} className="space-y-4 rounded-lg bg-sheet p-5 ring-1 ring-rule">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
@@ -23,6 +25,7 @@ export function SectionLive({ section: s, now, failed }: { section: SectionView;
         </h2>
         <p className={`text-sm ${failed ? "text-strike" : s.attempts.length ? "text-scan-ink" : "text-wait"}`}>{state}</p>
       </header>
+      {s.notes.length > 0 && <NoteList notes={s.notes} start={s.lo} base={base} seek={seek} />}
       <Transcript section={s} />
       {s.attempts.length > 0 && <ModelRace attempts={s.attempts} now={now} />}
       {s.checks.length > 0 && <Checks checks={s.checks} />}
@@ -182,28 +185,35 @@ export function ChapterView({ chapter: ch, base, seek, section, fresh }: Chapter
           )}
         </div>
       </div>
-      <ul className="divide-y divide-rule border-y border-rule">
-        {ch.notes.map((n, i) => (
-          <li key={i} className="grid grid-cols-[3.25rem_1fr] gap-x-3 py-3">
-            <span className="tabular pt-0.5 font-display text-sm text-graphite">{formatTime(n.evidence[0]?.start_seconds ?? ch.start_seconds)}</span>
-            <p className="max-w-[70ch] leading-relaxed">
-              {n.text}{" "}
-              {n.uncertain && (
-                <span className="mr-1 align-middle">
-                  <Chip tone="strike" title={n.uncertain_reason ?? undefined}>
-                    Uncertain{n.uncertain_reason ? `: ${n.uncertain_reason}` : ""}
-                  </Chip>
-                </span>
-              )}
-              <span className="inline-flex flex-wrap gap-1 align-middle">
-                {n.evidence.map((e, j) => (
-                  <EvidenceChip key={j} evidence={e} base={base} seek={seek} />
-                ))}
-              </span>
-            </p>
-          </li>
-        ))}
-      </ul>
+      <NoteList notes={ch.notes} start={ch.start_seconds} base={base} seek={seek} />
     </article>
+  );
+}
+
+/** Notes with the second each comes from and its evidence. */
+function NoteList({ notes, start, base, seek }: { notes: Note[]; start: number; base: string; seek: Seek }) {
+  return (
+    <ul className="divide-y divide-rule border-y border-rule">
+      {notes.map((n, i) => (
+        <li key={i} className="grid grid-cols-[3.25rem_1fr] gap-x-3 py-3">
+          <span className="tabular pt-0.5 font-display text-sm text-graphite">{formatTime(n.evidence[0]?.start_seconds ?? start)}</span>
+          <p className="max-w-[70ch] leading-relaxed">
+            {n.text}{" "}
+            {n.uncertain && (
+              <span className="mr-1 align-middle">
+                <Chip tone="strike" title={n.uncertain_reason ?? undefined}>
+                  Uncertain{n.uncertain_reason ? `: ${n.uncertain_reason}` : ""}
+                </Chip>
+              </span>
+            )}
+            <span className="inline-flex flex-wrap gap-1 align-middle">
+              {n.evidence.map((e, j) => (
+                <EvidenceChip key={j} evidence={e} base={base} seek={seek} />
+              ))}
+            </span>
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
