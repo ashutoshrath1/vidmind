@@ -52,8 +52,9 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
 
 ## Measured
 
-- A 595 s (10-minute) YouTube talk, start to checked notes: **12.4-13.1 s** over 3 runs (Oct 29), from 16.9 s
-  before. Audio ~1 s, transcript ~5-7 s, notes ~4-5 s a section, all 12 sections at once.
+- A 595 s (10-minute) YouTube talk, start to checked notes: **8.8-9.1 s** over 3 runs (Oct 29), from 16.9 s.
+  YouTube's own captions of the original audio in ~0.4 s, keyframes ~3.5 s, notes ~4 s a section, all 12 at
+  once. Without captions (Muse speech recognition): 12.4-13.1 s.
 - The sample (a real Muse run of a 4:44 lecture): all notes in **10.35 s**; **19 of 19** notes passed the
   evidence check. The e2e tests check it stays under 11 s.
 - Speech on 105 s of lecture audio (M2 Air): Parakeet TDT 0.6B 2.5 s, faster-whisper base 4.1 s, faster-whisper

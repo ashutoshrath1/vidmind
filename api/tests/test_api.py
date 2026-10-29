@@ -105,6 +105,21 @@ def test_stream_plan_picks_fast_formats_and_creator_subtitles():
     assert fetch.stream_plan({**info, "extractor_key": "Vimeo"}) is None
 
 
+def test_stream_plan_takes_the_original_audio_not_a_dub_and_youtubes_own_captions_when_no_subtitles():
+    track = lambda fid, lang, pref, abr: {  # noqa: E731
+        "format_id": fid, "vcodec": "none", "acodec": "opus", "abr": abr, "protocol": "https", "url": f"https://v/{fid}",
+        "language": lang, "language_preference": pref}
+    info = {"extractor_key": "Youtube", "id": "abc", "duration": 600, "language": "en-US",
+            "formats": [{"format_id": "136", "height": 720, "vcodec": "avc1", "acodec": "none", "protocol": "https",
+                         "url": "https://v/136"},
+                        track("249-de", "de-DE", -1, 45), track("249-en", "en-US", 10, 49), track("251-en", "en-US", 10, 130)],
+            "automatic_captions": {"de-orig": [{"ext": "json3", "url": "de"}],
+                                   "en-orig": [{"ext": "vtt", "url": "v"}, {"ext": "json3", "url": "en"}]}}
+    plan = fetch.stream_plan(info)
+    assert plan["audio"] == "https://v/249-en"  # the German dub has the lowest bitrate, but isn't the original
+    assert plan["captions"] == "en"
+
+
 def test_events_stream_the_trace_then_status():
     job_id, d = jobs.create()
     emit = jobs.tracer(d)

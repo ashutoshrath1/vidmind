@@ -86,3 +86,15 @@ def test_muse_falls_back_to_the_other_copy_when_one_fails(monkeypatch):
     monkeypatch.setattr(tr, "HEDGE_S", 0.1)
     monkeypatch.setattr(tr, "muse_asr", asr)
     assert [s.text for s in tr.muse_asr_chunked(np.full(5 * 16000, 0.5, np.float32))] == ["ok"]
+
+
+def test_json3_captions_become_one_segment_per_line_ending_where_the_next_starts():
+    from vidmind.transcribe import parse_json3
+
+    data = {"events": [
+        {"tStartMs": 0, "dDurationMs": 3000, "segs": [{"utf8": "often"}, {"utf8": " find", "tOffsetMs": 400}]},
+        {"tStartMs": 2500, "dDurationMs": 500, "aAppend": 1, "segs": [{"utf8": "\n"}]},  # a line break only
+        {"tStartMs": 2600, "dDurationMs": 4000, "segs": [{"utf8": "it  harder"}]},
+        {"tStartMs": 9000, "dDurationMs": 100},  # no words
+    ]}
+    assert [(s.start, s.end, s.text) for s in parse_json3(data)] == [(0.0, 2.6, "often find"), (2.6, 6.6, "it harder")]

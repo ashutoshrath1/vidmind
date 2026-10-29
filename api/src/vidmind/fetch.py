@@ -16,7 +16,7 @@ import yt_dlp
 from yt_dlp.utils import DownloadError
 
 from .pipeline import MAX_BYTES, MAX_DURATION_S, Source
-from .transcribe import parse_vtt
+from .transcribe import parse_json3, parse_vtt
 
 # Paid / DRM-protected platforms: getting the video out would mean bypassing their protection.
 BLOCKED_DOMAINS = ("udemy.com", "netflix.com", "primevideo.com", "disneyplus.com", "hotstar.com",
@@ -83,7 +83,8 @@ def stream_plan(info: dict) -> dict | None:
     video = best(720)
     if not video:
         return None
-    audio = min(audio_only, key=lambda f: f.get("abr") or 1e9, default=None)  # speech needs little bitrate
+    # The original language's track (never an AI dub), at the lowest bitrate: speech needs little.
+    audio = min(audio_only, key=lambda f: (-(f.get("language_preference") or 0), f.get("abr") or 1e9), default=None)
     return {
         "youtube_id": info["id"],
         "duration": info["duration"],
@@ -96,26 +97,44 @@ def stream_plan(info: dict) -> dict | None:
 
 
 def _caption_url(info: dict) -> str | None:
-    """Creator-uploaded subtitles in the video's language or English. Auto-captions are skipped: local ASR is
-    better (punctuation, sentence boundaries)."""
+    """Creator subtitles in the video's language or English; else YouTube's own speech recognition of the original
+    audio ("<lang>-orig", json3 with word timings). Using that skips our speech recognition: 0.4 s to fetch, vs
+    5-7 s for Muse on a 10-minute video, the longest step before the notes."""
     subs = info.get("subtitles") or {}
     langs = {(info.get("language") or "en").split("-")[0], "en"}
     for key in sorted(subs, key=lambda k: not k.startswith("en")):
         if key.split("-")[0] in langs:
             if url := next((s["url"] for s in subs[key] if s.get("ext") == "vtt"), None):
                 return url
+    auto = info.get("automatic_captions") or {}
+    lang = (_original_audio(info) or {}).get("language") or info.get("language") or "en"
+    for key in (f"{lang}-orig", f"{lang.split('-')[0]}-orig"):
+        if url := next((s["url"] for s in auto.get(key, []) if s.get("ext") == "json3"), None):
+            return url
     return None
 
 
+def _original_audio(info: dict) -> dict | None:
+    """The original audio track, not one of YouTube's AI dubs (an English talk once came back as its German dub,
+    the lowest bitrate). yt-dlp ranks the original highest by language_preference."""
+    tracks = [f for f in info.get("formats", []) if f.get("vcodec") == "none" and f.get("acodec") not in (None, "none")]
+    return max(tracks, key=lambda f: f.get("language_preference") or 0, default=None)
+
+
 def stream_source(plan: dict) -> Source:
-    captions = None
-    if plan.get("captions"):
+    captions, auto = None, "fmt=json3" in (plan.get("captions") or "")
+    for _ in range(2 if plan.get("captions") else 0):
         try:
-            captions = parse_vtt(httpx.get(plan["captions"], timeout=30).raise_for_status().text) or None
-        except httpx.HTTPError:
-            pass  # speech recognition covers it
+            # Short timeout: one caption request once sat 9.4 s and held up the whole job; speech recognition
+            # (5-7 s) covers a caption track that doesn't come quickly.
+            body = httpx.get(plan["captions"], timeout=3).raise_for_status()
+            captions = (parse_json3(body.json()) if auto else parse_vtt(body.text)) or None
+            break
+        except (httpx.HTTPError, ValueError):
+            continue
     return Source(plan["video"], plan["duration"], audio=plan["audio"], scan=plan["scan"], headers=plan["headers"],
-                  captions=captions, youtube_id=plan["youtube_id"])
+                  captions=captions, youtube_id=plan["youtube_id"],
+                  captions_from="YouTube captions (auto)" if auto else "creator subtitles")
 
 
 def download(url: str, job_dir: Path) -> Path:

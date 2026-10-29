@@ -136,7 +136,7 @@ const MODELS: { icon: IconName; name: string; does: string }[] = [
 ];
 
 const MEASURED: [string, string][] = [
-  ["12.4 s", "A 10-minute talk, start to checked notes (best of 3 runs; was 16.9 s)"],
+  ["8.8 s", "A 10-minute talk, start to checked notes (3 runs: 8.8-9.1 s; was 16.9 s)"],
   ["19 / 19", "Notes on the sample that passed the evidence check against the transcript and keyframes"],
   ["0", "Notes shown without proof: anything the video can't back is thrown out, with the reason"],
 ];

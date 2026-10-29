@@ -53,8 +53,9 @@ class Source:
     audio: str | None = None  # None: no audio track
     scan: str | None = None  # lower-resolution video for scene detection; defaults to `video`
     headers: str = ""  # HTTP headers ffmpeg sends with stream URLs
-    captions: list[Segment] | None = None  # creator subtitles: used instead of speech recognition
+    captions: list[Segment] | None = None  # subtitles or YouTube's own captions: used instead of speech recognition
     youtube_id: str | None = None
+    captions_from: str = "creator subtitles"
 
 
 @dataclass
@@ -488,7 +489,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
 
     lock = threading.Lock()
     done: dict[int, Part] = {}
-    state = {"transcriber": "creator subtitles" if src.captions is not None else "none (no audio track)",
+    state = {"transcriber": src.captions_from if src.captions is not None else "none (no audio track)",
              "overview": None, "actions": [], "scenarios": [], "extra_rejected": [], "card": None, "takeaways": [],
              "diagram": None, "questions": [], "pending": False}
 

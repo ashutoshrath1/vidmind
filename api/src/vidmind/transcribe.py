@@ -66,6 +66,17 @@ def parse_vtt(text: str) -> list[Segment]:
     return out
 
 
+def parse_json3(data: dict) -> list[Segment]:
+    """YouTube's json3 captions: one segment per caption line, timed by its first word, ending where the next starts.
+    Unlike the VTT form of auto-captions, lines are not repeated as they roll."""
+    lines = [(e["tStartMs"] / 1000, (e["tStartMs"] + e.get("dDurationMs", 0)) / 1000,
+              " ".join("".join(x.get("utf8", "") for x in e["segs"]).split()))
+             for e in data.get("events", []) if e.get("segs")]
+    lines = [x for x in lines if x[2]]
+    return [Segment(round(a, 2), round(min(b, lines[k + 1][0]) if k + 1 < len(lines) else b, 2), text)
+            for k, (a, b, text) in enumerate(lines)]
+
+
 def _parakeet_repo() -> str:
     return os.environ.get("PARAKEET_MODEL", "mlx-community/parakeet-tdt-0.6b-v2")
 
