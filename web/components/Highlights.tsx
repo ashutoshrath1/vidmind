@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { EvidenceChip, type Seek } from "@/components/ui";
+import { Cite, NoteLine } from "@/components/Cite";
+import type { Seek } from "@/components/ui";
 import { type Diagram, type LearnResult } from "@/lib/api";
 import { toMermaid } from "@/lib/export";
 
 const KIND = { architecture: "Architecture", flowchart: "Flow", sequence: "API flow" } as const;
 
-function DiagramView({ diagram, base, seek }: { diagram: Diagram; base: string; seek: Seek }) {
+function DiagramView({ diagram, seek }: { diagram: Diagram; seek: Seek }) {
   const box = useRef<HTMLDivElement>(null);
   const id = "d" + useId().replace(/\W/g, "");
   const [state, setState] = useState<"drawing" | "drawn" | "failed">("drawing");
@@ -31,24 +32,23 @@ function DiagramView({ diagram, base, seek }: { diagram: Diagram; base: string; 
   }, [diagram, id]);
 
   return (
-    <figure className="space-y-3">
-      <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-display text-lg font-semibold">{diagram.title}</span>
-        <span className="text-sm text-graphite">{KIND[diagram.kind]}, from the video</span>
-      </figcaption>
+    <figure className="mt-10">
       {state === "failed" ? (
-        <p className="text-sm text-graphite">The diagram couldn&apos;t be drawn; its parts are listed below.</p>
+        <p className="text-base text-graphite">The diagram couldn&apos;t be drawn; its parts are listed below.</p>
       ) : (
         <div ref={box} role="img" data-diagram aria-label={`${KIND[diagram.kind]} diagram: ${diagram.title}`}
-          className={`${state === "drawing" ? "scanning min-h-40" : ""} overflow-x-auto rounded-lg bg-sheet p-4 ring-1 ring-rule [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full`} />
+          className={`${state === "drawing" ? "scanning min-h-40 rounded-lg" : ""} overflow-x-auto [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full`} />
       )}
-      <details className="text-sm">
-        <summary className="hit cursor-pointer text-graphite hover:text-ink">Proof for each box</summary>
-        <ul className="mt-2 space-y-2">
+      <figcaption className="mt-3 text-center text-base text-graphite">
+        {diagram.title} <span className="text-sm">({KIND[diagram.kind].toLowerCase()} from the video)</span>
+      </figcaption>
+      <details className="mt-2 text-center text-sm">
+        <summary className="hit cursor-pointer text-graphite hover:text-ink">Where each box comes from</summary>
+        <ul className="mt-2 space-y-1 text-left">
           {diagram.nodes.map((n) => (
-            <li key={n.id} className="flex flex-wrap items-center gap-1.5">
+            <li key={n.id}>
               <span className="font-semibold">{n.text}</span>
-              {n.evidence.map((e, i) => <EvidenceChip key={i} evidence={e} base={base} seek={seek} />)}
+              {n.evidence.map((e, i) => <Cite key={i} evidence={e} seek={seek} />)}
             </li>
           ))}
         </ul>
@@ -57,32 +57,23 @@ function DiagramView({ diagram, base, seek }: { diagram: Diagram; base: string; 
   );
 }
 
-
-/** Top of the notes: the diagram the video explains, then its checked takeaways. */
-export default function Highlights({ result, base, seek }: { result: LearnResult; base: string; seek: Seek }) {
+/** Top of the article: the checked takeaways, then the diagram the video explains. */
+export default function Highlights({ result, seek }: { result: LearnResult; seek: Seek }) {
   const takeaways = result.takeaways ?? [];
   if (!takeaways.length && !result.diagram) return null;
   return (
-    <section aria-label="Key takeaways" className="mb-12 space-y-8 border-b border-rule pb-12">
-      {result.diagram && <DiagramView diagram={result.diagram} base={base} seek={seek} />}
+    <section aria-label="Key takeaways" className="mb-14">
       {takeaways.length > 0 && (
-        <div>
-          <h2 className="font-display text-[1.75rem] font-bold">Key takeaways</h2>
-          <ol className="mt-3 space-y-2.5">
+        <>
+          <h2 className="font-display text-[1.6rem] font-bold sm:text-[1.875rem]">Key takeaways</h2>
+          <ul className="mt-4 list-disc space-y-2.5 pl-6 marker:text-scan">
             {takeaways.map((t, i) => (
-              <li key={i} className="grid grid-cols-[1.5rem_1fr] gap-x-2">
-                <span className="tabular font-display font-semibold text-scan-ink">{i + 1}</span>
-                <p className="text-lg leading-[1.7]">
-                  {t.text}{" "}
-                  <span className="inline-flex flex-wrap gap-1 align-middle">
-                    {t.evidence.map((e, j) => <EvidenceChip key={j} evidence={e} base={base} seek={seek} />)}
-                  </span>
-                </p>
-              </li>
+              <li key={i} className="pl-1"><NoteLine note={t} seek={seek} /></li>
             ))}
-          </ol>
-        </div>
+          </ul>
+        </>
       )}
+      {result.diagram && <DiagramView diagram={result.diagram} seek={seek} />}
     </section>
   );
 }

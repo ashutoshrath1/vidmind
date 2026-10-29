@@ -20,7 +20,7 @@ export type TraceEvent = { t: number } & (
       subtitles?: boolean;
       size_mb?: number;
     }
-  | { kind: "stage"; name: string; state: "start" | "end"; seconds?: number; detail?: string; task?: string; cuts?: number; frames?: { i: number; at: number; url: string }[]; cropped?: number; of?: number; error?: string; model?: string }
+  | { kind: "stage"; name: string; state: "start" | "end"; seconds?: number; detail?: string; task?: string; cuts?: number; frames?: { i: number; at: number; url: string }[]; cropped?: number; of?: number; error?: string; model?: string; added?: number }
   | { kind: "source"; duration: number; streaming: boolean; youtube_id?: string | null; transcript: "subtitles" | "speech" | "none"; caption_lines: number; models: string[] }
   | { kind: "plan"; sections: [number, number][] }
   | { kind: "transcript"; task: string; engine: string; seconds: number; lines: Line[] }
@@ -33,6 +33,8 @@ export type TraceEvent = { t: number } & (
   | { kind: "keyframes_failed"; error: string }
   | { kind: "clip"; task: string; at: [number, number]; kb: number; seconds: number }
   | { kind: "watch"; task: string; model: string; seconds: number }
+  | { kind: "visual"; takeaways: number; diagram?: string | null }
+  | { kind: "extras"; card?: string | null }
   | { kind: "done" }
   | { kind: "failed"; error: string }
 );
@@ -251,11 +253,11 @@ export type Bar = { start: number; end: number; label: string; model?: string; s
 export type Lane = { name: string; bars: Bar[] };
 
 const LANE_OF_STAGE: Record<string, string> = {
-  fetch: "Source", audio: "Transcript", scenes: "Scene changes", frames: "Keyframes", crop: "Diagrams", ocr: "Screen text", card: "Summary card", web: "Go deeper",
+  fetch: "Source", audio: "Transcript", scenes: "Scene changes", frames: "Keyframes", crop: "Diagrams", ocr: "Screen text", card: "Summary card", screen: "On screen", web: "Go deeper",
 };
 const LANE_OF_TASK: Record<string, string> = { overview: "Title", visual: "Takeaways", meet: "Actions", test: "Tests" };
-const LANE_ORDER = ["Source", "Transcript", "Scene changes", "Keyframes", "Diagrams", "Screen text", "Notes", "Title", "Takeaways", "Actions", "Tests", "Go deeper", "Summary card"];
-const STAGE_LABEL: Record<string, string> = { fetch: "fetch", audio: "audio", scenes: "scan", frames: "grab", crop: "track diagrams", ocr: "read text", card: "draw card", web: "web search" };
+const LANE_ORDER = ["Source", "Transcript", "Scene changes", "Keyframes", "Diagrams", "Screen text", "Notes", "On screen", "Title", "Takeaways", "Actions", "Tests", "Go deeper", "Summary card"];
+const STAGE_LABEL: Record<string, string> = { fetch: "fetch", audio: "audio", scenes: "scan", frames: "grab", crop: "track diagrams", ocr: "read text", card: "draw card", screen: "read keyframes", web: "web search" };
 
 /** The run as lanes of timed bars (the "behind the scenes" chart): every stage, transcription part and model attempt.
  * Bars still open at `now` are running, so the same chart animates live and in a replay. */
@@ -286,7 +288,7 @@ export function lanesOf(events: TraceEvent[], now: number): Lane[] {
         const s = tries.get(key);
         tries.delete(key);
         put(LANE_OF_TASK[e.task] ?? "Notes", { start: s?.t ?? e.t - (e.seconds ?? 0), end: e.t, label: taskName(e.task), model: e.model,
-          state: e.state === "fail" ? "failed" : "lost", detail: e.error ?? (s?.reason === "hedge" ? "started as a backup" : undefined) });
+          state: e.state === "fail" ? "failed" : "lost", detail: e.error ?? (s?.reason === "hedge" ? "spare copy, started at the same time" : undefined) });
       }
     }
   }

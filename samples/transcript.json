@@ -1,237 +1,252 @@
 [
   {
-    "start": 0.22,
-    "end": 6.38,
-    "text": "Hi everyone, welcome back. In this lecture, we'll take a look into microservice architecture using Spring Boot and Spring Cloud."
+    "start": 0.12,
+    "end": 5.72,
+    "text": "Hi everyone welcome back. In this lecture we'll take a microservices architecture using Spring Boot and Spring Cloud."
   },
   {
-    "start": 6.91,
-    "end": 11.95,
-    "text": "Well we are are going to use employee management project as example to create a microservices architecture."
+    "start": 6.82,
+    "end": 11.62,
+    "text": "When we are going to use employment management project as example to create a microservices architecture"
   },
   {
-    "start": 12.45,
-    "end": 16.11,
-    "text": "well you can take any example of any project for example you can take"
+    "start": 13.26,
+    "end": 15.66,
+    "text": "can you can take any example of any project for example you can take"
   },
   {
-    "start": 16.69,
-    "end": 22.77,
-    "text": "\u090f\u0915 \u0915\u0949\u092e\u0930\u094d\u0938 \u090f\u092a\u094d\u0932\u093f\u0915\u0947\u0936\u0928 or you can take any healthcare domain related application. So so you can take any project as an example"
+    "start": 16.55,
+    "end": 22.27,
+    "text": "E-commerce application E-commerce application or you can take it in healthcare domain related application. So you can take any project as an example."
   },
   {
-    "start": 23.55,
-    "end": 28.67,
-    "text": "but follow the same steps to create a microservices architecture using Spring Boot and and Spring Cloud."
+    "start": 23.37,
+    "end": 25.77,
+    "text": "but follow the same steps to create a microgrid cycle"
   },
   {
-    "start": 29.15,
-    "end": 35.29,
-    "text": "when we are going to create three core backend microservices employee service department service and organization service"
+    "start": 26.77,
+    "end": 34.77,
+    "text": "uses being being trained cloud where we want to create three core backing microservices emphasize as department service and organization service"
   },
   {
-    "start": 35.75,
-    "end": 41.09,
-    "text": "and all these three microservices have their own databases well we're going to use MySQL database"
+    "start": 35.65,
+    "end": 38.33,
+    "text": "and all these three microservices have their own databases"
   },
   {
-    "start": 41.61,
-    "end": 46.81,
-    "text": "As a database for these macroservices, okay. So whenever you create a microservice in your project"
+    "start": 40.33,
+    "end": 46.25,
+    "text": "well my as a database for these microservices okay so whenever you get a microservice in your project"
   },
   {
-    "start": 47.39,
-    "end": 53.47,
-    "text": "make sure that each microservice should have their own database alright once we build the microservices"
+    "start": 47.25,
+    "end": 50.89,
+    "text": "Make sure that each microservice should have their own database. Alright?"
   },
   {
-    "start": 53.95,
-    "end": 59.29,
-    "text": "next we will see how these microservices communicate with each other well we are going to use different ways"
+    "start": 51.85,
+    "end": 58.69,
+    "text": "Once we build the microservices, next you'll see how these microservices can make it with each other. When we have to explore different ways"
   },
   {
-    "start": 59.81,
-    "end": 63.89,
-    "text": "to make our step call from one microservice to another microservice. For example"
+    "start": 59.77,
+    "end": 63.29,
+    "text": "do maker maker stick call from one microservice to another microservice for example"
   },
   {
-    "start": 64.35,
-    "end": 69.77,
-    "text": "will use arrest template will use web client client will use spring cloud provided OpenFeign library"
+    "start": 64.37,
+    "end": 69.33,
+    "text": "we'll use the template, we'll use website, we use Spring Cloud Provider OpenFeign Library."
   },
   {
     "start": 70.25,
-    "end": 77.27,
-    "text": "Alright, so in this course, I'm going to show you different ways to make a REST API call from one microservice to another microservice."
+    "end": 76.77,
+    "text": "Alright, so in some show a different ways to make a SPI call from one micros to another microservice."
   },
   {
-    "start": 77.81,
-    "end": 82.45,
-    "text": "well, once we know how microservices communicate with each other, next we are going to implement"
+    "start": 77.75,
+    "end": 80.43,
+    "text": "well once we know how microglia communicate with each other"
   },
   {
-    "start": 82.95,
-    "end": 88.21,
-    "text": "\u0938\u0930\u094d\u0935\u093f\u0938 \u0938\u0930\u094d\u0935\u093f\u0938 \u0930\u0947\u091c\u093f\u0938\u094d\u091f\u0947\u0902\u091f \u0921\u093f\u0938\u094d\u0915\u0935\u0930\u0940 \u092a\u0948\u091f\u0930\u094d\u0928 \u0907\u0928 our microservices project. Well, Spring Cloud provides"
+    "start": 81.35,
+    "end": 85.95,
+    "text": "net value service resistance discovery pattern in our microservices project."
   },
   {
-    "start": 88.79,
-    "end": 97.35,
-    "text": "Spring Cloud Cloud Netflix Eureka based service registry model that we can use to implement service registry and discovery pattern in our microservices project."
+    "start": 86.95,
+    "end": 91.39,
+    "text": "well Spring cloud Spring Cloud provides Spring Cloud Netflix based services"
   },
   {
-    "start": 98.07,
-    "end": 102.79,
-    "text": "well well, service registry and discovery is very essential pattern that we can use"
+    "start": 93.11,
+    "end": 100.63,
+    "text": "It was a service discovery pattern in our microservices project. Well, service discovery is very essential"
   },
   {
-    "start": 103.31,
-    "end": 105.79,
-    "text": "to avoid hardcoding hostname and ports."
+    "start": 101.67,
+    "end": 105.35,
+    "text": "pattern that we we can use to override hardcoding hostname and ports."
   },
   {
-    "start": 106.39,
-    "end": 115.27,
-    "text": "next we will implement topic server to externalize the configurations of all these three microservices into a central place that is Git repository."
+    "start": 106.47,
+    "end": 112.87,
+    "text": "Next we implement implement pump external, we externalize the computations of all these three macro services into a central place"
   },
   {
-    "start": 115.89,
-    "end": 118.85,
-    "text": "Well, spring Spring Cloud provides Spring Cloud Config module,,"
+    "start": 113.75,
+    "end": 118.35,
+    "text": "that is get very very positively. whereas when cloud providers spring cloud compute model"
   },
   {
-    "start": 119.41,
-    "end": 124.29,
-    "text": "that we can use to implement complex server to externalize the configuration you know"
+    "start": 119.47,
+    "end": 121.39,
+    "text": "that we can use to implement complete server"
   },
   {
-    "start": 124.81,
-    "end": 132.25,
-    "text": "files of all these three microservices into a central place we are going to use Git repository as a storage for Compik server"
+    "start": 122.79,
+    "end": 127.27,
+    "text": "personalize the configuration, you know, files are cross-sites into a central place"
   },
   {
-    "start": 132.75,
-    "end": 139.21,
-    "text": "Well, once we know how to use Compik Server to externalize the configuration files, next we want to implement API Gateway."
+    "start": 128.25,
+    "end": 131.73,
+    "text": "we have to use the repository as a storage for complete server"
   },
   {
-    "start": 140.11,
-    "end": 143.79,
-    "text": "well API gateway plays a very important role in a microservices architecture. okay?"
+    "start": 132.77,
+    "end": 138.53,
+    "text": "when once we know how to use complex number to externalize the confidential files, next we are going to implement API Gateway"
   },
   {
-    "start": 144.31,
-    "end": 148.31,
-    "text": "So whenever a client want to make a call to different microservices,"
+    "start": 139.57,
+    "end": 145.65,
+    "text": "well APAC plays a very important role in the microservices architecture. Okay? Okay? So whenever a client want to make a"
   },
   {
-    "start": 148.89,
-    "end": 155.29,
-    "text": "then client have to remember the host name and ports of all these microservices. So there should be a solution where"
+    "start": 146.77,
+    "end": 152.85,
+    "text": "call to different microservices, then client have to remember the host name and host name and port of all these microservices."
   },
   {
-    "start": 155.75,
-    "end": 163.17,
-    "text": "A client can send a request to the central component. so that is where the API Gateway comes into picture. So whenever a client sends a request"
+    "start": 153.85,
+    "end": 158.77,
+    "text": "So there there's a solution. We are a client can send a request to the the central company. So that is we"
   },
   {
-    "start": 163.87,
-    "end": 168.11,
-    "text": "to the backend microservices then client have to send a request to the API gateway first"
+    "start": 159.77,
+    "end": 164.57,
+    "text": "\u0926\u0947\u0916\u093f\u090f, gateway comes into picture. So whenever a client sends a request to the backend microservices"
   },
   {
-    "start": 168.69,
-    "end": 175.09,
-    "text": "And then API gateway based on the routing rules rules it will route that request to appropriate microservice."
+    "start": 166.05,
+    "end": 169.57,
+    "text": "then I I have to send a request to the API and then API based on the"
   },
   {
-    "start": 175.61,
-    "end": 180.01,
-    "text": "okay so this is how the API Gateway plays an an important role in a microservices architecture."
+    "start": 170.57,
+    "end": 174.57,
+    "text": "it will rub with that request to appropriate microservice"
   },
   {
-    "start": 180.51,
-    "end": 186.99,
-    "text": "While spring cloud provides spring cloud gateway module module to implement API gateway pattern pattern in a microservices architecture."
+    "start": 175.45,
+    "end": 179.57,
+    "text": "Okay, \u0936\u094d\u0930\u0940 \u0938\u093e\u0939\u092c, \u0924\u094b \u092f\u0947 plays an important role in microservices architecture."
   },
   {
-    "start": 187.75,
-    "end": 190.95,
-    "text": "next once we know how to implement API gateway in a microservices project"
+    "start": 181.05,
+    "end": 186.49,
+    "text": "when spring cloud Spring Cloud Gateway model to implement API Gateway pattern in a microservices architecture"
   },
   {
-    "start": 191.51,
-    "end": 197.67,
-    "text": "Next we are going to implement a distributed tracing in a microservices architecture. Well, Spring Cloud provides"
+    "start": 187.63,
+    "end": 190.35,
+    "text": "Next, once we know how to implement AI gateway in microservices project."
   },
   {
-    "start": 198.21,
-    "end": 204.45,
-    "text": "spring cloud stream module which we can use to implement a distributed tracing in our microservices project"
+    "start": 191.63,
+    "end": 197.23,
+    "text": "net web to implement a distribution tracing in a microservices architecture. architecture. Well, spring cloud provides"
   },
   {
-    "start": 205.01,
-    "end": 209.49,
-    "text": "well along with spring cloud Sleuth we'll also also use Zipkin to visualize"
+    "start": 198.27,
+    "end": 204.03,
+    "text": "spring cloud module which we can use to implement distributed tracing in our microservices project."
   },
   {
-    "start": 210.17,
-    "end": 215.29,
-    "text": "the tracing log information in a user interface. Well, Zipkin provides a user interface"
+    "start": 205.07,
+    "end": 209.07,
+    "text": "well along with we will also use GPT to visualize"
   },
   {
-    "start": 215.81,
-    "end": 219.97,
-    "text": "to track the trace information through web application. Okay?"
+    "start": 210.07,
+    "end": 215.83,
+    "text": "the recent log information in user interface. well, it can provide user interface to track the"
   },
   {
-    "start": 220.45,
-    "end": 225.55,
-    "text": "So once we know how to implement distributed tracing using Spring Cloud Sleuth next we are are going to create a"
+    "start": 217.19,
+    "end": 223.43,
+    "text": "information through web application okay so once we know how to implement user interesting using spring cloud"
   },
   {
-    "start": 226.19,
-    "end": 232.19,
-    "text": "simple React application which will make REST API call to backend microservices. Well, we are going to implement"
+    "start": 225.11,
+    "end": 226.87,
+    "text": "net, we have a creator, simple react application"
   },
   {
-    "start": 232.71,
-    "end": 240.47,
-    "text": "\u0938\u0930\u094d\u0915\u093f\u091f \u092c\u094d\u0930\u0947\u0915\u0930 \u092a\u0948\u091f\u0930\u094d\u0928 \u090f\u0902\u0921 \u090f\u092e\u094d\u092a\u094d\u0932\u0949\u092f\u0940 \u0938\u0930\u094d\u0935\u093f\u0938 \u092c\u093f\u0915\u0949\u091c\u093c \u090f\u092e\u094d\u092a\u094d\u0932\u0949\u092f\u0940 \u0938\u0930\u094d\u0935\u093f\u0938 \u0907\u091c\u093c \u0907\u0902\u091f\u0930\u0928\u0932\u0940 \u0915\u0949\u0932\u093f\u0902\u0917 \u0921\u093f\u092a\u093e\u0930\u094d\u091f\u092e\u0947\u0902\u091f \u0938\u0930\u094d\u0935\u093f\u0938 \u090f\u0902\u0921 \u0932\u0947\u091f\u094d\u0938 \u0938\u0947 \u0921\u094d\u092f\u0942 \u091f\u0942 \u0938\u092e \u0930\u0940\u091c\u093c\u0928 \u0921\u093f\u092a\u093e\u0930\u094d\u091f\u092e\u0947\u0902\u091f \u0938\u0930\u094d\u0935\u093f\u0938 \u0907\u091c\u093c \u0921\u093e\u0909\u0928."
+    "start": 227.87,
+    "end": 230.59,
+    "text": "\u0915\u0941\u091b \u092e\u0947\u0902 \u0938\u094d\u091f\u0947\u091f\u092e\u0947\u0902\u091f \u0915\u094b \u092c\u0948\u0915 \u090f\u0902\u0921 \u092e\u093e\u0907\u0915\u094d\u0930\u094b \u0938\u0930\u094d\u0935\u093f\u0938\u0947\u091c"
   },
   {
-    "start": 241.17,
-    "end": 246.37,
-    "text": "then employee service won't get a response from the department service. Isn't it? And then again employee service will send"
+    "start": 232.05,
+    "end": 236.69,
+    "text": "And because enterprise service internal department service."
   },
   {
-    "start": 246.91,
-    "end": 250.35,
-    "text": "internal server error to the API gateway and then API Gateway will send that"
+    "start": 237.55,
+    "end": 243.59,
+    "text": "And I said due to some reason, department service is down. Then employee service won't get a response from the department service, isn't it?"
   },
   {
-    "start": 250.99,
-    "end": 256.11,
-    "text": "response back to the client. Alright, so in order to avoid this kind of issue, we can use circuit breaker pattern."
+    "start": 244.67,
+    "end": 249.95,
+    "text": "And again, request will send internal server error to the API API gateway and API gateway will send that"
   },
   {
-    "start": 256.69,
-    "end": 263.49,
-    "text": "so, this circuit breaker pattern helps employee service to avoid a continuous calls to the department service whenever department service is down."
+    "start": 251.23,
+    "end": 255.55,
+    "text": "response back to the client. Alright? So in order to avoid this kind of issue, you can use circuit breaker pattern."
   },
   {
-    "start": 264.01,
-    "end": 268.49,
-    "text": "and this squidbacker pattern will help employee service to return some deport response back to the"
+    "start": 256.67,
+    "end": 260.03,
+    "text": "So this cyclodextrin pattern helps enzymes to avoid continuous calls to the"
   },
   {
-    "start": 269.01,
-    "end": 276.61,
-    "text": "AP  get will send that default response to the client. Alright, so this is the simple microservices architecture that we're going to"
+    "start": 261.07,
+    "end": 267.95,
+    "text": "\u0921\u093f\u092a\u093e\u0930\u094d\u091f\u092e\u0947\u0902\u091f \u0938\u0930\u094d\u0935\u093f\u0938, uniformed Department Services done and this security pattern will help employees to return some default response back to the"
   },
   {
-    "start": 277.11,
-    "end": 283.11,
-    "text": "follow to create a microservices project using Spring Spring Boot and Spring Cloud. Alright right, great. I will see you in the next lecture."
+    "start": 269.71,
+    "end": 272.75,
+    "text": "\u098f\u09ac\u09c7 If you respond to the client."
+  },
+  {
+    "start": 273.87,
+    "end": 280.27,
+    "text": "\u0914\u0930 \u090f\u0915 simple microcell detector that we're going to follow to create a microservices project using Spring Boot and Spring Cloud."
+  },
+  {
+    "start": 280.27,
+    "end": 280.27,
+    "text": "Yeah."
+  },
+  {
+    "start": 281.27,
+    "end": 282.71,
+    "text": "Alright data will see you in the next lecture."
   }
 ]

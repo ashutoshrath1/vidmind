@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
 import { useMiniPlayer } from "@/components/MiniPlayer";
@@ -14,7 +14,7 @@ import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
 import Timeline from "@/components/Timeline";
 import { Button, Chip, type Seek } from "@/components/ui";
-import { type JobStatus, type LearnResult, formatTime, jobUrl } from "@/lib/api";
+import { type JobStatus, type LearnResult, jobUrl } from "@/lib/api";
 import { toMarkdown } from "@/lib/export";
 import type { View } from "@/lib/trace";
 
@@ -106,25 +106,20 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
         )}
 
         {tab === "notes" && (
-          <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
+          <div className="lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-16">
             <Contents result={result} view={view} />
-            <article className="notes-article mx-auto w-full max-w-[72ch] min-w-0 lg:mx-0">
+            <article className="notes-body mx-auto w-full max-w-[70ch] min-w-0 lg:mx-0">
               {running && <div className="mb-8">{run}</div>}
-              <h1 className="font-display text-[2rem] leading-tight font-bold text-balance sm:text-[2.75rem]">{title}</h1>
-              {tldr && (
-                <section aria-labelledby="in-short" className="arrive mt-6 border-l-4 border-scan pl-5">
-                  <h2 id="in-short" className="font-display text-sm font-semibold tracking-wide text-scan-ink uppercase">In short</h2>
-                  <p className="mt-1.5 text-lg leading-relaxed">{tldr}</p>
-                </section>
-              )}
-              <div className="mt-10">
-                {result && !replaying && <Highlights result={result} base={base} seek={seek} />}
+              <h1 className="font-display text-[2rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-[2.6rem]">{title}</h1>
+              {tldr && <p className="arrive mt-5 text-[1.2rem] leading-[1.65] text-graphite">{tldr}</p>}
+              <div className="mt-12 space-y-14">
+                {result && !replaying && <Highlights result={result} seek={seek} />}
                 <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />
               </div>
               {result?.card_url && !replaying && (
-                <section aria-labelledby="share-card" className="mt-16 border-t border-rule pt-8">
-                  <h2 id="share-card" className="mb-3 font-display text-lg font-semibold">Share card</h2>
-                  <div className="max-w-md">
+                <section aria-labelledby="share-card" className="mt-16 border-t border-rule pt-10">
+                  <h2 id="share-card" className="font-display text-xl font-bold">Share this summary</h2>
+                  <div className="mt-4 max-w-sm">
                     <SummaryCard result={result} base={base} />
                   </div>
                 </section>
@@ -150,35 +145,57 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
   );
 }
 
-/** Chapters to jump to: a sticky glass rail on wide screens, a "Contents" disclosure above the notes on phones. */
+/** Chapters to jump to: a plain list beside the article on wide screens, highlighting the one being read; a "Contents" disclosure on phones. */
 function Contents({ result, view }: { result: LearnResult | null; view: View }) {
   const items = result?.chapters.length
-    ? result.chapters.map((c) => ({ t: c.start_seconds, label: c.title }))
-    : view.sections.map((s) => ({ t: s.lo, label: `Section ${s.i + 1}` }));
+    ? result.chapters.map((c) => ({ id: chapterId(c.start_seconds), label: c.title }))
+    : view.sections.map((s) => ({ id: chapterId(s.lo), label: `Section ${s.i + 1}` }));
+  const [current, setCurrent] = useState<string | null>(null);
+  const ids = items.map((i) => i.id).join(" ");
+  useEffect(() => {
+    // The current chapter is the last one whose heading has passed the top third of the screen.
+    const pick = () => {
+      let on: string | null = null;
+      for (const id of ids.split(" ")) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top < innerHeight / 3) on = id;
+      }
+      setCurrent(on);
+    };
+    pick();
+    addEventListener("scroll", pick, { passive: true });
+    return () => removeEventListener("scroll", pick);
+  }, [ids]);
   if (!items.length) return <div aria-hidden />;
-  const jump = (t: number) =>
-    document.getElementById(chapterId(t))?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const jump = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  };
   const list = (
-    <ol className="space-y-0.5">
+    <ol className="space-y-0.5 border-l border-rule">
       {items.map((c) => (
-        <li key={c.t}>
-          <button onClick={() => jump(c.t)} className="hit flex w-full gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm leading-snug text-graphite hover:bg-scan-soft hover:text-ink">
-            <span className="tabular shrink-0 pt-px font-mono text-xs text-scan-ink">{formatTime(c.t)}</span>
-            <span>{c.label}</span>
-          </button>
+        <li key={c.id}>
+          <a
+            href={`#${c.id}`}
+            onClick={(e) => jump(e, c.id)}
+            aria-current={current === c.id ? "location" : undefined}
+            className={`-ml-px block border-l-2 py-1.5 pl-4 text-[0.95rem] leading-snug transition-colors ${current === c.id ? "border-scan font-medium text-ink" : "border-transparent text-graphite hover:text-ink"}`}
+          >
+            {c.label}
+          </a>
         </li>
       ))}
     </ol>
   );
   return (
     <>
-      <nav aria-label="Contents" className="glass sticky top-28 hidden max-h-[calc(100vh-8rem)] self-start overflow-y-auto rounded-2xl p-3 ring-1 ring-rule lg:block">
-        <p className="px-2 pb-2 font-display text-xs font-semibold tracking-wide text-graphite uppercase">Contents</p>
+      <nav aria-label="Contents" className="sticky top-32 hidden max-h-[calc(100vh-9rem)] self-start overflow-y-auto lg:block">
+        <p className="mb-3 font-display text-sm font-semibold">Contents</p>
         {list}
       </nav>
-      <details className="mx-auto mb-8 max-w-[72ch] rounded-2xl bg-sheet p-2 ring-1 ring-rule lg:hidden">
-        <summary className="hit cursor-pointer px-2 py-1.5 font-display font-semibold">Contents</summary>
-        <nav aria-label="Contents (compact)" className="pt-1">{list}</nav>
+      <details className="mx-auto mb-8 max-w-[70ch] border-b border-rule pb-3 lg:hidden">
+        <summary className="hit cursor-pointer font-display font-semibold">Contents</summary>
+        <nav aria-label="Contents (compact)" className="pt-3">{list}</nav>
       </details>
     </>
   );
@@ -216,7 +233,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
     return (
       <div className="space-y-14">
         {chapters.map((ch, i) => (
-          <ChapterView key={i} chapter={ch} base={base} seek={seek} />
+          <ChapterView key={i} chapter={ch} seek={seek} />
         ))}
       </div>
     );
@@ -227,7 +244,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
         // Only once its section is done in the trace, so a replay rebuilds the chapters in the order they landed.
         const chapter = s.done && chapters.find((c) => Math.abs(c.start_seconds - s.lo) < 1);
         return chapter ? (
-          <ChapterView key={s.i} chapter={chapter} base={base} seek={seek} section={s} fresh={fresh} />
+          <ChapterView key={s.i} chapter={chapter} seek={seek} fresh={fresh} />
         ) : (
           <SectionLive key={s.i} section={s} now={now} failed={!!s.done && !s.done.ok} base={base} seek={seek} />
         );

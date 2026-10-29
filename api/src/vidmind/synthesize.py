@@ -28,6 +28,8 @@ Rules:
   When a frame shows a diagram or list, describe what it shows in the note.
 - If speech or screen text is unclear, keep the note but set "uncertain": true with an "uncertain_reason".
 - 2-4 notes for this section.
+- Notes are about the subject, written like a tutorial. Never about the video itself: no "the frame shows",
+  "the opening frame has no text", "the speaker says", "the slide is titled". State the fact; the citation shows where.
 - Do not invent facts.
 
 Return ONLY one JSON object with exactly this shape, notes first (values are placeholders):
@@ -164,6 +166,8 @@ SCREEN_SYSTEM = """You add what ONE video shows on screen and its notes miss. Yo
 - Only facts visible on screen (numbers, labels, diagrams, code, UI text) that no note below already states.
 - Every note cites a keyframe: {"kind":"frame","start_seconds":<exact frame timestamp from the list>,"text":<what it shows>}.
 - 0-8 notes; none is fine. Do not invent facts.
+- State the fact itself, tutorial style ("Config Server stores its settings in GitHub"), never "the diagram shows..."
+  or notes about what a frame lacks.
 Return ONLY: {"title": "On screen", "notes": [{"text": "...", "uncertain": false, "uncertain_reason": null,
   "evidence": [{"kind": "frame", "start_seconds": 30.0, "text": "..."}]}]}"""
 

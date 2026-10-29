@@ -44,12 +44,36 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
           <Button variant="quiet" onClick={onReplay} className="!min-h-9 !px-3 text-sm">↻ Replay</Button>
         )}
       </div>
+      <Pace view={view} now={now} running={running} />
       <Track steps={steps} now={now} left={left} running={running} done={!!end} />
       {/* One announcement for screen readers when the run ends; the narration line changes too fast to read out. */}
       <p className="sr-only" aria-live="polite">
-        {end ? (end.ok ? `Finished in ${formatSeconds(end.t)}` : `Stopped: ${end.error}`) : ""}
+        {end ? (end.ok ? `Finished in ${formatSeconds(end.t)}` : `Stopped: ${end.error}`) : firstNote(view) !== undefined ? `First note after ${formatSeconds(firstNote(view)!)}` : ""}
       </p>
     </section>
+  );
+}
+
+const firstNote = (v: View) => (v.events.find((e) => e.kind === "note") ?? v.events.find((e) => e.kind === "section" && e.ok))?.t;
+
+const Item = ({ n, label }: { n: string; label: string }) => (
+    <span className="whitespace-nowrap"><span className="text-graphite">{label} </span><span className="tabular font-display text-base font-bold text-ink sm:text-lg">{n}</span></span>
+  );
+
+/** The speed, measured: time to the first checked note, notes so far and the clock, frozen when the run ends. */
+function Pace({ view, now, running }: { view: View; now: number; running: boolean }) {
+  const first = firstNote(view);
+  if (first === undefined) return null;
+  const streamed = view.events.filter((e) => e.kind === "note").length || view.sections.reduce((n, s) => n + (s.done?.notes ?? 0), 0);
+  const end = view.end && !running ? view.end.t : undefined;
+  return (
+    <p aria-hidden className="mt-2 flex flex-wrap items-baseline gap-x-2 text-sm">
+      <Item label="First note" n={formatSeconds(first)} />
+      <span className="text-graphite">·</span>
+      <Item label="notes" n={String(streamed)} />
+      <span className="text-graphite">·</span>
+      <Item label={end !== undefined ? "done" : "clock"} n={formatSeconds(end ?? now)} />
+    </p>
   );
 }
 

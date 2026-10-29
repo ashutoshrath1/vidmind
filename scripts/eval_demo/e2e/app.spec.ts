@@ -50,13 +50,13 @@ test.describe("result page", () => {
     expect(await noSideScroll(page)).toBe(true);
   });
 
-  test("diagram first, then takeaways with proof pills", async ({ page }) => {
+  test("takeaways first, then the diagram; citations show their quote", async ({ page }) => {
     const highlights = page.getByRole("region", { name: "Key takeaways" });
     await expect(highlights.locator("[data-diagram] svg")).toBeVisible({ timeout: 15_000 });
     const diagramY = (await highlights.locator("[data-diagram]").boundingBox())!.y;
     const takeawaysY = (await highlights.getByRole("heading", { name: "Key takeaways" }).boundingBox())!.y;
-    expect(diagramY).toBeLessThan(takeawaysY);
-    const pill = highlights.locator("ol [data-seek]").first(); // a takeaway's pill (the per-box proof list is folded)
+    expect(takeawaysY).toBeLessThan(diagramY);
+    const pill = highlights.locator("ul [data-seek]").first(); // a takeaway's citation (the per-box proof list is folded)
     await pill.hover();
     await expect(pill.getByRole("tooltip")).toBeVisible();
   });
@@ -86,11 +86,12 @@ test.describe("result page", () => {
 
   test("models are open by default; models are named from the run log", async ({ page }) => {
     await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
-    const panel = page.getByRole("region", { name: "Muse models used" });
+    const panel = page.getByRole("region", { name: "Models used" });
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("Muse Spark 1.2");
     await expect(panel).toContainText("Muse Voice Transcribe");
     await expect(panel).toContainText("SAM 3.1");
+    await expect(page.getByRole("region", { name: "Every note was checked before you saw it" })).toContainText("notes kept");
   });
 
   test("replay takes about 5 s", async ({ page }) => {
@@ -109,7 +110,7 @@ test("the finished example is a Muse run with a diagram and takeaways", async ({
   await expect(page.getByText("Precomputed sample")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("[data-diagram] svg")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
-  await expect(page.getByRole("region", { name: "Muse models used" })).toContainText("Muse Spark");
+  await expect(page.getByRole("region", { name: "Models used" })).toContainText("Muse Spark");
 });
 
 test("the theme switch turns on mission control and remembers it; the hero is a WebGL scene", async ({ page }) => {
@@ -176,13 +177,13 @@ test("screen text: search a slide word, see it marked, click plays that moment; 
   await page.goto("/jobs/sample");
   await page.getByRole("tab", { name: /Keyframes|On screen/ }).click({ timeout: 15_000 });
   const vault = page.getByRole("region", { name: "On screen" });
-  await vault.getByLabel("Search what was on screen").fill("eureka"); // on the slide at 1:28 only
-  await expect(vault.getByText(/^1 of \d+ frames match$/)).toBeVisible();
-  await expect(vault.locator("mark")).toHaveText("Eureka");
-  await vault.getByRole("button", { name: "Play from 1:28" }).click();
+  await vault.getByLabel("Search what was on screen").fill("eureka"); // on the slide at 1:32, and said around it
+  await expect(vault.getByText(/^[12] of \d+ screens match$/)).toBeVisible();
+  await expect(vault.locator("mark").first()).toHaveText(/^eureka$/i);
+  await vault.getByRole("button", { name: "Play from 1:32" }).first().click();
   // The player opens on demand, so wait for its frame before reading what it was sent.
   await expect.poll(async () => (await page.frame({ url: /youtube-nocookie/ })?.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got)) ?? [])
-    .toContainEqual({ event: "command", func: "seekTo", args: [87.83, true] });
+    .toContainEqual({ event: "command", func: "seekTo", args: [91.67, true] });
   await vault.getByLabel("Search what was on screen").fill("kafka");
   await expect(vault.getByText("Nothing on screen matches “kafka”.")).toBeVisible();
   await expect(vault.getByRole("button", { name: "Copy all screen text" })).toBeVisible();

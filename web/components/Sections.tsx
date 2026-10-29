@@ -1,11 +1,13 @@
-import { Chip, EvidenceChip, type Seek, TimeButton } from "@/components/ui";
+import type { ReactNode } from "react";
+import { NoteLine, boldTerms } from "@/components/Cite";
+import { Chip, type Seek } from "@/components/ui";
 import { type Chapter, type Note, formatSeconds, formatTime, modelHost, modelName } from "@/lib/api";
 import type { Attempt, Check, SectionView } from "@/lib/trace";
 
 const range = (s: SectionView) => `${formatTime(s.lo)} to ${formatTime(s.hi)}`;
 
 /** A section still being worked on: its transcript arriving, the models racing on it, and its citation check. */
-export function SectionLive({ section: s, now, failed, base, seek }: { section: SectionView; now: number; failed: boolean; base: string; seek: Seek }) {
+export function SectionLive({ section: s, now, failed, seek }: { section: SectionView; now: number; failed: boolean; base: string; seek: Seek }) {
   const state = failed
     ? "Every model failed on this section"
     : !s.lines
@@ -25,7 +27,7 @@ export function SectionLive({ section: s, now, failed, base, seek }: { section: 
         </h2>
         <p className={`text-sm ${failed ? "text-strike" : s.attempts.length ? "text-scan-ink" : "text-wait"}`}>{state}</p>
       </header>
-      {s.notes.length > 0 && <NoteList notes={s.notes} start={s.lo} base={base} seek={seek} />}
+      {s.notes.length > 0 && <div className="notes-body"><NoteList notes={s.notes} seek={seek} /></div>}
       <Transcript section={s} />
       {s.attempts.length > 0 && <ModelRace attempts={s.attempts} now={now} />}
       {s.checks.length > 0 && <Checks checks={s.checks} />}
@@ -136,72 +138,32 @@ function Checks({ checks }: { checks: Check[] }) {
 
 export const chapterId = (start: number) => `chapter-${Math.round(start)}`;
 
-type ChapterProps = { chapter: Chapter; base: string; seek: Seek; section?: SectionView; fresh?: boolean };
+type ChapterProps = { chapter: Chapter; seek: Seek; fresh?: boolean };
 
-/** A finished chapter, read like an article section: heading, summary, then its notes, each with quiet proof. */
-export function ChapterView({ chapter: ch, base, seek, section, fresh }: ChapterProps) {
-  const winner = section?.attempts.find((a) => a.state === "won");
-  const fixed = section?.checks.find((c) => c.round === 1)?.problems.length ?? 0;
+/** A finished chapter, read like a tutorial section: heading, its summary as the opening paragraph, then the notes. */
+export function ChapterView({ chapter: ch, seek, fresh }: ChapterProps) {
+  const { nodes, rest } = boldTerms([ch.summary, ...ch.notes.map((n) => n.text)], ch.key_terms);
   return (
-    <article id={chapterId(ch.start_seconds)} className={`arrive scroll-mt-32 space-y-5 ${fresh ? "flash rounded-lg" : ""}`}>
-      <header className="space-y-2">
-        <h2 className="font-display text-[1.75rem] leading-tight font-bold text-balance">{ch.title}</h2>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-graphite">
-          <TimeButton t={ch.start_seconds} seek={seek} />
-          {winner && (
-            <span aria-label="How this section was made">
-              Written by {modelName(winner.model)} in {formatSeconds(winner.seconds ?? 0)}
-              {section!.attempts.length > 1 && `, ${section!.attempts.length} models raced`}
-              {fixed > 0 && `, ${fixed} citation${fixed === 1 ? "" : "s"} fixed on re-check`}
-              {(section?.done?.rejected ?? 0) > 0 && `, ${section!.done!.rejected} removed`}
-            </span>
-          )}
+    <section id={chapterId(ch.start_seconds)} aria-labelledby={`${chapterId(ch.start_seconds)}-h`} className={`arrive scroll-mt-32 ${fresh ? "flash rounded-lg" : ""}`}>
+      <h2 id={`${chapterId(ch.start_seconds)}-h`} className="font-display text-[1.6rem] leading-tight font-bold text-balance sm:text-[1.875rem]">{ch.title}</h2>
+      {ch.summary && <p className="mt-4">{nodes[0]}</p>}
+      <NoteList notes={ch.notes} texts={nodes.slice(1)} seek={seek} />
+      {rest.length > 0 && (
+        <p className="mt-5 text-base text-graphite">
+          <span className="font-semibold text-ink">Key terms:</span> {rest.join(", ")}
         </p>
-      </header>
-      {ch.summary && <p className="text-lg leading-[1.75] text-graphite">{ch.summary}</p>}
-      {ch.cover_url && (
-        <button
-          onClick={() => seek(ch.start_seconds)}
-          aria-label={`Play "${ch.title}" from ${formatTime(ch.start_seconds)}`}
-          className="block w-full max-w-sm overflow-hidden rounded-lg bg-ink ring-1 ring-rule transition hover:ring-2 hover:ring-scan"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
-          <img src={`${base}/${ch.cover_url}`} alt="" className="aspect-video w-full object-cover" />
-        </button>
       )}
-      <NoteList notes={ch.notes} start={ch.start_seconds} base={base} seek={seek} />
-      {ch.key_terms.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Key terms">
-          {ch.key_terms.map((k) => (
-            <li key={k} className="rounded-full bg-sheet px-2.5 py-0.5 text-xs text-graphite ring-1 ring-rule">
-              {k}
-            </li>
-          ))}
-        </ul>
-      )}
-    </article>
+    </section>
   );
 }
 
-/** Notes as a bulleted list: the text to read first, then its second and proof, small and quiet. */
-function NoteList({ notes, start, base, seek }: { notes: Note[]; start: number; base: string; seek: Seek }) {
+/** Notes as a plain bulleted list, each followed by its quiet citations. */
+function NoteList({ notes, texts, seek }: { notes: Note[]; texts?: ReactNode[][]; seek: Seek }) {
   return (
-    <ul className="space-y-5">
+    <ul className="mt-4 list-disc space-y-2.5 pl-6 marker:text-graphite">
       {notes.map((n, i) => (
-        <li key={i} className="relative pl-6 before:absolute before:top-[0.7em] before:left-1 before:size-1.5 before:rounded-full before:bg-scan">
-          <p className="text-lg leading-[1.7]">{n.text}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-graphite">
-            {/* Each proof pill carries its own time; a bare time only when there is no proof. */}
-            {!n.evidence.length && <span className="tabular mr-1 font-mono">{formatTime(start)}</span>}
-            {n.uncertain && (
-              <Chip tone="strike" title={n.uncertain_reason ?? undefined}>
-                Uncertain{n.uncertain_reason ? `: ${n.uncertain_reason}` : ""}
-              </Chip>
-            )}
-            {n.evidence.map((e, j) => (
-              <EvidenceChip key={j} evidence={e} base={base} seek={seek} />
-            ))}
-          </div>
+        <li key={i} className="pl-1">
+          <NoteLine note={n} text={texts?.[i]} seek={seek} />
         </li>
       ))}
     </ul>
