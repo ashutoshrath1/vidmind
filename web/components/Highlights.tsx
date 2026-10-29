@@ -63,16 +63,16 @@ export default function Highlights({ result, base, seek }: { result: LearnResult
   const takeaways = result.takeaways ?? [];
   if (!takeaways.length && !result.diagram) return null;
   return (
-    <section aria-label="Key takeaways" className="mb-8 space-y-6 border-b border-rule pb-8">
+    <section aria-label="Key takeaways" className="mb-12 space-y-8 border-b border-rule pb-12">
       {result.diagram && <DiagramView diagram={result.diagram} base={base} seek={seek} />}
       {takeaways.length > 0 && (
         <div>
-          <h2 className="font-display text-xl font-semibold">Key takeaways</h2>
+          <h2 className="font-display text-[1.75rem] font-bold">Key takeaways</h2>
           <ol className="mt-3 space-y-2.5">
             {takeaways.map((t, i) => (
               <li key={i} className="grid grid-cols-[1.5rem_1fr] gap-x-2">
                 <span className="tabular font-display font-semibold text-scan-ink">{i + 1}</span>
-                <p className="max-w-[70ch]">
+                <p className="text-lg leading-[1.7]">
                   {t.text}{" "}
                   <span className="inline-flex flex-wrap gap-1 align-middle">
                     {t.evidence.map((e, j) => <EvidenceChip key={j} evidence={e} base={base} seek={seek} />)}

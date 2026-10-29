@@ -7,29 +7,6 @@ export type Seek = (t: number) => void;
 
 export const YT_ORIGIN = "https://www.youtube-nocookie.com";
 
-/** Refs for the page's one player (a YouTube embed or the uploaded video) and a seek that plays from a second. */
-export function usePlayer(youtubeId: string | null) {
-  const video = useRef<HTMLVideoElement>(null);
-  const yt = useRef<HTMLIFrameElement>(null);
-  const seek: Seek = (t) => {
-    // One column below lg: the player sits far above the notes, so bring it into view to watch the moment.
-    if (matchMedia("(max-width: 1023px)").matches)
-      (yt.current ?? video.current)?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    if (youtubeId) {
-      // YouTube's iframe API over postMessage (enablejsapi=1), so no player script has to load.
-      const send = (func: string, args: unknown[] = []) =>
-        yt.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), YT_ORIGIN);
-      send("seekTo", [t, true]);
-      send("playVideo");
-      return;
-    }
-    if (!video.current) return;
-    video.current.currentTime = t;
-    void video.current.play();
-  };
-  return { video, yt, seek };
-}
-
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "quiet";
   working?: boolean; // the AI is busy on this action: the scan line runs across the button

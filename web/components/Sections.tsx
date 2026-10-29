@@ -18,7 +18,7 @@ export function SectionLive({ section: s, now, failed, base, seek }: { section: 
             ? "Checking every citation against the video"
             : "Models are writing";
   return (
-    <article aria-label={`Section ${s.i + 1}`} aria-busy={!failed} className="space-y-4 rounded-lg bg-sheet p-5 ring-1 ring-rule">
+    <article id={chapterId(s.lo)} aria-label={`Section ${s.i + 1}`} aria-busy={!failed} className="scroll-mt-32 space-y-4 rounded-lg bg-sheet p-5 ring-1 ring-rule">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-lg font-semibold">
           Section {s.i + 1} <span className="tabular font-normal text-graphite">{range(s)}</span>
@@ -134,84 +134,74 @@ function Checks({ checks }: { checks: Check[] }) {
   );
 }
 
-/** A finished chapter: notes as a ruled list with a time gutter, each with its proof; and how it was made. */
 export const chapterId = (start: number) => `chapter-${Math.round(start)}`;
 
 type ChapterProps = { chapter: Chapter; base: string; seek: Seek; section?: SectionView; fresh?: boolean };
 
+/** A finished chapter, read like an article section: heading, summary, then its notes, each with quiet proof. */
 export function ChapterView({ chapter: ch, base, seek, section, fresh }: ChapterProps) {
   const winner = section?.attempts.find((a) => a.state === "won");
   const fixed = section?.checks.find((c) => c.round === 1)?.problems.length ?? 0;
   return (
-    <article id={chapterId(ch.start_seconds)} className={`arrive scroll-mt-36 space-y-4 ${fresh ? "flash rounded-lg" : ""}`}>
+    <article id={chapterId(ch.start_seconds)} className={`arrive scroll-mt-32 space-y-5 ${fresh ? "flash rounded-lg" : ""}`}>
       <header className="space-y-2">
-        <h2 className="flex items-baseline gap-3 font-display text-xl leading-tight font-semibold">
+        <h2 className="font-display text-[1.75rem] leading-tight font-bold text-balance">{ch.title}</h2>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-graphite">
           <TimeButton t={ch.start_seconds} seek={seek} />
-          {ch.title}
-        </h2>
-        {winner && (
-          <p className="flex flex-wrap gap-1.5" aria-label="How this section was made">
-            <Chip tone="proof">
+          {winner && (
+            <span aria-label="How this section was made">
               Written by {modelName(winner.model)} in {formatSeconds(winner.seconds ?? 0)}
-            </Chip>
-            {section!.attempts.length > 1 && <Chip>{section!.attempts.length} models raced</Chip>}
-            {fixed > 0 && <Chip tone="scan">{fixed} citation{fixed === 1 ? "" : "s"} fixed on re-check</Chip>}
-            {(section?.done?.rejected ?? 0) > 0 && <Chip tone="strike">{section!.done!.rejected} removed</Chip>}
-          </p>
-        )}
-      </header>
-      {/* The cover is a thumbnail beside the summary, not a full-width image: the page was ~5,500 px tall. */}
-      <div className={`grid gap-4 ${ch.cover_url ? "sm:grid-cols-[11rem_1fr] sm:items-start" : ""}`}>
-        {ch.cover_url && (
-          <button
-            onClick={() => seek(ch.start_seconds)}
-            aria-label={`Play "${ch.title}" from ${formatTime(ch.start_seconds)}`}
-            className="block overflow-hidden rounded bg-ink ring-2 ring-transparent transition hover:ring-scan"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
-            <img src={`${base}/${ch.cover_url}`} alt="" className="aspect-video w-full object-cover" />
-          </button>
-        )}
-        <div className="space-y-3">
-          {ch.summary && <p className="max-w-[70ch] leading-relaxed text-graphite">{ch.summary}</p>}
-          {ch.key_terms.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5" aria-label="Key terms">
-              {ch.key_terms.map((k) => (
-                <li key={k} className="rounded-full bg-sheet px-2.5 py-0.5 text-xs ring-1 ring-rule">
-                  {k}
-                </li>
-              ))}
-            </ul>
+              {section!.attempts.length > 1 && `, ${section!.attempts.length} models raced`}
+              {fixed > 0 && `, ${fixed} citation${fixed === 1 ? "" : "s"} fixed on re-check`}
+              {(section?.done?.rejected ?? 0) > 0 && `, ${section!.done!.rejected} removed`}
+            </span>
           )}
-        </div>
-      </div>
+        </p>
+      </header>
+      {ch.summary && <p className="text-lg leading-[1.75] text-graphite">{ch.summary}</p>}
+      {ch.cover_url && (
+        <button
+          onClick={() => seek(ch.start_seconds)}
+          aria-label={`Play "${ch.title}" from ${formatTime(ch.start_seconds)}`}
+          className="block w-full max-w-sm overflow-hidden rounded-lg bg-ink ring-1 ring-rule transition hover:ring-2 hover:ring-scan"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
+          <img src={`${base}/${ch.cover_url}`} alt="" className="aspect-video w-full object-cover" />
+        </button>
+      )}
       <NoteList notes={ch.notes} start={ch.start_seconds} base={base} seek={seek} />
+      {ch.key_terms.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Key terms">
+          {ch.key_terms.map((k) => (
+            <li key={k} className="rounded-full bg-sheet px-2.5 py-0.5 text-xs text-graphite ring-1 ring-rule">
+              {k}
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }
 
-/** Notes with the second each comes from and its evidence. */
+/** Notes as a bulleted list: the text to read first, then its second and proof, small and quiet. */
 function NoteList({ notes, start, base, seek }: { notes: Note[]; start: number; base: string; seek: Seek }) {
   return (
-    <ul className="divide-y divide-rule border-y border-rule">
+    <ul className="space-y-5">
       {notes.map((n, i) => (
-        <li key={i} className="grid grid-cols-[3.25rem_1fr] gap-x-3 py-3">
-          <span className="tabular pt-0.5 font-display text-sm text-graphite">{formatTime(n.evidence[0]?.start_seconds ?? start)}</span>
-          <p className="max-w-[70ch] leading-relaxed">
-            {n.text}{" "}
+        <li key={i} className="relative pl-6 before:absolute before:top-[0.7em] before:left-1 before:size-1.5 before:rounded-full before:bg-scan">
+          <p className="text-lg leading-[1.7]">{n.text}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-graphite">
+            {/* Each proof pill carries its own time; a bare time only when there is no proof. */}
+            {!n.evidence.length && <span className="tabular mr-1 font-mono">{formatTime(start)}</span>}
             {n.uncertain && (
-              <span className="mr-1 align-middle">
-                <Chip tone="strike" title={n.uncertain_reason ?? undefined}>
-                  Uncertain{n.uncertain_reason ? `: ${n.uncertain_reason}` : ""}
-                </Chip>
-              </span>
+              <Chip tone="strike" title={n.uncertain_reason ?? undefined}>
+                Uncertain{n.uncertain_reason ? `: ${n.uncertain_reason}` : ""}
+              </Chip>
             )}
-            <span className="inline-flex flex-wrap gap-1 align-middle">
-              {n.evidence.map((e, j) => (
-                <EvidenceChip key={j} evidence={e} base={base} seek={seek} />
-              ))}
-            </span>
-          </p>
+            {n.evidence.map((e, j) => (
+              <EvidenceChip key={j} evidence={e} base={base} seek={seek} />
+            ))}
+          </div>
         </li>
       ))}
     </ul>

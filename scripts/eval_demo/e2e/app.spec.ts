@@ -38,10 +38,11 @@ test.describe("result page", () => {
   // The saved sample (a real Muse run of a 4:44 video): stable and free, unlike processing a link per test.
   test.beforeEach(async ({ page }) => {
     await page.goto("/jobs/sample");
-    await expect(page.getByText(/notes verified/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Key takeaways" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("checked notes, under 11 s, one screen tall, no Lecture chip", async ({ page }) => {
+    await page.getByRole("tab", { name: "How it was made" }).click(); // the finished run's stats live there
     const total = await page.getByText(/^\d+(\.\d)? s$/).first().innerText();
     expect(parseFloat(total)).toBeLessThan(11);
     await expect(page.getByText("Lecture", { exact: true })).toHaveCount(0);
@@ -61,6 +62,7 @@ test.describe("result page", () => {
   });
 
   test("compact run card: segmented step bar with fact cards, one Copy .md, no banner or language picker", async ({ page }) => {
+    await page.getByRole("tab", { name: "How it was made" }).click(); // a finished run's card lives there, not above the notes
     await expect(page.getByRole("progressbar", { name: "Finished" })).toBeVisible();
     const station = page.getByRole("listitem").filter({ hasText: "Transcript" }).locator("[tabindex='0']").first();
     await station.hover();
@@ -69,28 +71,30 @@ test.describe("result page", () => {
     await expect(page.getByRole("button", { name: "Copy .md" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Download .md" })).toHaveCount(0);
     await expect(page.getByText(/analysed live on/)).toHaveCount(0);
-    await expect(page.getByText("Read in")).toHaveCount(0);
+    await expect(page.getByRole("combobox")).toHaveCount(0); // no language picker
   });
 
-  test("tabs: keyframes, behind the scenes", async ({ page }) => {
-    await page.getByRole("tab", { name: /Keyframes/ }).click();
-    await expect(page.getByText("Tap a frame for its text")).toBeVisible();
+  test("tabs: on screen, how it was made", async ({ page }) => {
+    await page.getByRole("tab", { name: /Keyframes|On screen/ }).click();
+    await expect(page.getByText(/^\d+ screens, in order$/)).toBeVisible();
     await expect(page.getByRole("tab", { name: "Ask the video" })).toHaveCount(0);
-    await page.getByRole("tab", { name: "Behind the scenes" }).click();
+    await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
     const chart = page.getByRole("region", { name: "The run, step by step" });
-    await expect(chart.getByText("Notes", { exact: true })).toBeVisible();
-    await expect(chart.getByText("Transcript", { exact: true })).toBeVisible();
+    await expect(chart.getByText("Writing notes", { exact: true })).toBeVisible();
+    await expect(chart.getByText("Speech to text", { exact: true })).toBeVisible();
   });
 
   test("models are open by default; models are named from the run log", async ({ page }) => {
-    const panel = page.getByRole("region", { name: "Models in this video" });
+    await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
+    const panel = page.getByRole("region", { name: "Muse models used" });
     await expect(panel).toBeVisible();
-    await expect(panel).toContainText("muse-spark-1.2");
-    await expect(panel).toContainText("muse-voice-transcribe");
-    await expect(panel).toContainText("sam-3.1");
+    await expect(panel).toContainText("Muse Spark 1.2");
+    await expect(panel).toContainText("Muse Voice Transcribe");
+    await expect(panel).toContainText("SAM 3.1");
   });
 
   test("replay takes about 5 s", async ({ page }) => {
+    await page.getByRole("tab", { name: "How it was made" }).click();
     await page.getByRole("button", { name: "↻ Replay" }).click();
     const started = Date.now();
     await expect(page.getByRole("button", { name: "↻ Replay" })).toHaveCount(0);
@@ -104,7 +108,8 @@ test("the finished example is a Muse run with a diagram and takeaways", async ({
   await page.getByRole("link", { name: "Example", exact: true }).click();
   await expect(page.getByText("Precomputed sample")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("[data-diagram] svg")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("region", { name: "Models in this video" })).toContainText("muse-spark");
+  await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
+  await expect(page.getByRole("region", { name: "Muse models used" })).toContainText("Muse Spark");
 });
 
 test("the theme switch turns on mission control and remembers it; the hero is a WebGL scene", async ({ page }) => {
@@ -149,7 +154,7 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
   const chart = page.getByRole("region", { name: "The run, step by step" });
   await chart.scrollIntoViewIfNeeded();
   await page.mouse.wheel(0, 400);
-  await expect(chart.getByText("Notes", { exact: true })).toBeVisible();
+  await expect(chart.getByText("Writing notes", { exact: true })).toBeVisible();
   const slider = page.getByLabel("How many hours of video do you watch a week?");
   await slider.fill("10");
   await expect(page.getByText(/7 h 50 min/)).toBeVisible(); // 10 h x 47 min
@@ -169,14 +174,14 @@ test("screen text: search a slide word, see it marked, click plays that moment; 
   await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html",
     body: "<script>window.got = []; addEventListener('message', (e) => got.push(JSON.parse(e.data)));</script>" }));
   await page.goto("/jobs/sample");
-  await page.getByRole("tab", { name: /Keyframes/ }).click({ timeout: 15_000 });
-  const vault = page.getByRole("region", { name: "Screen text" });
+  await page.getByRole("tab", { name: /Keyframes|On screen/ }).click({ timeout: 15_000 });
+  const vault = page.getByRole("region", { name: "On screen" });
   await vault.getByLabel("Search what was on screen").fill("eureka"); // on the slide at 1:28 only
   await expect(vault.getByText(/^1 of \d+ frames match$/)).toBeVisible();
   await expect(vault.locator("mark")).toHaveText("Eureka");
   await vault.getByRole("button", { name: "Play from 1:28" }).click();
-  const player = page.frame({ url: /youtube-nocookie/ })!;
-  await expect.poll(() => player.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got))
+  // The player opens on demand, so wait for its frame before reading what it was sent.
+  await expect.poll(async () => (await page.frame({ url: /youtube-nocookie/ })?.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got)) ?? [])
     .toContainEqual({ event: "command", func: "seekTo", args: [87.83, true] });
   await vault.getByLabel("Search what was on screen").fill("kafka");
   await expect(vault.getByText("Nothing on screen matches “kafka”.")).toBeVisible();

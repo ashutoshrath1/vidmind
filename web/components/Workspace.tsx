@@ -5,22 +5,22 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
+import { useMiniPlayer } from "@/components/MiniPlayer";
 import ThemeSwitch from "@/components/ThemeSwitch";
-import ModelsUsed from "@/components/ModelsUsed";
 import { SummaryCard } from "@/components/SummaryCard";
 import ProofSheet from "@/components/ProofSheet";
 import { ChapterView, SectionLive, chapterId } from "@/components/Sections";
 import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
 import Timeline from "@/components/Timeline";
-import { Button, Chip, type Seek, YT_ORIGIN, usePlayer } from "@/components/ui";
+import { Button, Chip, type Seek } from "@/components/ui";
 import { type JobStatus, type LearnResult, formatTime, jobUrl } from "@/lib/api";
 import { toMarkdown } from "@/lib/export";
 import type { View } from "@/lib/trace";
 
 type Props = {
   jobId: string;
-  at: number; // ?t=: the second the video opens at
+  at: number; // ?t=: the second the player opens at
   job: JobStatus | null;
   result: LearnResult | null;
   view: View;
@@ -38,15 +38,19 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
   const [picked, setTab] = useState<Tab | null>(null);
   const tabs: [Tab, string, number | null][] = [
     ["notes", "Notes", null],
-    ["frames", "Keyframes", view.frames.length || null],
-    ["trace", "Behind the scenes", null],
+    ["frames", "On screen", view.frames.length || null],
+    ["trace", "How it was made", null],
   ];
   const tab = picked ?? "notes";
   const base = jobUrl(jobId);
   const running = replaying || (!!job && job.status !== "done" && job.status !== "failed");
   const youtubeId = result?.youtube_id ?? view.source?.youtube_id ?? null;
   const title = result?.title ?? view.overview.result?.title ?? view.ready?.title ?? job?.source_title ?? "Your video";
-  const { video, yt, seek } = usePlayer(youtubeId);
+  const tldr = result?.tldr || view.overview.result?.tldr;
+  // Uploads have the file at once; downloaded links once the download ends; YouTube plays from YouTube.
+  const hasVideo = !!youtubeId || !!result || view.ready?.origin === "upload" || (!!view.stages.fetch?.end && !view.source?.streaming);
+  const player = useMiniPlayer(youtubeId, base, title, at);
+  const seek: Seek = (t) => hasVideo && player.seek(t);
 
   async function deleteJob() {
     if (!confirm("Delete this video, its notes and its frames from the server?")) return;
@@ -54,126 +58,129 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
     router.push("/");
   }
 
-  // Uploads have the file at once; downloaded links once the download ends; YouTube plays from YouTube.
-  const hasVideo = !!result || view.ready?.origin === "upload" || (!!view.stages.fetch?.end && !view.source?.streaming);
+  const run = (view.events.length > 0 || running) && (
+    <RunPanel view={view} now={now} running={running} replaying={replaying} celebrate={celebrate} onReplay={onReplay} />
+  );
 
   return (
     <div className="page-enter flex-1">
-      <header className="z-20 border-b border-rule bg-lightbox/90 backdrop-blur lg:sticky lg:top-0">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-8">
-          <Logo size={28} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-display font-semibold">{title}</p>
-            {view.ready?.channel && <p className="truncate text-xs text-graphite">{view.ready.channel}</p>}
-          </div>
+      {/* Chrome is glass; the reading surface below it is solid. */}
+      <header className="glass sticky top-0 z-20 border-b border-rule">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-2 sm:px-8">
+          <Logo size={26} />
+          <p className="min-w-0 flex-1 truncate text-sm text-graphite max-sm:invisible">{view.ready?.channel ?? ""}</p>
           {!view.events.length && <Status job={job} />}
+          {!replaying && job?.status === "done" && result && <CopyMd result={result} />}
+          {result && jobId !== "sample" && !job?.shared && (
+            <button onClick={deleteJob} className="hit text-sm text-graphite underline underline-offset-4 hover:text-strike">
+              Delete
+            </button>
+          )}
           <ThemeSwitch />
+        </div>
+        <div role="tablist" aria-label="Views" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 [scrollbar-width:none] sm:px-6">
+          {tabs.map(([key, label, count]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 py-2 font-display font-semibold transition ${tab === key ? "border-scan text-ink" : "border-transparent text-graphite hover:text-ink"}`}
+            >
+              {label}
+              {count ? <span className="tabular ml-1.5 rounded-full bg-lightbox px-1.5 py-px align-middle font-sans text-[11px] text-graphite ring-1 ring-rule">{count}</span> : null}
+            </button>
+          ))}
         </div>
       </header>
 
-      {(view.events.length > 0 || running) && (
-        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-8">
-          <RunPanel view={view} now={now} running={running} replaying={replaying} celebrate={celebrate} onReplay={onReplay} />
-        </div>
-      )}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
+        {result?.source === "precomputed" && (
+          <p className="mb-6 rounded-lg bg-scan-soft px-4 py-2 text-sm text-scan-ink ring-1 ring-scan/20">Precomputed sample. Not generated live.</p>
+        )}
+        {error && (
+          <p role="alert" className="mb-6 rounded-lg bg-strike-soft px-4 py-3 text-sm text-strike">
+            {result ? "Stopped early: " : ""}
+            {error}
+          </p>
+        )}
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <section aria-label="Video and evidence" className="space-y-4 lg:self-start">
-          {result?.source === "precomputed" && (
-            <p className="rounded-lg bg-scan-soft px-4 py-3 text-sm text-scan-ink ring-1 ring-scan/20">Precomputed sample. Not generated live.</p>
-          )}
-          {error && (
-            <p role="alert" className="rounded-lg bg-strike-soft px-4 py-3 text-sm text-strike">
-              {result ? "Stopped early: " : ""}
-              {error}
-            </p>
-          )}
-          {youtubeId ? (
-            <iframe
-              ref={yt}
-              src={`${YT_ORIGIN}/embed/${youtubeId}?enablejsapi=1&rel=0${at ? `&start=${at}` : ""}`}
-              title={title}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              className="aspect-video w-full rounded-lg bg-black"
-            />
-          ) : hasVideo ? (
-            <video ref={video} src={`${base}/video${at ? `#t=${at}` : ""}`} controls preload="metadata" className="aspect-video w-full rounded-lg bg-black" />
-          ) : (
-            <div className="scanning aspect-video w-full rounded-lg bg-black/85" aria-label="Opening the video" />
-          )}
-          <Fold title="Models in this video" open><ModelsUsed view={view} /></Fold>
-          {result?.card_url && <Fold title="Summary card" open><SummaryCard result={result} base={base} /></Fold>}
-          {result && jobId !== "sample" && !job?.shared && (
-            <p className="text-xs text-graphite">
-              <button onClick={deleteJob} className="hit underline underline-offset-4 hover:text-strike">
-                Delete this video from the server
-              </button>
-            </p>
-          )}
-        </section>
-
-        <section aria-label="Notes and keyframes" className="min-w-0">
-          {(result?.tldr || view.overview.result?.tldr) && (
-            <div className="arrive mb-6 border-l-4 border-scan pl-4">
-              <h2 className="font-display text-sm font-semibold text-scan-ink">In short</h2>
-              <Clamp text={(result?.tldr || view.overview.result?.tldr) ?? ""} />
-            </div>
-          )}
-          <div role="tablist" aria-label="Views" className="mb-6 flex gap-1 overflow-x-auto border-b border-rule bg-lightbox/95 backdrop-blur [scrollbar-width:none]">
-            {tabs.map(([key, label, count]) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={tab === key}
-                onClick={() => setTab(key)}
-                className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 py-2.5 font-display font-semibold transition sm:px-4 ${tab === key ? "border-scan text-ink" : "border-transparent text-graphite hover:text-ink"}`}
-              >
-                {label}
-                {count ? <span className="tabular ml-1.5 rounded-full bg-lightbox px-1.5 py-px align-middle font-sans text-[11px] text-graphite ring-1 ring-rule">{count}</span> : null}
-              </button>
-            ))}
+        {tab === "notes" && (
+          <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
+            <Contents result={result} view={view} />
+            <article className="notes-article mx-auto w-full max-w-[72ch] min-w-0 lg:mx-0">
+              {running && <div className="mb-8">{run}</div>}
+              <h1 className="font-display text-[2rem] leading-tight font-bold text-balance sm:text-[2.75rem]">{title}</h1>
+              {tldr && (
+                <section aria-labelledby="in-short" className="arrive mt-6 border-l-4 border-scan pl-5">
+                  <h2 id="in-short" className="font-display text-sm font-semibold tracking-wide text-scan-ink uppercase">In short</h2>
+                  <p className="mt-1.5 text-lg leading-relaxed">{tldr}</p>
+                </section>
+              )}
+              <div className="mt-10">
+                {result && !replaying && <Highlights result={result} base={base} seek={seek} />}
+                <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />
+              </div>
+              {result?.card_url && !replaying && (
+                <section aria-labelledby="share-card" className="mt-16 border-t border-rule pt-8">
+                  <h2 id="share-card" className="mb-3 font-display text-lg font-semibold">Share card</h2>
+                  <div className="max-w-md">
+                    <SummaryCard result={result} base={base} />
+                  </div>
+                </section>
+              )}
+            </article>
           </div>
-
-          {tab === "notes" && result && !replaying && <Highlights result={result} base={base} seek={seek} />}
-          {tab === "notes" && <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />}
-          {tab === "frames" && (
-            <div className="space-y-6">
-              <ProofSheet view={view} base={base} seek={seek} />
-              <ScreenText view={view} base={base} seek={seek} />
-            </div>
-          )}
-          {tab === "trace" && <Timeline view={view} now={now} running={running} />}
-        </section>
+        )}
+        {tab === "frames" && (
+          <div className="space-y-6">
+            <ProofSheet view={view} base={base} seek={seek} />
+            <ScreenText view={view} base={base} seek={seek} />
+          </div>
+        )}
+        {tab === "trace" && (
+          <div className="space-y-6">
+            {!running && run}
+            <Timeline view={view} now={now} running={running} />
+          </div>
+        )}
       </div>
+      {player.player}
     </div>
   );
 }
 
-/** A collapsible block in the left column. */
-function Fold({ title, open = false, children }: { title: string; open?: boolean; children: React.ReactNode }) {
-  return (
-    <details open={open} className="group">
-      <summary className="hit flex cursor-pointer items-center justify-between rounded-lg px-1 py-1.5 font-display text-sm font-semibold hover:text-scan-ink">
-        {title}
-        <span aria-hidden className="text-graphite transition group-open:rotate-180">⌄</span>
-      </summary>
-      <div className="arrive mt-1">{children}</div>
-    </details>
+/** Chapters to jump to: a sticky glass rail on wide screens, a "Contents" disclosure above the notes on phones. */
+function Contents({ result, view }: { result: LearnResult | null; view: View }) {
+  const items = result?.chapters.length
+    ? result.chapters.map((c) => ({ t: c.start_seconds, label: c.title }))
+    : view.sections.map((s) => ({ t: s.lo, label: `Section ${s.i + 1}` }));
+  if (!items.length) return <div aria-hidden />;
+  const jump = (t: number) =>
+    document.getElementById(chapterId(t))?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const list = (
+    <ol className="space-y-0.5">
+      {items.map((c) => (
+        <li key={c.t}>
+          <button onClick={() => jump(c.t)} className="hit flex w-full gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm leading-snug text-graphite hover:bg-scan-soft hover:text-ink">
+            <span className="tabular shrink-0 pt-px font-mono text-xs text-scan-ink">{formatTime(c.t)}</span>
+            <span>{c.label}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
   );
-}
-
-/** The summary at three lines, with a toggle for the rest. */
-function Clamp({ text }: { text: string }) {
-  const [more, setMore] = useState(false);
   return (
-    <p className="mt-1 max-w-[70ch] text-lg leading-relaxed">
-      <span className={more ? "" : "line-clamp-3"}>{text}</span>
-      {text.length > 220 && (
-        <button type="button" onClick={() => setMore((m) => !m)} className="hit text-sm text-scan-ink underline underline-offset-4">
-          {more ? "less" : "more"}
-        </button>
-      )}
-    </p>
+    <>
+      <nav aria-label="Contents" className="glass sticky top-28 hidden max-h-[calc(100vh-8rem)] self-start overflow-y-auto rounded-2xl p-3 ring-1 ring-rule lg:block">
+        <p className="px-2 pb-2 font-display text-xs font-semibold tracking-wide text-graphite uppercase">Contents</p>
+        {list}
+      </nav>
+      <details className="mx-auto mb-8 max-w-[72ch] rounded-2xl bg-sheet p-2 ring-1 ring-rule lg:hidden">
+        <summary className="hit cursor-pointer px-2 py-1.5 font-display font-semibold">Contents</summary>
+        <nav aria-label="Contents (compact)" className="pt-1">{list}</nav>
+      </details>
+    </>
   );
 }
 
@@ -207,7 +214,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
         </p>
       );
     return (
-      <div className="space-y-12">
+      <div className="space-y-14">
         {chapters.map((ch, i) => (
           <ChapterView key={i} chapter={ch} base={base} seek={seek} />
         ))}
@@ -215,8 +222,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
     );
   }
   return (
-    <div className="space-y-12">
-      {!replaying && job?.status === "done" && result && <NotesBar result={result} />}
+    <div className="space-y-14">
       {view.sections.map((s) => {
         // Only once its section is done in the trace, so a replay rebuilds the chapters in the order they landed.
         const chapter = s.done && chapters.find((c) => Math.abs(c.start_seconds - s.lo) < 1);
@@ -230,40 +236,18 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
   );
 }
 
-/** Jump between chapters, and take the notes with you. Sticky, so both stay in reach while reading. */
-function NotesBar({ result }: { result: LearnResult }) {
+/** Take the notes with you, as Markdown. */
+function CopyMd({ result }: { result: LearnResult }) {
   const [copied, setCopied] = useState(false);
-  const jump = (start: number) =>
-    document.getElementById(chapterId(start))?.scrollIntoView({
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-    });
-
   async function copy() {
     await navigator.clipboard.writeText(toMarkdown(result));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-
   return (
-    <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center gap-2 bg-lightbox/95 px-2 py-2 backdrop-blur lg:top-[4.25rem]">
-      <nav aria-label="Chapters" className="flex min-w-0 basis-full gap-1.5 overflow-x-auto [scrollbar-width:none] sm:basis-auto sm:flex-1">
-        {result.chapters.map((c) => (
-          <button
-            key={c.start_seconds}
-            onClick={() => jump(c.start_seconds)}
-            className="min-h-11 max-w-56 shrink-0 truncate rounded-full bg-sheet px-3 text-sm ring-1 ring-rule hover:ring-scan"
-          >
-            <span className="tabular mr-1.5 font-mono text-xs text-scan-ink">{formatTime(c.start_seconds)}</span>
-            {c.title}
-          </button>
-        ))}
-      </nav>
-      <div className="ml-auto flex shrink-0 gap-2">
-        <Button variant="quiet" onClick={copy} aria-live="polite">
-          {copied ? "Copied" : "Copy .md"}
-        </Button>
-      </div>
-    </div>
+    <Button variant="quiet" onClick={copy} aria-live="polite" className="min-h-9 px-3.5 py-1.5 text-sm">
+      {copied ? "Copied" : "Copy .md"}
+    </Button>
   );
 }
 
