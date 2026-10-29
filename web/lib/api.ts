@@ -14,13 +14,20 @@ export type Chapter = {
   summary: string;
   key_terms: string[];
   cover_url: string | null;
+  hook?: string; // the article's opening line for this chapter
+  article?: { text: string; cites: number[] }[]; // prose written from the checked notes; cites = note indices
+  image_url?: string | null; // illustration drawn by Muse Image, relative to the job
+  image_alt?: string;
 };
+// A keyframe explained, matched to view.frames by time.
+export type Slide = { t: number; title: string; explanation: string };
 export type QuizItem = { question: string; answer: string; evidence_start_seconds: number };
 // A study flashcard; the server keeps it only if source_note is a checked note and start_seconds one of its seconds.
 
 export type LearnResult = {
   title: string;
   chapters: Chapter[];
+  slides?: Slide[]; // keyframes explained, for the On screen tab
   quiz: QuizItem[];
   source: "live" | "precomputed";
   tldr: string;

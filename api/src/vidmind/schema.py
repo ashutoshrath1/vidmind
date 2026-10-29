@@ -53,6 +53,12 @@ class Note(BaseModel):
     uncertain_reason: str | None = None
 
 
+class Paragraph(BaseModel):
+    """A paragraph of the article, written only from the chapter's checked notes; cites = their indices."""
+    text: str
+    cites: list[int] = []
+
+
 class Chapter(BaseModel):
     title: str
     start_seconds: float
@@ -60,6 +66,17 @@ class Chapter(BaseModel):
     summary: str = ""
     key_terms: list[str] = []
     cover_url: str | None = None  # set by the server: the section's most text-rich keyframe
+    hook: str = ""  # the article's opening line for this chapter
+    article: list[Paragraph] = []  # the chapter as readable prose, after the notes are checked
+    image_url: str | None = None  # an illustration drawn by Muse Image from the article, no text in it
+    image_alt: str = ""
+
+
+class Slide(BaseModel):
+    """One keyframe explained: what it shows and why it matters, from its screen text and what was said."""
+    t: float
+    title: str = ""
+    explanation: str = ""
 
 
 class QuizItem(BaseModel):
@@ -159,6 +176,8 @@ class LearnOutput(BaseModel):
 
 class LearnResult(LearnOutput):
     """What the API serves: model output plus provenance."""
+
+    slides: list[Slide] = []  # keyframes explained, for the On screen tab
 
     source: Literal["live", "precomputed"] = "live"
     tldr: str = ""
