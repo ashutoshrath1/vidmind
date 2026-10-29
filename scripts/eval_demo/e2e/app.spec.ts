@@ -4,14 +4,14 @@ import { expect, test } from "@playwright/test";
 const CACHED = "https://www.youtube.com/watch?v=Xrgk023l4lI";
 const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
-test("the hero fits the first screen: headline, input and the 3D scene, with the footer at the end", async ({ page }) => {
+test("the hero fits the first screen: headline and input, a real product image, the footer at the end", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Notes with proof.");
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
   await expect(page.getByLabel("Video link")).toBeInViewport();
   expect(await noSideScroll(page)).toBe(true);
   await expect(page.getByText("Built for the Meta AI Developer Hackathon, 2026 by Ashutosh Rath")).toBeAttached();
-  await expect(page.getByRole("img", { name: /glass prism/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /A real VidMind result/ })).toBeVisible();
 });
 
 test("Add a file opens the picker and an upload reaches the result page", async ({ page }) => {
@@ -26,7 +26,7 @@ test("Add a file opens the picker and an upload reaches the result page", async 
 
 test("a pasted link needs one click, which says what it confirms", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("canvas")).toHaveCount(1, { timeout: 15_000 }); // hydrated: a value typed earlier can be reset
+  await expect(page.getByRole("button", { name: /Switch to/ })).toBeVisible({ timeout: 15_000 }); // hydrated: a value typed earlier can be reset
   await page.getByLabel("Video link").fill(CACHED);
   await expect(page.getByText("By continuing, you confirm you own it")).toBeVisible();
   await page.getByRole("button", { name: "I have the rights — make notes" }).click();
@@ -56,7 +56,7 @@ test.describe("result page", () => {
     const diagramY = (await highlights.locator("[data-diagram]").boundingBox())!.y;
     const takeawaysY = (await highlights.getByRole("heading", { name: "Key takeaways" }).boundingBox())!.y;
     expect(takeawaysY).toBeLessThan(diagramY);
-    const pill = highlights.locator("ul [data-seek]").first(); // a takeaway's citation (the per-box proof list is folded)
+    const pill = highlights.locator("ol [data-seek]").first(); // a takeaway's citation (the per-box proof list is folded)
     await pill.hover();
     await expect(pill.getByRole("tooltip")).toBeVisible();
   });
@@ -68,7 +68,7 @@ test.describe("result page", () => {
     await station.hover();
     await expect(station.getByRole("tooltip")).toContainText(/timed sentences|subtitles/);
     await expect(page.getByRole("button", { name: /Hide steps|Show steps/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Copy .md" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Copy/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Download .md" })).toHaveCount(0);
     await expect(page.getByText(/analysed live on/)).toHaveCount(0);
     await expect(page.getByRole("combobox")).toHaveCount(0); // no language picker
@@ -113,21 +113,20 @@ test("the finished example is a Muse run with a diagram and takeaways", async ({
   await expect(page.getByRole("region", { name: "Models used" })).toContainText("Muse Spark");
 });
 
-test("the theme switch turns on mission control and remembers it; the hero is a WebGL scene", async ({ page }) => {
+test("the theme switch turns on the dark theme and remembers it", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("canvas")).toHaveCount(1, { timeout: 15_000 });
   await page.getByRole("button", { name: "Switch to dark theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark"); // set before paint, from localStorage
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--lightbox").trim())).toBe("#04050d");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--lightbox").trim())).toMatch(/^#000(000)?$/);
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
 test("home → result → VidMind logo shows the home page again, and stays there", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("canvas")).toHaveCount(1, { timeout: 15_000 }); // hydrated: a value typed earlier can be reset
+  await expect(page.getByRole("button", { name: /Switch to/ })).toBeVisible({ timeout: 15_000 }); // hydrated: a value typed earlier can be reset
   await page.getByLabel("Video link").fill(CACHED);
   await page.getByRole("button", { name: /make notes/ }).click();
   await expect(page).toHaveURL(/\/jobs\//, { timeout: 30_000 });
@@ -162,7 +161,7 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
   await page.getByText("What happens to my video?").click();
   await expect(page.getByText(/deleted after 24 hours/).first()).toBeVisible();
   await page.goto("/");
-  await expect(page.locator("canvas")).toHaveCount(1, { timeout: 15_000 }); // hydrated: the paste listener is on
+  await expect(page.getByRole("button", { name: /Switch to/ })).toBeVisible({ timeout: 15_000 }); // hydrated: the paste listener is on
   await page.evaluate(() => {
     const data = new DataTransfer();
     data.setData("text", "https://www.youtube.com/watch?v=WeY-ZnRofsk");

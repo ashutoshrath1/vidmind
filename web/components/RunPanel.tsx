@@ -27,17 +27,17 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
   const end = view.end;
 
   return (
-    <section aria-label="How your video is being processed" className="rounded-lg bg-sheet px-4 py-3 ring-1 ring-rule sm:px-5">
+    <section aria-label="How your video is being processed" className="rounded-[22px] bg-sheet px-5 py-4 shadow-[0_1px_3px_rgb(0_0_0/0.05)] sm:px-6">
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           {end && !running ? <Finish view={view} celebrate={celebrate} small /> : (
             <p key={lastIndex} title={latest ?? undefined} className="narrate truncate font-display text-base font-semibold" aria-live="off">
-              <span className="mr-2 text-sm font-normal text-scan-ink">{replaying ? "Replay" : "Now"}</span>
+              <span className="mr-2 text-[13px] font-semibold tracking-wide text-scan-ink uppercase">{replaying ? "Replay" : "Now"}</span>
               {latest ?? "Opening the video"}
             </p>
           )}
         </div>
-        <p className="tabular shrink-0 font-display text-lg leading-none font-bold" title={running ? "so far" : "total"}>
+        <p className="tabular shrink-0 font-display text-2xl leading-none font-semibold tracking-tight" title={running ? "so far" : "total"}>
           {formatSeconds(end && !running ? end.t : now)}
         </p>
         {end && !running && onReplay && (
@@ -57,7 +57,7 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
 const firstNote = (v: View) => (v.events.find((e) => e.kind === "note") ?? v.events.find((e) => e.kind === "section" && e.ok))?.t;
 
 const Item = ({ n, label }: { n: string; label: string }) => (
-    <span className="whitespace-nowrap"><span className="text-graphite">{label} </span><span className="tabular font-display text-base font-bold text-ink sm:text-lg">{n}</span></span>
+    <span className="whitespace-nowrap"><span className="text-graphite">{label} </span><span className="tabular font-display text-base font-semibold text-ink sm:text-lg">{n}</span></span>
   );
 
 /** The speed, measured: time to the first checked note, notes so far and the clock, frozen when the run ends. */
@@ -67,7 +67,7 @@ function Pace({ view, now, running }: { view: View; now: number; running: boolea
   const streamed = view.events.filter((e) => e.kind === "note").length || view.sections.reduce((n, s) => n + (s.done?.notes ?? 0), 0);
   const end = view.end && !running ? view.end.t : undefined;
   return (
-    <p aria-hidden className="mt-2 flex flex-wrap items-baseline gap-x-2 text-sm">
+    <p aria-hidden className="mt-2 flex flex-wrap items-baseline gap-x-2 text-[13px]">
       <Item label="First note" n={formatSeconds(first)} />
       <span className="text-graphite">·</span>
       <Item label="notes" n={String(streamed)} />
@@ -84,27 +84,12 @@ function Finish({ view, celebrate, small = false }: { view: View; celebrate: boo
   const removed = view.sections.reduce((n, s) => n + (s.done?.rejected ?? 0), 0);
   if (!view.end?.ok) return <p className="mt-1 font-display text-xl font-semibold text-strike">{view.end?.error}</p>;
   return (
-    <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${small ? "" : "mt-1"}`}>
-      <span className="relative">
-        <span className={`${celebrate ? "stamp" : ""} inline-block rotate-[-3deg] rounded-md border-2 border-proof px-3 py-0.5 font-display font-bold text-proof ${small ? "text-base" : "text-xl"}`}>
-          Checked
-        </span>
-        {celebrate &&
-          Array.from({ length: 14 }, (_, i) => {
-            const a = (i / 14) * Math.PI * 2;
-            return (
-              <span
-                key={i}
-                aria-hidden
-                className="burst absolute top-1/2 left-1/2 -mt-1.5 -ml-1.5 text-xs text-proof"
-                style={{ "--dx": `${Math.cos(a) * 70}px`, "--dy": `${Math.sin(a) * 40}px`, animationDelay: "200ms" } as React.CSSProperties}
-              >
-                ✓
-              </span>
-            );
-          })}
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${small ? "" : "mt-1"}`}>
+      <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-full bg-proof text-white dark:text-black ${celebrate ? "pop" : ""}`}>
+        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M6 12.5l4 4L18 8" /></svg>
       </span>
       <p className={`font-display leading-snug font-semibold ${small ? "text-base" : "text-xl"}`}>
+        <span className="sr-only">Checked: </span>
         {done.length} section{done.length === 1 ? "" : "s"} written,{" "}
         <Counter value={kept} /> notes verified
         {removed > 0 && (
@@ -117,28 +102,29 @@ function Finish({ view, celebrate, small = false }: { view: View; celebrate: boo
   );
 }
 
-/** The steps as one broad segmented bar: a segment per step, green when done and pulsing while working, its
- * name and number underneath, a fact card on hover. A comet of spectrum light rides it, never backwards. */
+/** A thin progress capsule over the steps, Activity-style: it only moves forward, on a spring. Each step below is a
+ * dot and a name, green when done and blue while working, with a fact card on hover or focus. */
 function Track({ steps, now, left, running, done }: { steps: Step[]; now: number; left?: number; running: boolean; done: boolean }) {
   const raw = done && !running ? 100 : Math.min(96, 100 * (left === undefined ? now / (now + 30) : now / Math.max(0.1, now + left)));
   const [pct, setPct] = useState(0);
   if (raw > pct || (now < 0.05 && pct !== raw)) setPct(raw); // adjusted during render: forward only; a replay (now ~ 0) restarts it
   const label = done && !running ? "Finished" : left === undefined ? "Estimating the time left" : `About ${formatSeconds(left)} left`;
-  const tone = { done: "bg-proof", working: "scanning bg-scan", waiting: "bg-rule", skipped: "bg-graphite/30" } as const;
+  const tone = { done: "bg-proof", working: "bg-scan animate-pulse motion-reduce:animate-none", waiting: "bg-rule", skipped: "bg-graphite/30" } as const;
   return (
-    <div role="progressbar" aria-label={label} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} className="relative mt-3 overflow-x-clip">
-      <span aria-hidden className={`comet ${running ? "comet-run" : done ? "comet-done" : ""}`}
-        style={{ left: `${pct}%`, transitionDuration: pct < 1 ? "0ms" : undefined }} />
-      {done && !running && <span aria-hidden key="sweep" className="track-sweep" />}
-      <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+    <div className="mt-3">
+      <div role="progressbar" aria-label={label} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-rule">
+        <span className={`block h-full rounded-full transition-[width] duration-700 ease-spring motion-reduce:transition-none ${done && !running ? "bg-proof" : "bg-scan"}`}
+          style={{ width: `${pct}%`, transitionDuration: pct < 1 ? "0ms" : undefined }} />
+      </div>
+      <ol className="mt-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((s) => (
           <li key={s.name} aria-current={s.state === "working" ? "step" : undefined}>
-            <Lens title={s.name} lines={[s.fact ?? s.detail]} below className="relative block rounded px-0.5 pb-0.5 transition hover:bg-lightbox">
-              <span className={`block h-1.5 rounded-full transition-colors ${tone[s.state]}`} />
-              <span className="mt-1 flex items-baseline gap-1 text-[11px] leading-tight">
-                <span className={`truncate font-semibold sm:shrink-0 ${s.state === "waiting" ? "text-graphite" : ""}`}>{s.name}</span>
-                <span className="tabular hidden truncate text-graphite sm:inline">{s.detail}</span>
+            <Lens title={s.name} lines={[s.fact ?? s.detail]} below className="relative block rounded-lg px-1 py-0.5 transition-colors hover:bg-lightbox">
+              <span className="flex items-center gap-1.5 text-[12px] leading-tight">
+                <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${tone[s.state]}`} />
+                <span className={`truncate font-medium ${s.state === "waiting" ? "text-graphite" : ""}`}>{s.name}</span>
               </span>
+              <span className="tabular mt-0.5 hidden truncate pl-3 text-[12px] text-graphite sm:block">{s.detail}</span>
             </Lens>
           </li>
         ))}

@@ -16,7 +16,7 @@ export function Button({ variant = "primary", working = false, className = "", c
   const look =
     variant === "primary"
       ? "bg-scan text-on-scan hover:brightness-110 disabled:bg-graphite/30 disabled:text-graphite"
-      : "bg-sheet text-ink ring-1 ring-rule hover:ring-graphite";
+      : "bg-graphite/12 text-ink hover:bg-graphite/20";
   return (
     <button
       aria-busy={working || undefined}

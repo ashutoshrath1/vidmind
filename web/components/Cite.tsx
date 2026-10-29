@@ -3,7 +3,7 @@ import type { Seek } from "@/components/ui";
 import { type Evidence, type Note, formatTime } from "@/lib/api";
 
 const tip =
-  "pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 hidden w-max max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-md bg-ink whitespace-normal px-2.5 py-1.5 text-left font-sans text-xs leading-snug font-normal text-lightbox shadow-lg group-hover:block group-focus-visible:block";
+  "pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 hidden w-max max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-xl bg-ink whitespace-normal px-3 py-2 text-left font-sans text-xs leading-snug font-normal text-lightbox shadow-lg group-hover:block group-focus-visible:block";
 
 /** A quiet citation after a sentence: the time, "on screen" for a frame. The quoted words show on hover and focus. */
 export function Cite({ evidence: e, seek }: { evidence: Evidence; seek: Seek }) {
@@ -14,7 +14,7 @@ export function Cite({ evidence: e, seek }: { evidence: Evidence; seek: Seek }) 
       onClick={() => seek(e.start_seconds)}
       aria-label={`${label}, checked: ${said}. Play from here`}
       data-seek={e.start_seconds}
-      className="cite group relative ml-1 rounded-sm align-super text-[0.7rem] leading-none whitespace-nowrap text-scan-ink hover:underline"
+      className="cite group relative ml-1 rounded-sm align-super font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap text-scan-ink hover:underline"
     >
       {/* Every citation on the page passed the check; the tick says so without a word. */}
       <span aria-hidden className="mr-0.5 text-proof">✓</span>
@@ -32,7 +32,7 @@ export function Cite({ evidence: e, seek }: { evidence: Evidence; seek: Seek }) 
 /** A note the checker could not fully confirm: a small marker, its reason in the tooltip. */
 export function Unsure({ reason }: { reason: string | null }) {
   return (
-    <span tabIndex={0} className="cite group relative ml-1 rounded-sm align-super text-[0.7rem] leading-none text-wait">
+    <span tabIndex={0} className="cite group relative ml-1 rounded-sm align-super font-sans text-[0.6875rem] leading-none font-medium text-wait">
       unsure
       <span role="tooltip" className={tip}>{reason ?? "Not fully confirmed by the video"}</span>
     </span>

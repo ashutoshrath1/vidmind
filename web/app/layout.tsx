@@ -22,8 +22,8 @@ export const metadata: Metadata = {
 // The browser's own chrome (address bar, overscroll) matches the page in each theme.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f3f4fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#04050d" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 

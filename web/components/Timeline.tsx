@@ -1,9 +1,11 @@
 import { formatSeconds, formatTime, modelName } from "@/lib/api";
+import SlidesGlyph, { type GlyphName } from "@/components/SlidesGlyph";
 import { type Bar, type Rejected, type TraceEvent, type View, lanesOf, modelsUsed } from "@/lib/trace";
 
 type Of<K extends TraceEvent["kind"]> = Extract<TraceEvent, { kind: K }>;
 const ofKind = <K extends TraceEvent["kind"]>(ev: TraceEvent[], k: K) => ev.filter((e): e is Of<K> => e.kind === k);
 const site = (s?: string) => (s && /^youtube$/i.test(s) ? "YouTube" : s);
+const CARD = "rounded-[22px] bg-sheet p-5 shadow-[0_1px_3px_rgb(0_0_0/0.05)] sm:p-7";
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** The numbers that matter, all read from the trace: time to the first note, total time, notes kept and dropped. */
@@ -43,19 +45,20 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
     ...(s.proven !== undefined ? [[`${s.proven}%`, "proven", `${s.kept} of ${s.kept + s.dropped} notes matched the transcript or a keyframe`] as [string, string, string]] : []),
   ];
   return (
-    <div className="space-y-6">
-      <header className="glass rounded-3xl p-5 ring-1 ring-rule sm:p-7">
-        <p className="text-sm font-semibold text-scan-ink">{running ? "Making the notes" : "From video to checked notes"}</p>
-        <dl className="mt-3 grid grid-cols-3 gap-3 sm:gap-6">
-          {hero.map(([n, label, long]) => (
-            <div key={label} className="min-w-0">
+    <div className="mx-auto max-w-4xl space-y-8">
+      <header className={CARD}>
+        <h2 className="font-display text-2xl font-semibold tracking-tight">{running ? "Making the notes" : "From video to checked notes"}</h2>
+        <dl className="mt-5 grid grid-cols-3 divide-x divide-rule">
+          {hero.map(([n, label, long], i) => (
+            <div key={label} className={`min-w-0 ${i ? "pl-4 sm:pl-6" : ""} pr-2`}>
               <dt className="sr-only">{long}</dt>
-              <dd className="tabular font-display text-3xl leading-none font-semibold tracking-tight sm:text-5xl">{n}</dd>
-              <dd aria-hidden className="mt-1.5 text-xs text-graphite sm:text-sm"><span className="font-semibold text-ink">{label}</span><span className="hidden sm:inline"> · {long}</span></dd>
+              <dd aria-hidden className="text-[13px] font-semibold text-graphite first-letter:uppercase">{label}</dd>
+              <dd className={`tabular mt-1 font-display text-[28px] leading-none font-semibold tracking-tight sm:text-5xl ${label === "proven" ? "text-proof" : ""}`}>{n}</dd>
+              <dd aria-hidden className="mt-2 hidden text-[13px] leading-snug text-graphite sm:block">{long}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-4 text-sm leading-relaxed text-graphite">
+        <p className="mt-6 border-t border-rule pt-4 text-[15px] leading-relaxed text-graphite">
           {view.source && <>{formatTime(view.source.duration)} of video, </>}
           {plural(s.sections, "section")} written in parallel, {plural(s.kept, "note")} kept{s.dropped > 0 && <>, <span className="text-strike">{s.dropped} dropped</span></>}
           {s.fixed > 0 && <>, {plural(s.fixed, "quote")} snapped to the exact words</>}
@@ -66,7 +69,7 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
           <section aria-label="Models used" className="mt-4">
             <ul className="flex flex-wrap gap-2">
               {used.map((m) => (
-                <li key={m.model} title={`${m.model}: ${m.did.join(", ")}`} className="glass max-w-full rounded-full px-3 py-1.5 text-xs ring-1 ring-rule">
+                <li key={m.model} title={`${m.model}: ${m.did.join(", ")}`} className="max-w-full rounded-full bg-lightbox px-3 py-1.5 text-[13px]">
                   <span className="font-semibold">{pretty(m.model)}</span>
                   <span className="text-graphite"> · {m.did.join(", ")}{m.seconds > 0 && ` · ${formatSeconds(m.seconds)}`}</span>
                 </li>
@@ -78,10 +81,11 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
       <Trust stats={s} />
       <Story view={view} now={now} />
       <RunChart events={view.events} now={now} running={running} />
-      <details className="group glass rounded-2xl ring-1 ring-rule">
-        <summary className="hit flex cursor-pointer items-center justify-between rounded-2xl px-4 py-3 font-display font-semibold focus-visible:ring-2 focus-visible:ring-scan">
-          <span>Every event, in order <span className="tabular font-normal text-graphite">{steps.length}</span></span>
-          <span aria-hidden className="text-graphite transition group-open:rotate-180">⌄</span>
+      <details className="group overflow-hidden rounded-[20px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+        <summary className="hit flex cursor-pointer list-none items-center justify-between px-5 py-3.5 font-medium [&::-webkit-details-marker]:hidden">
+          <span>Every event, in order</span>
+          <span className="flex items-center gap-1.5 text-graphite"><span className="tabular">{steps.length}</span>
+            <SlidesGlyph name="right" className="size-3.5 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" /></span>
         </summary>
         <div className="overflow-x-auto">
         <table className="w-full border-t border-rule text-sm">
@@ -105,7 +109,7 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
 /** "muse-voice-transcribe-1.0" → "Muse Voice Transcribe 1.0"; short words are acronyms ("sam-3.1" → "SAM 3.1"). */
 export const pretty = (id: string) => modelName(id).split("-").map((w) => (/^\d/.test(w) ? w : w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
 
-type Step = { title: string; models: string[]; start: number; end: number };
+type Step = { title: string; models: string[]; start: number; end: number; icon: GlyphName };
 const span = <E extends TraceEvent>(es: E[], from: (e: E) => number = (e) => e.t) => es.length ? [Math.min(...es.map(from)), Math.max(...es.map((e) => e.t))] as const : null;
 
 /** The run in plain words, in order. Only measured spans from the trace; a step that didn't happen isn't shown. */
@@ -114,64 +118,60 @@ function Story({ view, now }: { view: View; now: number }) {
   const of = <K extends TraceEvent["kind"]>(k: K) => ev.filter((e): e is Extract<TraceEvent, { kind: K }> => e.kind === k);
   const stage = (n: string) => ev.filter((e): e is Extract<TraceEvent, { kind: "stage" }> => e.kind === "stage" && e.name === n);
   const out: Step[] = [];
-  const add = (title: string, models: (string | undefined)[], s: readonly [number, number] | null) =>
-    s && out.push({ title, models: [...new Set(models.filter((m): m is string => !!m))], start: s[0], end: s[1] });
+  const add = (title: string, models: (string | undefined)[], s: readonly [number, number] | null, icon: GlyphName = "sparkle") =>
+    s && out.push({ title, models: [...new Set(models.filter((m): m is string => !!m))], start: s[0], end: s[1], icon });
 
   const fetch = stage("fetch");
   const streamed = view.source?.streaming;
-  add(view.ready?.origin === "upload" ? "Received the upload" : `Opened the video on ${site(view.ready?.site) ?? "the web"}${streamed ? ", streamed (nothing downloaded)" : ""}`, [], span<TraceEvent>(fetch.length ? fetch : of("source_ready")));
+  add(view.ready?.origin === "upload" ? "Received the upload" : `Opened the video on ${site(view.ready?.site) ?? "the web"}${streamed ? ", streamed (nothing downloaded)" : ""}`, [], span<TraceEvent>(fetch.length ? fetch : of("source_ready")), "link");
   const tr = of("transcript").filter((e) => e.lines.length);
   const subs = view.source?.transcript === "subtitles" || tr.some((e) => /subtitle/.test(e.engine));
   if (tr.length || subs)
     add(subs ? "Used the video's own captions, so no speech recognition was needed"
       : `Transcribed ${view.source ? formatTime(view.source.duration) : "the"} of speech, ${plural(tr.length, "part")} at once${tr.some((e) => /muse/.test(e.engine)) ? " (sped up 2x, cut into 3-second pieces)" : ""}`,
-    subs ? [] : tr.map((e) => e.engine), span([...stage("audio"), ...tr], (e) => (e.kind === "transcript" ? e.t - e.seconds : e.t)));
+    subs ? [] : tr.map((e) => e.engine), span([...stage("audio"), ...tr], (e) => (e.kind === "transcript" ? e.t - e.seconds : e.t)), "wave");
   const scenes = stage("scenes").find((e) => e.state === "end");
   const frames = stage("frames");
-  if (scenes) add(`Found ${plural(scenes.cuts ?? 0, "slide or scene change")} and took a keyframe at each`, [], span([...stage("scenes"), ...frames]));
+  if (scenes) add(`Found ${plural(scenes.cuts ?? 0, "slide or scene change")} and took a keyframe at each`, [], span([...stage("scenes"), ...frames]), "scenes");
   const secs = of("section").filter((e) => e.ok);
   const tries = of("model").filter((e) => /^s\d/.test(e.task));
   const racers = [...new Set(tries.map((e) => e.model))];
-  if (secs.length) add(`Wrote ${plural(secs.length, "section")} in parallel${racers.length > 1 ? `, each sent to ${racers.length} models at once, the first good answer kept` : ""}`, secs.map((e) => e.model), span([...tries, ...secs]));
+  if (secs.length) add(`Wrote ${plural(secs.length, "section")} in parallel${racers.length > 1 ? `, each sent to ${racers.length} models at once, the first good answer kept` : ""}`, secs.map((e) => e.model), span([...tries, ...secs]), "pen");
   const checks = of("check");
   const kept = secs.reduce((n, e) => n + e.notes, 0), dropped = secs.reduce((n, e) => n + e.rejected, 0);
-  if (checks.length) add(`Checked every quote against the transcript and every frame against a keyframe: ${plural(kept, "note")} kept${dropped ? `, ${dropped} dropped` : ""}`, [], span(checks));
+  if (checks.length) add(`Checked every quote against the transcript and every frame against a keyframe: ${plural(kept, "note")} kept${dropped ? `, ${dropped} dropped` : ""}`, [], span(checks), "check");
   const ov = of("model").filter((e) => e.task === "overview");
-  if (view.overview.result || of("overview").length) add("Wrote the title and summary", ov.filter((e) => e.state === "win").map((e) => e.model), span([...ov, ...of("overview")]));
+  if (view.overview.result || of("overview").length) add("Wrote the title and summary", ov.filter((e) => e.state === "win").map((e) => e.model), span([...ov, ...of("overview")]), "notes");
   const vis = of("visual")[0];
   if (vis) add(`Drew out ${plural(vis.takeaways, "takeaway")}${vis.diagram ? ` and a${/^[aeiou]/.test(vis.diagram) ? "n" : ""} ${vis.diagram} diagram` : ""}`, of("model").filter((e) => e.task === "visual" && e.state === "win").map((e) => e.model), span([...of("model").filter((e) => e.task === "visual"), vis]));
   const screen = stage("screen").find((e) => e.state === "end");
-  if (screen) add(`Looked at the keyframes and added ${plural(screen.added ?? 0, "checked on-screen note")}`, [], span(stage("screen")));
+  if (screen) add(`Looked at the keyframes and added ${plural(screen.added ?? 0, "checked on-screen note")}`, [], span(stage("screen")), "eye");
   const ocr = stage("ocr").find((e) => e.state === "end");
-  if (ocr) add(`Read the text on ${plural(of("frame").length || (stage("ocr")[0]?.frames?.length ?? 0), "keyframe")}`, [ocr.model], span([...stage("ocr"), ...of("frame")]));
+  if (ocr) add(`Read the text on ${plural(of("frame").length || (stage("ocr")[0]?.frames?.length ?? 0), "keyframe")}`, [ocr.model], span([...stage("ocr"), ...of("frame")]), "text");
   const crop = stage("crop").find((e) => e.state === "end" && !e.error);
-  if (crop?.cropped) add(`Cut out ${plural(crop.cropped, "diagram")}`, [crop.model], span(stage("crop")));
+  if (crop?.cropped) add(`Cut out ${plural(crop.cropped, "diagram")}`, [crop.model], span(stage("crop")), "crop");
   const card = stage("card").find((e) => e.state === "end");
-  if (card) add(card.error ? "Drew a summary card (dropped: its text didn't match)" : "Drew the summary card, then read its text back to check it", [card.model], span(stage("card")));
+  if (card) add(card.error ? "Drew a summary card (dropped: its text didn't match)" : "Drew the summary card, then read its text back to check it", [card.model], span(stage("card")), "card");
   if (!out.length) return null;
   const total = Math.max(view.end?.t ?? 0, now, ...out.map((s) => s.end), 0.1);
   return (
-    <section aria-labelledby="how-steps" className="glass rounded-3xl p-5 ring-1 ring-rule sm:p-7">
-      <h3 id="how-steps" className="font-display text-lg font-semibold">What happened, step by step</h3>
-      <ol className="mt-4 space-y-4">
-        {out.map((s, i) => (
-          <li key={s.title} className="arrive grid grid-cols-[1.75rem_1fr_auto] items-start gap-x-3" style={{ animationDelay: `${i * 50}ms` }}>
-            <span aria-hidden className="tabular grid size-7 place-items-center rounded-full bg-scan-soft text-xs font-semibold text-scan-ink">{i + 1}</span>
+    <section aria-labelledby="how-steps">
+      <h3 id="how-steps" className="px-5 pb-2 font-display text-xl font-semibold tracking-tight">What happened, step by step</h3>
+      <ol className="overflow-hidden rounded-[22px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+        {out.map((s) => (
+          <li key={s.title} className="grid grid-cols-[2rem_1fr_auto] items-start gap-x-3 border-b border-rule px-4 py-3.5 last:border-b-0 sm:px-5">
+            <span aria-hidden className="grid size-8 place-items-center rounded-[9px] bg-scan text-on-scan"><SlidesGlyph name={s.icon} className="size-[18px]" /></span>
             <div className="min-w-0">
-              <p className="font-medium leading-snug">{s.title}</p>
-              {s.models.length > 0 && (
-                <p className="mt-1 flex flex-wrap gap-1.5">
-                  {s.models.map((m) => <span key={m} title={m} className="rounded-full bg-lightbox px-2 py-0.5 text-[11px] font-semibold text-graphite ring-1 ring-rule">{pretty(m)}</span>)}
-                </p>
-              )}
+              <p className="text-[15px] leading-snug">{s.title}</p>
+              {s.models.length > 0 && <p className="mt-0.5 text-[13px] text-graphite">{s.models.map(pretty).join(", ")}</p>}
               {/* where the step sat in the run: a thin track scaled to the whole run */}
-              <span aria-hidden className="relative mt-2 block h-1 rounded-full bg-rule/60">
+              <span aria-hidden className="relative mt-2 block h-1 rounded-full bg-rule">
                 <span className="absolute inset-y-0 rounded-full bg-scan" style={{ left: `${(100 * s.start) / total}%`, width: `max(4px, ${(100 * (s.end - s.start)) / total}%)` }} />
               </span>
             </div>
-            <span className="tabular pt-0.5 text-right text-sm text-graphite">
-              <span className="sr-only">took </span><span className="font-semibold text-ink">{formatSeconds(s.end - s.start)}</span>
-              <span className="block text-[11px]">by {formatSeconds(s.end)}</span>
+            <span className="tabular pt-0.5 text-right text-[15px]">
+              <span className="sr-only">took </span><span className="font-semibold">{formatSeconds(s.end - s.start)}</span>
+              <span className="block text-[13px] text-graphite">by {formatSeconds(s.end)}</span>
             </span>
           </li>
         ))}
@@ -184,42 +184,50 @@ function Story({ view, now }: { view: View; now: number }) {
 function Trust({ stats: s }: { stats: ReturnType<typeof runStats> }) {
   if (!s.kept && !s.dropped) return null;
   return (
-    <section aria-labelledby="how-trust" className="glass rounded-3xl p-5 ring-1 ring-rule sm:p-7">
-      <h3 id="how-trust" className="font-display text-lg font-semibold">Every note was checked before you saw it</h3>
-      <p className="mt-1 text-sm leading-relaxed text-graphite">
-        A note only reaches the page if its quote is found in the transcript within a few seconds of where it says, and any
-        frame it cites is a real keyframe. Quotes that are nearly right are snapped to the exact words; the rest are dropped.
-      </p>
-      <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
+    <section aria-labelledby="how-trust" className={CARD}>
+      <div className="flex items-start gap-3">
+        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-proof-soft text-proof"><SlidesGlyph name="check" className="size-5" /></span>
+        <div>
+          <h3 id="how-trust" className="font-display text-xl font-semibold tracking-tight">Every note was checked before you saw it</h3>
+          <p className="mt-1 text-[15px] leading-relaxed text-graphite">
+            A note reaches the page only if its quote is in the transcript within a few seconds of where it says, and any
+            frame it cites is a real keyframe. Nearly right quotes are fixed to the exact words; the rest are dropped.
+          </p>
+        </div>
+      </div>
+      <ul className="mt-5 grid grid-cols-3 divide-x divide-rule rounded-[18px] bg-lightbox py-4 text-center">
         {([["kept", s.kept, "text-proof"], ["snapped", s.fixed, "text-ink"], ["dropped", s.dropped, s.dropped ? "text-strike" : "text-ink"]] as const).map(([k, n, c]) => (
-          <li key={k} className="rounded-2xl bg-lightbox/60 px-2 py-3 ring-1 ring-rule">
-            <span className={`tabular block font-display text-2xl font-semibold ${c}`}>{n}</span>
-            <span className="text-xs text-graphite">{k === "snapped" ? "quotes fixed" : `notes ${k}`}</span>
+          <li key={k} className="px-2">
+            <span className={`tabular block font-display text-3xl font-semibold tracking-tight ${c}`}>{n}</span>
+            <span className="text-[13px] text-graphite">{k === "snapped" ? "quotes fixed" : `notes ${k}`}</span>
           </li>
         ))}
       </ul>
       {s.rejected.length > 0 ? (
         <>
-          <h4 className="mt-5 text-sm font-semibold">Thrown out, and why</h4>
-          <ul className="mt-2 space-y-2">
+          <h4 className="mt-6 px-1 pb-1.5 text-[13px] font-medium text-graphite">Dropped, and why</h4>
+          <ul className="overflow-hidden rounded-[18px] bg-lightbox">
             {s.rejected.map((r, i) => (
-              <li key={i} className="rounded-2xl border-l-4 border-strike bg-lightbox/60 px-3 py-2 text-sm">
-                <p className="break-words text-graphite line-through decoration-strike/50">{r.text}</p>
-                <p className="mt-1 text-xs text-strike">{task(r.task)[0].toUpperCase() + task(r.task).slice(1)}: {r.reasons.join("; ")}</p>
+              <li key={i} className="flex gap-3 border-b border-rule px-4 py-3 text-[15px] last:border-b-0">
+                <SlidesGlyph name="clear" className="mt-0.5 size-[18px] shrink-0 text-strike" />
+                <div className="min-w-0">
+                  <p className="break-words text-graphite line-through decoration-strike/50">{r.text}</p>
+                  <p className="mt-0.5 text-[13px] text-strike">{task(r.task)[0].toUpperCase() + task(r.task).slice(1)}: {r.reasons.join("; ")}</p>
+                </div>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="mt-4 text-sm text-proof">Nothing had to be thrown out this time: every quote and frame matched.</p>
+        <p className="mt-4 text-[15px] text-proof">Nothing was dropped this time: every quote and frame matched.</p>
       )}
     </section>
   );
 }
 
 const LANE_TONE: Record<string, string> = {
-  Source: "bg-ink/10 text-ink", Transcript: "bg-sky-500/15 text-sky-700 dark:text-sky-300", Frames: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  Notes: "bg-scan-soft text-scan-ink", Check: "bg-proof-soft text-proof", Extras: "bg-pink-500/15 text-pink-700 dark:text-pink-300", Result: "bg-proof-soft text-proof",
+  Source: "bg-lightbox text-ink", Transcript: "bg-lightbox text-cyan", Frames: "bg-lightbox text-pink",
+  Notes: "bg-scan-soft text-scan-ink", Check: "bg-proof-soft text-proof", Extras: "bg-lightbox text-wait", Result: "bg-proof-soft text-proof",
 };
 function laneOf(e: TraceEvent): string {
   if (e.kind === "source_ready" || e.kind === "source" || e.kind === "plan") return "Source";
@@ -233,10 +241,10 @@ function laneOf(e: TraceEvent): string {
 }
 
 const BAR: Record<Bar["state"], string> = {
-  running: "scanning bg-scan text-on-scan",
-  done: "bg-ink/70 text-lightbox",
-  won: "bg-proof text-white",
-  lost: "bg-[repeating-linear-gradient(135deg,rgb(107_114_128/0.35)_0_4px,rgb(107_114_128/0.15)_4px_8px)] text-ink",
+  running: "animate-pulse bg-scan text-on-scan motion-reduce:animate-none",
+  done: "bg-graphite/45 text-ink",
+  won: "bg-proof text-white dark:text-black",
+  lost: "bg-graphite/15 text-graphite",
   failed: "bg-strike text-white",
 };
 const OUTCOME: Record<Bar["state"], string> = { running: "working now", done: "done", won: "used in the notes", lost: "spare copy, finished but not needed", failed: "failed" };
@@ -270,18 +278,18 @@ export function RunChart({ events, now, running }: { events: View["events"]; now
   const x = (t: number) => `${(100 * t) / end}%`;
   const ROW = 34;
   return (
-    <section aria-label="The run, step by step" className="glass rounded-3xl p-4 ring-1 ring-rule sm:p-6">
+    <section aria-label="The run, step by step" className={CARD}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-lg font-semibold">Second by second <span className="tabular font-normal text-graphite">{formatSeconds(end)}</span></h3>
-        <ul aria-label="Legend" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-graphite">
+        <h3 className="font-display text-xl font-semibold tracking-tight">Second by second <span className="tabular font-normal text-graphite">{formatSeconds(end)}</span></h3>
+        <ul aria-label="Legend" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-graphite">
           {LEGEND.map(([k, label]) => (
-            <li key={k} className="flex items-center gap-1.5"><span aria-hidden className={`h-3 w-4 rounded-sm ${BAR[k].replace("scanning ", "")}`} />{label}</li>
+            <li key={k} className="flex items-center gap-1.5"><span aria-hidden className={`h-2.5 w-4 rounded-full ${BAR[k].replace("animate-pulse ", "")}`} />{label}</li>
           ))}
         </ul>
       </div>
       <div className="grid grid-cols-[5.5rem_1fr] sm:grid-cols-[9rem_1fr]">
         <span />
-        <div className="relative h-5 border-b border-rule font-mono text-[10px] text-graphite">
+        <div className="tabular relative h-5 text-[11px] text-graphite">
           {ticks.map((t) => <span key={t} className="absolute top-0 -translate-x-1/2 first:translate-x-0" style={{ left: x(t) }}>{t}s</span>)}
         </div>
         {lanes.map((lane) => {
@@ -289,22 +297,22 @@ export function RunChart({ events, now, running }: { events: View["events"]; now
           const h = (ROW - 8) / laneRows.length;
           return (
             <div key={lane.name} className="contents">
-              <span className="flex items-center gap-2 border-b border-rule pr-2 text-[11px] leading-tight font-semibold sm:text-xs" style={{ height: ROW }}>
+              <span className="flex items-center gap-2 border-t border-rule pr-2 text-[12px] leading-tight font-medium sm:text-[13px]" style={{ height: ROW }}>
                 <span aria-hidden className={`size-2 shrink-0 rounded-full ${DOT[lane.name] ?? "bg-graphite"}`} />
                 <span>{LANE_LABEL[lane.name] ?? lane.name}</span>
               </span>
-              <div className="relative border-b border-rule" style={{ height: ROW }}>
-                {ticks.map((t) => <span key={t} aria-hidden className="absolute inset-y-0 w-px bg-rule/70" style={{ left: x(t) }} />)}
+              <div className="relative border-t border-rule" style={{ height: ROW }}>
+                {ticks.map((t) => <span key={t} aria-hidden className="absolute inset-y-0 w-px bg-rule" style={{ left: x(t) }} />)}
                 {laneRows.map((row, ri) => row.map((b, i) => (
                   <Lens key={`${ri}-${i}`} className="absolute" style={{ top: 4 + ri * h, height: Math.max(3, h - 2), left: x(b.start), width: `max(6px, ${x(b.end - b.start)})` }}
                     title={barLabel(b)}
                     lines={[`${formatSeconds(b.start)} to ${formatSeconds(b.end)}, ${formatSeconds(b.end - b.start)}`, OUTCOME[b.state], ...(b.detail ? [b.detail] : [])]}>
-                    <span className={`flex h-full items-center overflow-hidden rounded-md px-1.5 text-[11px] font-semibold whitespace-nowrap transition-[width] duration-300 ${BAR[b.state]}`}>
+                    <span className={`flex h-full origin-left items-center overflow-hidden rounded-full px-2 text-[11px] font-semibold whitespace-nowrap transition-[scale] duration-700 ease-spring starting:scale-x-0 motion-reduce:transition-none ${BAR[b.state]}`}>
                       {laneRows.length === 1 && (b.end - b.start) / end >= 0.2 && barLabel(b)}
                     </span>
                   </Lens>
                 )))}
-                {running && <span aria-hidden className="absolute inset-y-0 w-0.5 bg-scan shadow-[0_0_8px_var(--scan)]" style={{ left: x(now) }} />}
+                {running && <span aria-hidden className="absolute inset-y-0 w-px bg-scan" style={{ left: x(now) }} />}
               </div>
             </div>
           );
@@ -315,21 +323,20 @@ export function RunChart({ events, now, running }: { events: View["events"]; now
 }
 
 const DOT: Record<string, string> = {
-  Source: "bg-ink", Transcript: "bg-sky-500", "Scene changes": "bg-violet-500", Keyframes: "bg-violet-500", "Screen text": "bg-violet-500",
-  Notes: "bg-scan", "On screen": "bg-scan", Title: "bg-scan", Takeaways: "bg-pink-500", Diagrams: "bg-violet-500", "Go deeper": "bg-pink-500", Actions: "bg-pink-500", Tests: "bg-pink-500", "Summary card": "bg-pink-500",
+  Source: "bg-graphite", Transcript: "bg-cyan", "Scene changes": "bg-pink", Keyframes: "bg-pink", "Screen text": "bg-pink",
+  Notes: "bg-scan", "On screen": "bg-scan", Title: "bg-scan", Takeaways: "bg-wait", Diagrams: "bg-pink", "Go deeper": "bg-wait", Actions: "bg-wait", Tests: "bg-wait", "Summary card": "bg-wait",
 };
 
-/** A focusable target that shows a magnifier-glass card with its details on hover and keyboard focus. */
+/** A focusable target that shows a small details card on hover and keyboard focus. */
 export function Lens({ title, lines, children, className = "", style, below = false }: { title: string; lines: string[]; children: React.ReactNode; className?: string; style?: React.CSSProperties; below?: boolean }) {
   return (
     <span tabIndex={0} aria-label={`${title}. ${lines.join(". ")}`} style={style}
       className={`group/lens outline-none hover:z-30 focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-scan ${className}`}>
       {children}
       <span role="tooltip" className={`pointer-events-none absolute left-1/2 z-40 hidden w-max max-w-72 -translate-x-1/2 group-hover/lens:block group-focus-visible/lens:block ${below ? "top-full mt-2" : "bottom-full mb-2"}`}>
-        <span className="pop relative block rounded-2xl bg-ink/75 px-3.5 py-2.5 text-left text-xs leading-relaxed text-lightbox shadow-2xl ring-1 ring-lightbox/20 backdrop-blur-md">
-          <span aria-hidden className="absolute -top-2 -left-2 grid size-6 place-items-center rounded-full bg-scan text-[11px] text-on-scan shadow">🔍</span>
+        <span className="pop relative block rounded-[14px] bg-sheet px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink shadow-[0_8px_30px_rgb(0_0_0/0.16)] ring-1 ring-rule">
           <span className="block font-semibold">{title}</span>
-          {lines.map((l, i) => <span key={i} className="block text-lightbox/70">{l}</span>)}
+          {lines.map((l, i) => <span key={i} className="block text-graphite">{l}</span>)}
         </span>
       </span>
     </span>

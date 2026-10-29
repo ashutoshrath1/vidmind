@@ -4,11 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { markLaunch } from "@/components/Ambient";
-import HeroLive from "@/components/HeroLive";
+import { HomeFooter, HomeNav } from "@/components/HomeNav";
 import Icon from "@/components/Icon";
 import { STATS } from "@/components/Landing";
-import Logo from "@/components/Logo";
-import ThemeSwitch from "@/components/ThemeSwitch";
+import Reveal from "@/components/Reveal";
 import { Button, Chip } from "@/components/ui";
 import { API_URL, MAX_MINUTES, MAX_UPLOAD_MB, formatSeconds, formatTime } from "@/lib/api";
 import { estimate } from "@/lib/estimate";
@@ -25,13 +24,10 @@ const sizeLabel = (bytes: number) => {
 };
 const typicalYoutube = estimate({ duration: 300, height: 360, subtitles: true }).total;
 
-const NAV = [["/about", "How it works"], ["/jobs/sample", "Example"], ["/library", "Library"]] as const;
-
 export default function Home() {
   const router = useRouter();
-  // Submitting launches: the copy lifts away, the camera dives into the prism at warp speed, a flash of light, and
-  // the result page fades in from it. The app keeps visited pages alive in the background, so the launch (and the
-  // safety-net timer) is undone when this page is hidden: coming back via the logo shows it again.
+  // Submitting lifts the page away and the result page settles in. The app keeps visited pages alive in the
+  // background, so the launch (and the safety-net timer) is undone when this page is hidden.
   const [launching, setLaunching] = useState(false);
   const fallback = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => {
@@ -43,60 +39,54 @@ export default function Home() {
     router.prefetch(path);
     markLaunch();
     setLaunching(true);
-    setTimeout(() => router.push(path), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1250);
+    setTimeout(() => router.push(path), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420);
     // If client navigation stalls (it did once mid-reload), load the page directly.
     fallback.current = setTimeout(() => location.pathname === "/" && location.assign(path), 4000);
   };
 
   return (
-    <main className="relative isolate flex min-h-dvh w-full flex-col overflow-hidden">
-      <HeroLive launch={launching} />
-      {/* keeps the copy readable where the beam passes behind it; gone during the launch so the dive is not dimmed */}
-      <div className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${launching ? "opacity-0" : ""} bg-gradient-to-b from-lightbox/80 via-lightbox/25 via-60% to-lightbox/95 lg:bg-gradient-to-r lg:from-lightbox lg:via-lightbox/60 lg:to-transparent`} aria-hidden />
-
-      <div className={`relative flex min-h-dvh flex-col ${launching ? "launch-out" : ""}`}>
-        <header>
-          <nav aria-label="Main" className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
-            <Logo />
-            <div className="flex items-center gap-1 text-sm sm:gap-4">
-              {NAV.map(([href, label]) => (
-                <Link key={href} href={href} className={`hit rounded-full px-3 py-2 text-graphite transition hover:text-ink sm:inline-flex ${href === "/library" ? "inline-flex" : "hidden"}`}>{label}</Link>
-              ))}
-              <ThemeSwitch />
-            </div>
-          </nav>
-        </header>
-
-        <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-6 sm:px-8">
-          <div className="max-w-2xl">
-            <h1 className="font-display text-5xl leading-[0.95] font-semibold tracking-tight text-balance sm:text-7xl">
-              Any <RotatingWord /><br />Notes with proof.
-            </h1>
-            <p className="mt-5 max-w-[44ch] text-lg leading-relaxed text-graphite">It watches, listens and reads every slide with Meta&apos;s Muse models. Each point links to the second it came from.</p>
-            <div id="start" className="mt-8">
-              <Composer onDone={go} />
-            </div>
+    <div className="flex min-h-dvh w-full flex-col">
+      <HomeNav current="/" />
+      <main className={`flex-1 overflow-x-clip ${launching ? "launch-out" : ""}`}>
+        <section className="mx-auto max-w-5xl px-4 pt-16 pb-14 text-center sm:px-6 sm:pt-24">
+          <h1 className="font-display text-[2.75rem] leading-[1.05] font-bold tracking-[-0.03em] text-balance sm:text-7xl lg:text-[5.5rem]">
+            Any video.<br /><span className="text-graphite">Notes with proof.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-[40ch] text-lg leading-relaxed text-graphite sm:text-xl">
+            VidMind watches, listens and reads every slide with Meta&apos;s Muse models. Each point links to the second it came from.
+          </p>
+          <div id="start" className="mx-auto mt-10 max-w-2xl text-left">
+            <Composer onDone={go} />
             <RecentNotes />
           </div>
         </section>
 
-        <footer className="mx-auto w-full max-w-6xl space-y-3 px-4 pb-5 sm:px-8">
-          <dl className="hidden flex-wrap gap-x-8 gap-y-2 sm:flex">
-            {STATS.map(([n, what]) => (
-              <div key={what} className="flex items-baseline gap-2">
-                <dt className="tabular font-display text-xl font-semibold">{n}</dt>
-                <dd className="text-sm text-graphite">{what}</dd>
-              </div>
+        <Reveal className="mx-auto max-w-5xl px-4 sm:px-6">
+          <figure className="overflow-hidden rounded-3xl bg-sheet shadow-[0_30px_80px_-30px_rgb(0_0_0/0.35)] ring-1 ring-rule">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static product capture, already WebP and sized */}
+            <img src="/landing/notes.webp" width={1200} height={933} alt="A real VidMind result: notes, each with the moment in the video that backs it"
+              className="aspect-[16/10] w-full object-cover object-top" fetchPriority="high" />
+          </figure>
+        </Reveal>
+
+        <section aria-labelledby="numbers" className="mx-auto max-w-5xl px-4 py-24 sm:px-6 sm:py-32">
+          <h2 id="numbers" className="sr-only">Measured on real runs</h2>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-12 lg:grid-cols-4">
+            {STATS.map(([n, what], i) => (
+              <Reveal key={what} delay={i * 60}>
+                <dt className="tabular font-display text-5xl font-bold tracking-[-0.03em] sm:text-6xl">{n}</dt>
+                <dd className="mt-2 max-w-[22ch] text-graphite">{what}</dd>
+              </Reveal>
             ))}
           </dl>
-          <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 text-xs text-graphite">
-            <p>The video, transcript and screen text go to the AI model provider.</p>
-            <p>Built for the Meta AI Developer Hackathon, 2026 by Ashutosh Rath</p>
-          </div>
-        </footer>
-      </div>
-      {launching && <div className="launch-flash" aria-hidden />}
-    </main>
+          <p className="mt-16 flex flex-wrap justify-center gap-x-8 gap-y-3 text-lg">
+            <Link href="/about" className="hit inline-flex items-center gap-1 text-scan-ink hover:underline">See how it works <Icon name="arrow" className="size-4" /></Link>
+            <Link href="/jobs/sample" className="hit inline-flex items-center gap-1 text-scan-ink hover:underline">Open the example <Icon name="arrow" className="size-4" /></Link>
+          </p>
+        </section>
+      </main>
+      <HomeFooter />
+    </div>
   );
 }
 
@@ -110,35 +100,18 @@ function RecentNotes() {
   const list = useMemo(() => parseRecent(raw).filter((r) => r.id !== "sample").slice(0, 3), [raw]);
   if (!list.length) return null;
   return (
-    <nav aria-label="Your recent notes" className="mt-5 flex flex-wrap items-center gap-2">
+    <nav aria-label="Your recent notes" className="mt-6 flex flex-wrap items-center justify-center gap-2">
       <span className="text-sm text-graphite">Your notes</span>
       {list.map((r) => (
         <Link key={r.id} href={`/jobs/${r.id}`} title={r.title}
-          className="glass group flex max-w-[18rem] min-h-9 items-center gap-2 rounded-full px-3 text-sm ring-1 ring-rule transition hover:ring-scan">
+          className="flex min-h-9 max-w-[18rem] items-center gap-2 rounded-full bg-sheet px-3 text-sm ring-1 ring-rule transition-colors hover:ring-scan">
           <Icon name="check" className="size-3.5 text-proof" />
           <span className="truncate font-medium">{r.title}</span>
           <span className="shrink-0 text-xs text-graphite">{ago(r.at)}</span>
         </Link>
       ))}
-      <Link href="/library" className="hit rounded-full px-2 py-1.5 text-sm text-scan-ink underline underline-offset-4">Library</Link>
+      <Link href="/library" className="hit rounded-full px-2 py-1.5 text-sm text-scan-ink hover:underline">Library</Link>
     </nav>
-  );
-}
-
-const WORDS = ["lecture.", "meeting.", "product demo.", "talk."];
-/** The kind of video cycles, so the headline says what it works for; screen readers get the full list once. */
-function RotatingWord() {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setI((n) => (n + 1) % WORDS.length), 2400);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <>
-      <span className="sr-only">lecture, meeting, product demo or talk.</span>
-      <span key={i} className="word-in grad-text" aria-hidden>{WORDS[i]}</span>
-    </>
   );
 }
 
@@ -303,13 +276,13 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       }}
       className="space-y-4"
     >
-      <div className={`glass trace rounded-2xl p-2 shadow-[0_20px_80px_-20px_rgb(139_123_255/0.45)] ring-1 transition focus-within:ring-2 focus-within:ring-scan ${busy ? "scanning ring-scan" : "ring-rule"}`}>
+      <div className={`glass rounded-[1.75rem] p-1.5 ring-1 transition-shadow focus-within:ring-2 focus-within:ring-scan sm:rounded-full ${busy ? "scanning ring-scan" : "ring-rule"}`}>
         <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
           <button
             type="button"
             onClick={() => picker.current?.click()}
             disabled={busy}
-            className="min-h-11 shrink-0 rounded-md px-3 font-display font-semibold text-scan-ink hover:bg-scan-soft disabled:opacity-50"
+            className="min-h-11 shrink-0 rounded-full px-4 font-medium text-scan-ink transition-colors hover:bg-scan-soft disabled:opacity-50"
           >
             Add a file
           </button>
@@ -350,7 +323,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
             </>
           )}
           {file && !busy && (
-            <button type="button" onClick={() => choose(undefined)} className="min-h-11 shrink-0 rounded-md px-3 text-sm text-graphite hover:text-ink">
+            <button type="button" onClick={() => choose(undefined)} className="min-h-11 shrink-0 rounded-full px-3 text-sm text-graphite hover:text-ink">
               Remove
             </button>
           )}
@@ -359,14 +332,14 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
           </Button>
         </div>
         {progress && (
-          <div className="mx-2 mt-2 mb-1 h-1.5 overflow-hidden rounded-full bg-lightbox" role="progressbar" aria-label="Upload progress" aria-valuenow={Math.round(share * 100)}>
+          <div className="mx-4 mt-2 mb-1 h-1 overflow-hidden rounded-full bg-lightbox" role="progressbar" aria-label="Upload progress" aria-valuenow={Math.round(share * 100)}>
             <div className="lane-fill h-full rounded-full bg-scan" style={{ width: `${share * 100}%` }} />
           </div>
         )}
       </div>
 
       {file && (
-        <div className="arrive space-y-3 rounded-lg bg-sheet p-4 ring-1 ring-rule" aria-live="polite">
+        <div className="arrive space-y-3 rounded-2xl bg-sheet p-5 ring-1 ring-rule" aria-live="polite">
           <p className="flex flex-wrap gap-1.5">
             <Chip>{sizeLabel(file.size)}</Chip>
             {meta && <Chip>{formatTime(meta.duration)} long</Chip>}
@@ -396,7 +369,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       )}
 
       {link && (
-        <div className="arrive space-y-3 rounded-lg bg-sheet p-4 ring-1 ring-rule">
+        <div className="arrive space-y-3 rounded-2xl bg-sheet p-5 ring-1 ring-rule">
           <p className="text-sm">By continuing, you confirm you own it or it&apos;s openly licensed.</p>
           <p className="tabular text-sm text-graphite" aria-live="polite">
             {checking !== null
@@ -412,16 +385,16 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
         </p>
       )}
       {dragging && (
-        <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-scan/10 backdrop-blur-sm" aria-hidden>
-          <p className="rounded-lg border-2 border-dashed border-scan bg-sheet px-10 py-8 font-display text-2xl font-semibold">
+        <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-lightbox/70 backdrop-blur-sm" aria-hidden>
+          <p className="rounded-3xl border-2 border-dashed border-scan bg-sheet px-10 py-8 font-display text-2xl font-semibold">
             Drop to add your video
           </p>
         </div>
       )}
       {!file && !link && (
-        <p className="text-sm text-graphite">
+        <p className="text-center text-sm text-balance text-graphite">
           Up to {MAX_MINUTES / 60} hours or {sizeLabel(MAX_UPLOAD_MB * 2 ** 20)}. Files or YouTube, Vimeo and direct links. Deleted after 24 hours.{" "}
-          <Link href="/jobs/sample" className="hit text-scan-ink underline underline-offset-4">Or open the sample</Link>.
+          <Link href="/jobs/sample" className="hit text-scan-ink hover:underline">Or open the sample</Link>.
         </p>
       )}
     </form>

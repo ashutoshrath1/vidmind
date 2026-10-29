@@ -32,17 +32,17 @@ function DiagramView({ diagram, seek }: { diagram: Diagram; seek: Seek }) {
   }, [diagram, id]);
 
   return (
-    <figure className="mt-10">
+    <figure className="mt-12">
       {state === "failed" ? (
         <p className="text-base text-graphite">The diagram couldn&apos;t be drawn; its parts are listed below.</p>
       ) : (
         <div ref={box} role="img" data-diagram aria-label={`${KIND[diagram.kind]} diagram: ${diagram.title}`}
-          className={`${state === "drawing" ? "scanning min-h-40 rounded-lg" : ""} overflow-x-auto [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full`} />
+          className={`${state === "drawing" ? "scanning min-h-40" : ""} overflow-x-auto rounded-2xl bg-sheet p-4 sm:p-6 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full`} />
       )}
-      <figcaption className="mt-3 text-center text-base text-graphite">
-        {diagram.title} <span className="text-sm">({KIND[diagram.kind].toLowerCase()} from the video)</span>
+      <figcaption className="mt-3 text-center font-sans text-sm text-graphite">
+        {diagram.title} <span>({KIND[diagram.kind].toLowerCase()} from the video)</span>
       </figcaption>
-      <details className="mt-2 text-center text-sm">
+      <details className="mt-1 text-center font-sans text-sm">
         <summary className="hit cursor-pointer text-graphite hover:text-ink">Where each box comes from</summary>
         <ul className="mt-2 space-y-1 text-left">
           {diagram.nodes.map((n) => (
@@ -65,12 +65,12 @@ export default function Highlights({ result, seek }: { result: LearnResult; seek
     <section aria-label="Key takeaways" className="mb-14">
       {takeaways.length > 0 && (
         <>
-          <h2 className="font-display text-[1.6rem] font-bold sm:text-[1.875rem]">Key takeaways</h2>
-          <ul className="mt-4 list-disc space-y-2.5 pl-6 marker:text-scan">
+          <h2 className="font-display text-[1.625rem] font-semibold tracking-[-0.02em] sm:text-[2rem]">Key takeaways</h2>
+          <ol className="mt-4 divide-y divide-rule">
             {takeaways.map((t, i) => (
-              <li key={i} className="pl-1"><NoteLine note={t} seek={seek} /></li>
+              <li key={i} className="flex gap-4 py-4"><span aria-hidden className="tabular pt-1 font-display text-[0.9375rem] font-semibold text-scan-ink">{i + 1}</span><span className="min-w-0"><NoteLine note={t} seek={seek} /></span></li>
             ))}
-          </ul>
+          </ol>
         </>
       )}
       {result.diagram && <DiagramView diagram={result.diagram} seek={seek} />}
@@ -83,12 +83,12 @@ const SYSTEM_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvet
 /** Mermaid in VidMind's colours, for the page (either theme). */
 function mermaidConfig(dark: boolean) {
   const v = dark
-    ? { primaryColor: "#17163a", primaryTextColor: "#eceeff", primaryBorderColor: "#8b7bff", lineColor: "#9aa0c3", secondaryColor: "#0f2a3a",
-        tertiaryColor: "#2a1030", edgeLabelBackground: "#0b0b22", textColor: "#cfd3f5", actorBkg: "#17163a", actorBorder: "#8b7bff",
-        actorTextColor: "#eceeff", signalColor: "#9aa0c3", signalTextColor: "#cfd3f5", noteBkgColor: "#1d1b45", noteTextColor: "#eceeff" }
-    : { primaryColor: "#f1efff", primaryTextColor: "#1b1640", primaryBorderColor: "#5b45f0", lineColor: "#7a7fa8", secondaryColor: "#e6fbff",
-        tertiaryColor: "#ffeaf6", edgeLabelBackground: "#ffffff", textColor: "#33375c", actorBkg: "#f1efff", actorBorder: "#5b45f0",
-        actorTextColor: "#1b1640", signalColor: "#7a7fa8", signalTextColor: "#33375c", noteBkgColor: "#fff7d6", noteTextColor: "#1b1640" };
+    ? { primaryColor: "#2c2c2e", primaryTextColor: "#f5f5f7", primaryBorderColor: "#2997ff", lineColor: "#8e8e93", secondaryColor: "#2c2c2e",
+        tertiaryColor: "#1c1c1e", edgeLabelBackground: "#1c1c1e", textColor: "#d1d1d6", actorBkg: "#2c2c2e", actorBorder: "#2997ff",
+        actorTextColor: "#f5f5f7", signalColor: "#8e8e93", signalTextColor: "#d1d1d6", noteBkgColor: "#3a3a3c", noteTextColor: "#f5f5f7" }
+    : { primaryColor: "#f5f5f7", primaryTextColor: "#1d1d1f", primaryBorderColor: "#0071e3", lineColor: "#86868b", secondaryColor: "#f5f5f7",
+        tertiaryColor: "#ffffff", edgeLabelBackground: "#ffffff", textColor: "#424245", actorBkg: "#f5f5f7", actorBorder: "#0071e3",
+        actorTextColor: "#1d1d1f", signalColor: "#86868b", signalTextColor: "#424245", noteBkgColor: "#fff9db", noteTextColor: "#1d1d1f" };
   return { startOnLoad: false, securityLevel: "strict" as const, theme: "base" as const, flowchart: { htmlLabels: false, curve: "basis" as const },
     themeVariables: { fontFamily: SYSTEM_FONT, fontSize: "15px", ...v } };
 }

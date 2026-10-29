@@ -20,9 +20,9 @@ export function SectionLive({ section: s, now, failed, seek }: { section: Sectio
             ? "Checking every citation against the video"
             : "Models are writing";
   return (
-    <article id={chapterId(s.lo)} aria-label={`Section ${s.i + 1}`} aria-busy={!failed} className="scroll-mt-32 space-y-4 rounded-lg bg-sheet p-5 ring-1 ring-rule">
+    <article id={chapterId(s.lo)} aria-label={`Section ${s.i + 1}`} aria-busy={!failed} className="scroll-mt-40 space-y-4 rounded-2xl bg-sheet p-5 font-sans text-base sm:p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold">
+        <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">
           Section {s.i + 1} <span className="tabular font-normal text-graphite">{range(s)}</span>
         </h2>
         <p className={`text-sm ${failed ? "text-strike" : s.attempts.length ? "text-scan-ink" : "text-wait"}`}>{state}</p>
@@ -144,12 +144,12 @@ type ChapterProps = { chapter: Chapter; seek: Seek; fresh?: boolean };
 export function ChapterView({ chapter: ch, seek, fresh }: ChapterProps) {
   const { nodes, rest } = boldTerms([ch.summary, ...ch.notes.map((n) => n.text)], ch.key_terms);
   return (
-    <section id={chapterId(ch.start_seconds)} aria-labelledby={`${chapterId(ch.start_seconds)}-h`} className={`arrive scroll-mt-32 ${fresh ? "flash rounded-lg" : ""}`}>
-      <h2 id={`${chapterId(ch.start_seconds)}-h`} className="font-display text-[1.6rem] leading-tight font-bold text-balance sm:text-[1.875rem]">{ch.title}</h2>
-      {ch.summary && <p className="mt-4">{nodes[0]}</p>}
+    <section id={chapterId(ch.start_seconds)} aria-labelledby={`${chapterId(ch.start_seconds)}-h`} className={`arrive scroll-mt-40 ${fresh ? "flash rounded-lg" : ""}`}>
+      <h2 id={`${chapterId(ch.start_seconds)}-h`} className="font-display text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[2rem]">{ch.title}</h2>
+      {ch.summary && <p className="mt-5">{nodes[0]}</p>}
       <NoteList notes={ch.notes} texts={nodes.slice(1)} seek={seek} />
       {rest.length > 0 && (
-        <p className="mt-5 text-base text-graphite">
+        <p className="mt-6 font-sans text-[0.9375rem] text-graphite">
           <span className="font-semibold text-ink">Key terms:</span> {rest.join(", ")}
         </p>
       )}
@@ -160,7 +160,7 @@ export function ChapterView({ chapter: ch, seek, fresh }: ChapterProps) {
 /** Notes as a plain bulleted list, each followed by its quiet citations. */
 function NoteList({ notes, texts, seek }: { notes: Note[]; texts?: ReactNode[][]; seek: Seek }) {
   return (
-    <ul className="mt-4 list-disc space-y-2.5 pl-6 marker:text-graphite">
+    <ul className="mt-5 list-disc space-y-3 pl-6 marker:text-graphite/60">
       {notes.map((n, i) => (
         <li key={i} className="pl-1">
           <NoteLine note={n} text={texts?.[i]} seek={seek} />

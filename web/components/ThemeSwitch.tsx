@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Icon from "@/components/Icon";
 
 const SYSTEM = "(prefers-color-scheme: dark)";
 
@@ -19,7 +20,7 @@ const isDark = () => {
   return chosen ? chosen === "dark" : matchMedia(SYSTEM).matches;
 };
 
-/** Light or dark (mission control). Starts from the system setting; a choice is remembered in this browser. */
+/** Light or dark. Starts from the system setting; a choice is remembered in this browser. */
 export default function ThemeSwitch() {
   const dark = useSyncExternalStore(subscribe, isDark, () => null);
   function flip() {
@@ -33,8 +34,8 @@ export default function ThemeSwitch() {
   if (dark === null) return <span className="size-11" aria-hidden />;
   return (
     <button type="button" onClick={flip} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} aria-pressed={dark}
-      className="hit grid size-11 place-items-center rounded-full text-lg ring-1 ring-rule transition hover:ring-scan">
-      <span aria-hidden>{dark ? "☀" : "☾"}</span>
+      className="hit grid size-11 place-items-center rounded-full text-graphite transition-colors hover:text-ink">
+      <Icon name={dark ? "sun" : "moon"} className="size-[18px]" />
     </button>
   );
 }

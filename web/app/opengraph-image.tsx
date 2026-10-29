@@ -8,31 +8,31 @@ export const contentType = "image/png";
 export default function OpengraphImage() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: "linear-gradient(135deg, #04050d 0%, #120d33 60%, #2a0b2a 100%)", padding: 72, gap: 56, alignItems: "center" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#f5f5f7", padding: 72, gap: 56, alignItems: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 28, flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <svg width="64" height="64" viewBox="0 0 32 32">
-              <path d="M2 16h7" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-              <path d="M9 5 27 16H15.5z" fill="#6fd8ff" />
-              <path d="M9 27 27 16H15.5z" fill="#c45cff" />
-              <path d="M9 5 15.5 16 9 27z" fill="#fff" />
+              <rect width="32" height="32" rx="8" fill="#0071e3" />
+              <path d="M11 8.5 24 16H16z" fill="#fff" />
+              <path d="M11 23.5 24 16H16z" fill="#fff" opacity="0.7" />
+              <path d="M11 8.5 16 16l-5 7.5z" fill="#fff" opacity="0.88" />
             </svg>
-            <div style={{ fontSize: 44, fontWeight: 700, color: "#eceeff" }}>VidMind</div>
+            <div style={{ fontSize: 44, fontWeight: 600, color: "#1d1d1f" }}>VidMind</div>
           </div>
-          <div style={{ fontSize: 68, fontWeight: 700, color: "#eceeff", lineHeight: 1.05, letterSpacing: -1 }}>
+          <div style={{ fontSize: 72, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.05, letterSpacing: -2 }}>
             Notes you can check against the video.
           </div>
-          <div style={{ fontSize: 28, color: "#9aa0c3" }}>Every point links to the second it came from.</div>
+          <div style={{ fontSize: 28, color: "#616166" }}>Every point links to the second it came from.</div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: 420, padding: 28, background: "rgba(255,255,255,0.06)", borderRadius: 16, border: "1px solid rgba(160,166,220,0.25)" }}>
-          <div style={{ fontSize: 30, color: "#eceeff", lineHeight: 1.25 }}>The week-1 retention target is 40%.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: 420, padding: 28, background: "#ffffff", borderRadius: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}>
+          <div style={{ fontSize: 30, color: "#1d1d1f", lineHeight: 1.25 }}>The week-1 retention target is 40%.</div>
           <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ fontSize: 20, color: "#34d399", background: "rgba(52,211,153,0.14)", padding: "6px 14px", borderRadius: 999, display: "flex", alignItems: "center" }}>On screen at 0:30</div>
-            <div style={{ fontSize: 20, color: "#b1a7ff", background: "rgba(139,123,255,0.16)", padding: "6px 14px", borderRadius: 999, display: "flex", alignItems: "center" }}>Never said aloud</div>
+            <div style={{ fontSize: 20, color: "#1f7a36", background: "rgba(36,138,61,0.1)", padding: "6px 14px", borderRadius: 999, display: "flex", alignItems: "center" }}>On screen at 0:30</div>
+            <div style={{ fontSize: 20, color: "#0066cc", background: "rgba(0,113,227,0.09)", padding: "6px 14px", borderRadius: 999, display: "flex", alignItems: "center" }}>Never said aloud</div>
           </div>
           <div style={{ display: "flex" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: "#34d399", border: "3px solid #34d399", borderRadius: 10, padding: "2px 16px", transform: "rotate(-4deg)" }}>
-              Checked
+            <div style={{ fontSize: 30, fontWeight: 700, color: "#1f7a36", display: "flex" }}>
+              ✓ Checked
             </div>
           </div>
         </div>

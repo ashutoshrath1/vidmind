@@ -46,56 +46,56 @@ export default function Library() {
 
   const shown = list.filter((r) => r.title.toLowerCase().includes(query.trim().toLowerCase()));
 
+  const header = (
+    <header>
+      <h1 className="font-display text-5xl font-bold tracking-[-0.03em] sm:text-6xl">Library</h1>
+      <p className="mt-4 max-w-[52ch] text-xl text-graphite">
+        {list.length ? "Notes made in this browser, with no account. The server deletes each video after 24 hours." : "Your notes will appear here. Paste a link on the home page to make your first."}
+      </p>
+    </header>
+  );
+
   if (!list.length)
     return (
-      <section className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Library</h1>
-        <p className="mt-3 max-w-[60ch] text-graphite">
-          Notes you make in this browser show up here.{" "}
-          <Link href="/" className="hit text-scan-ink underline underline-offset-4">Make notes from a video</Link> or{" "}
-          <Link href="/jobs/sample" className="hit text-scan-ink underline underline-offset-4">open the sample</Link>.
-        </p>
+      <section className="mx-auto w-full max-w-3xl flex-1 px-4 pt-16 pb-24 sm:px-6 sm:pt-24">
+        {header}
+        <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
+          <Link href="/" className="inline-flex min-h-11 items-center rounded-full bg-scan px-6 font-medium text-on-scan transition hover:brightness-110">Make notes</Link>
+          <Link href="/jobs/sample" className="hit inline-flex items-center gap-1 text-scan-ink hover:underline">Open the example <Icon name="arrow" /></Link>
+        </div>
       </section>
     );
 
   return (
-    <section className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-10 sm:px-8">
-      <div>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Library</h1>
-        <p className="mt-3 max-w-[60ch] text-graphite">
-          Notes made in this browser, with no account. The server deletes each video after 24 hours.
-        </p>
-      </div>
-
-      <div className="space-y-3">
+    <section className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 pt-16 pb-24 sm:px-6 sm:pt-24">
+      {header}
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-semibold">Your notes</h2>
+          <h2 className="font-display text-2xl font-semibold tracking-[-0.02em]">Your notes</h2>
           <div className="relative w-full sm:w-64">
-            <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-graphite" />
+            <Icon name="search" className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-graphite" />
             <input type="search" aria-label="Search by title" placeholder="Search by title" value={query}
-              onChange={(e) => setQuery(e.target.value)} className={`${inputClass} min-h-11 py-2 pl-9`} />
+              onChange={(e) => setQuery(e.target.value)} className={`${inputClass} min-h-11 rounded-full py-2 pl-10`} />
           </div>
         </div>
-        <ul className="divide-y divide-rule overflow-hidden rounded-lg bg-sheet ring-1 ring-rule">
+        <ul className="divide-y divide-rule overflow-hidden rounded-3xl bg-sheet ring-1 ring-rule">
           {shown.map((r) => {
             const expired = !!gone[r.id];
             return (
-              <li key={r.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 ${expired ? "text-graphite" : ""}`}>
+              <li key={r.id} className={`flex items-center gap-4 px-5 py-4 ${expired ? "text-graphite" : ""}`}>
                 <div className="min-w-0 flex-1">
                   {expired ? (
                     <p className="truncate font-medium">{r.title}</p>
                   ) : (
-                    <Link href={`/jobs/${r.id}`} className="hit block truncate font-medium hover:text-scan-ink">{r.title}</Link>
+                    <Link href={`/jobs/${r.id}`} className="hit block truncate font-display text-lg font-semibold transition-colors hover:text-scan-ink">{r.title}</Link>
                   )}
                   <p className="text-sm text-graphite">{when.format(r.at)}</p>
                 </div>
-                <p className="flex flex-wrap gap-1.5">
-                  {expired ? <Chip tone="strike">Expired</Chip> : null}
-                </p>
+                {expired ? <Chip tone="strike">Expired</Chip> : <Icon name="arrow" className="size-4 text-graphite" />}
               </li>
             );
           })}
-          {!shown.length && <li className="px-4 py-3 text-graphite">No titles match &ldquo;{query.trim()}&rdquo;.</li>}
+          {!shown.length && <li className="px-5 py-4 text-graphite">No titles match &ldquo;{query.trim()}&rdquo;.</li>}
         </ul>
       </div>
     </section>

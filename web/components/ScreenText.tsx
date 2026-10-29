@@ -1,16 +1,16 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import Icon from "@/components/Icon";
 import OnScreenLightbox from "@/components/OnScreenLightbox";
 import { type Slide, slideText, slidesOf } from "@/components/OnScreenSlides";
-import { Button, type Seek, TimeButton } from "@/components/ui";
+import SlidesGlyph from "@/components/SlidesGlyph";
+import { Button, type Seek } from "@/components/ui";
 import { formatTime } from "@/lib/api";
 import { highlight, screenBlocks, screenText, searchFrames } from "@/lib/screen";
 import type { View } from "@/lib/trace";
 
-/** What the video showed, slide by slide: each screen with the checked notes about it, what was said while it was up
- * and the text on it. Search covers all three and marks the matches; a slide's image opens it full screen. */
+/** What the video showed, slide by slide, like a presenter view: each screen large, and beside it the checked notes
+ * about it, what was said while it was up and the text on it, as grouped lists. Search covers all three. */
 export default function ScreenText({ view, base, seek }: { view: View; base: string; seek: Seek }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<number | null>(null);
@@ -40,10 +40,10 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
 
   return (
     <section aria-label="On screen" className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-semibold">On screen</h2>
-          <p className="tabular text-xs text-graphite">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">On screen</h2>
+          <p className="tabular mt-0.5 text-sm text-graphite">
             {reading ? `Reading screens, ${readCount} of ${view.frames.length}` : `${slides.length} screens, in order`}
           </p>
         </div>
@@ -54,22 +54,30 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
         )}
       </div>
       <p aria-live="polite" className="sr-only">{copied?.say}</p>
-      <label className="relative block">
-        {/* z-10: the glass input's backdrop filter would paint over the icon */}
-        <Icon name="search" className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-graphite" />
+
+      <div role="search" className="relative">
+        <SlidesGlyph name="search" className="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-graphite" />
         <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100}
-          placeholder="Search the slides, what was said, the notes…" aria-label="Search what was on screen"
-          className="glass min-h-11 w-full rounded-full pr-4 pl-10 text-sm ring-1 ring-rule placeholder:text-graphite focus:ring-2 focus:ring-scan focus:outline-none" />
-      </label>
+          onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+          placeholder="Search slides, speech and notes" aria-label="Search what was on screen"
+          className="h-11 w-full rounded-xl bg-[color-mix(in_srgb,var(--graphite)_14%,transparent)] pr-10 pl-10 text-base text-ink placeholder:text-graphite focus:ring-2 focus:ring-scan focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
+        {query && (
+          <button onClick={() => setQuery("")} aria-label="Clear search"
+            className="hit absolute top-1/2 right-2.5 grid size-6 -translate-y-1/2 place-items-center rounded-full text-graphite hover:text-ink">
+            <SlidesGlyph name="clear" className="size-[18px]" />
+          </button>
+        )}
+      </div>
       {q && (
         <p aria-live="polite" className="tabular text-sm text-graphite">
           {shown.length ? `${shown.length} of ${slides.length} screens match` : `Nothing on screen matches “${q}”.`}
         </p>
       )}
-      <ol className="space-y-12">
+
+      <ol className="space-y-14">
         {shown.map((s) => {
           const n = slides.indexOf(s);
-          return <SlideItem key={s.frames[0].url + s.start} s={s} n={n} base={base} seek={seek} query={q} reading={reading}
+          return <SlideItem key={s.frames[0].url + s.start} s={s} n={n} base={base} seek={seek} query={q}
             onOpen={() => setOpen(n)} onCopy={copy} copied={copied?.key} />;
         })}
       </ol>
@@ -78,12 +86,33 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
   );
 }
 
-const Label = ({ children }: { children: ReactNode }) => (
-  <h4 className="text-xs font-semibold tracking-wide text-graphite uppercase">{children}</h4>
+/** A small capsule that plays the video from a moment. */
+export function TimeCapsule({ t, seek, dark = false }: { t: number; seek: Seek; dark?: boolean }) {
+  return (
+    <button onClick={() => seek(t)} aria-label={`Play from ${formatTime(t)}`}
+      className={`hit tabular inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[13px] font-semibold transition-colors ${dark ? "bg-white/15 text-white hover:bg-white/25" : "bg-scan-soft text-scan-ink hover:bg-scan hover:text-on-scan"}`}>
+      <SlidesGlyph name="play" className="size-2.5" />
+      {formatTime(t)}
+    </button>
+  );
+}
+
+/** A Settings-style inset group: a quiet caption above, rows on one surface split by hairlines. */
+function Group({ title, children, footer }: { title: ReactNode; children: ReactNode; footer?: ReactNode }) {
+  return (
+    <div>
+      <h4 className="px-4 pb-1.5 text-[13px] font-medium text-graphite">{title}</h4>
+      <div className="overflow-hidden rounded-[18px] bg-sheet shadow-[0_1px_2px_rgb(0_0_0/0.04)]">{children}</div>
+      {footer && <div className="px-4 pt-1.5">{footer}</div>}
+    </div>
+  );
+}
+const Row = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
+  <div className={`border-b border-rule px-4 py-3 last:border-b-0 ${className}`}>{children}</div>
 );
 
-function SlideItem({ s, n, base, seek, query, reading, onOpen, onCopy, copied }: {
-  s: Slide; n: number; base: string; seek: Seek; query: string; reading: boolean;
+function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
+  s: Slide; n: number; base: string; seek: Seek; query: string;
   onOpen: () => void; onCopy: (key: string, text: string, say: string) => void; copied?: string;
 }) {
   const [moreSaid, setMoreSaid] = useState(false);
@@ -95,83 +124,79 @@ function SlideItem({ s, n, base, seek, query, reading, onOpen, onCopy, copied }:
   const said = moreSaid || query ? s.said : s.said.slice(0, 3);
 
   return (
-    <li className={`grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] ${read ? (reading ? "flash" : "") : "scanning rounded-2xl"}`}>
-      <div className="min-w-0 space-y-2 lg:sticky lg:top-20 lg:self-start">
+    <li className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:self-start">
         <button onClick={onOpen} aria-label={`Open the screen at ${formatTime(s.start)} full size`}
-          className="group block w-full overflow-hidden rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-scan">
+          className="group block w-full overflow-hidden rounded-[20px] bg-black shadow-[0_2px_12px_rgb(0_0_0/0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-scan">
           {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
           <img src={`${base}/${f.url}`} width={1280} height={720} loading={n < 2 ? "eager" : "lazy"} alt={`The screen at ${formatTime(s.start)}`}
-            className="arrive w-full transition group-hover:opacity-90 motion-reduce:transition-none" />
+            className={`w-full transition duration-500 ease-spring group-hover:scale-[1.015] motion-reduce:transition-none ${read ? "" : "opacity-70"}`} />
         </button>
-        <p className="tabular flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-graphite">
-          <span className="font-display font-semibold text-ink">{n + 1}</span>
-          <TimeButton t={s.start} seek={seek} />
-          {Number.isFinite(s.end) && <span>shown {formatTime(s.start)}–{formatTime(s.end)}</span>}
-          {!read && <span>· Reading…</span>}
-          {read?.low_conf && <span className="text-strike">· Hard to read</span>}
-        </p>
+        <div className="tabular flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 text-sm text-graphite">
+          <span className="font-display font-semibold text-ink">Slide {n + 1}</span>
+          <TimeCapsule t={s.start} seek={seek} />
+          {Number.isFinite(s.end) && <span>on screen {formatTime(s.start)}–{formatTime(s.end)}</span>}
+          {!read && <span className="text-wait">Reading…</span>}
+          {read?.low_conf && <span className="text-strike">Hard to read</span>}
+        </div>
       </div>
 
-      <div className="min-w-0 space-y-5 text-[15px] leading-relaxed">
-        <div className="space-y-2">
-          <Label>What the notes say</Label>
-          {s.notes.length ? (
-            <ul className="space-y-2">
-              {s.notes.map((note, i) => (
-                <li key={i} className="border-l-2 border-scan pl-3">
-                  {marked(note.text)}
-                  {note.uncertain && <span className="ml-1 text-xs text-strike">(uncertain)</span>}
-                </li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-graphite">No note points at this screen.</p>}
-        </div>
+      <div className="min-w-0 space-y-6 text-[15px] leading-relaxed">
+        <Group title="What the notes say">
+          {s.notes.length ? s.notes.map((note, i) => (
+            <Row key={i} className="flex gap-3">
+              <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-scan" />
+              <span className="min-w-0">
+                {marked(note.text)}
+                {note.uncertain && <span className="ml-1.5 text-[13px] text-strike">Uncertain</span>}
+              </span>
+            </Row>
+          )) : <Row className="text-graphite">No note points at this screen.</Row>}
+        </Group>
 
         {s.said.length > 0 && (
-          <div className="space-y-2">
-            <Label>What was said</Label>
-            <ul className="space-y-1.5">
-              {said.map((l, i) => (
-                <li key={i} className="flex items-baseline gap-2">
-                  <TimeButton t={l.start} seek={seek} />
-                  <span className="min-w-0 text-ink/90">{marked(l.text)}</span>
-                </li>
-              ))}
-            </ul>
-            {s.said.length > 3 && !query && (
-              <button onClick={() => setMoreSaid(!moreSaid)} aria-expanded={moreSaid} className="hit text-sm font-semibold text-scan-ink hover:underline">
-                {moreSaid ? "Show less" : `All ${s.said.length} lines`}
-              </button>
-            )}
-          </div>
+          <Group title="What was said" footer={s.said.length > 3 && !query && (
+            <button onClick={() => setMoreSaid(!moreSaid)} aria-expanded={moreSaid} className="hit text-sm font-medium text-scan-ink hover:underline">
+              {moreSaid ? "Show less" : `Show all ${s.said.length} lines`}
+            </button>
+          )}>
+            {said.map((l, i) => (
+              <Row key={i} className="flex items-baseline gap-3">
+                <TimeCapsule t={l.start} seek={seek} />
+                <span className="min-w-0">{marked(l.text)}</span>
+              </Row>
+            ))}
+          </Group>
         )}
 
-        <details open={!long || !!query} className="group space-y-2">
-          <summary className="hit cursor-pointer list-none text-xs font-semibold tracking-wide text-graphite uppercase marker:hidden">
-            Text on screen <span className="font-normal normal-case tracking-normal text-scan-ink group-open:hidden">· show</span>
+        <details open={!long || !!query} className="group">
+          <summary className="hit flex cursor-pointer list-none items-center gap-1 px-4 pb-1.5 text-[13px] font-medium text-graphite marker:hidden [&::-webkit-details-marker]:hidden">
+            Text on screen
+            <SlidesGlyph name="right" className="size-3 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" />
           </summary>
-          {read && !s.text && <p className="text-sm text-graphite">No text on this screen.</p>}
-          {s.text && (
-            <div className="mt-2 space-y-2">
-              {screenBlocks(s.text).map((b, i) => {
-                const key = `${f.url}#${i}`;
-                return b.code ? (
-                  <div key={i} className="flex items-start gap-2 rounded-lg bg-lightbox p-2">
-                    <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-sm"><code>{marked(b.text)}</code></pre>
-                    <button onClick={() => onCopy(key, b.text, `Copied the code at ${formatTime(s.start)}`)} aria-label={`Copy code at ${formatTime(s.start)}`}
-                      className="hit shrink-0 rounded-full bg-sheet px-2.5 py-0.5 font-display text-xs font-semibold ring-1 ring-rule hover:ring-scan">
-                      {copied === key ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                ) : <p key={i} className="text-graphite">{marked(b.text)}</p>;
-              })}
-            </div>
-          )}
-          {read?.figure && (
-            // eslint-disable-next-line @next/next/no-img-element -- frames come from the API host
-            <img src={`${base}/${read.figure}`} loading="lazy" alt={`The diagram at ${formatTime(s.start)}, cropped`}
-              className="mt-2 max-h-64 w-full rounded-lg bg-white object-contain" />
-          )}
+          <div className="overflow-hidden rounded-[18px] bg-sheet shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+            {read && !s.text && <Row className="text-graphite">No text on this screen.</Row>}
+            {!read && <Row className="text-graphite">Reading this screen…</Row>}
+            {s.text && screenBlocks(s.text).map((b, i) => {
+              const key = `${f.url}#${i}`;
+              return b.code ? (
+                <Row key={i} className="flex items-start gap-2">
+                  <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] leading-relaxed"><code>{marked(b.text)}</code></pre>
+                  <button onClick={() => onCopy(key, b.text, `Copied the code at ${formatTime(s.start)}`)} aria-label={`Copy code at ${formatTime(s.start)}`}
+                    className="hit shrink-0 rounded-full bg-scan-soft px-2.5 py-0.5 text-[13px] font-semibold text-scan-ink hover:bg-scan hover:text-on-scan">
+                    {copied === key ? "Copied" : "Copy"}
+                  </button>
+                </Row>
+              ) : <Row key={i} className="text-graphite">{marked(b.text)}</Row>;
+            })}
+            {read?.figure && (
+              <Row>
+                {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
+                <img src={`${base}/${read.figure}`} loading="lazy" alt={`The diagram at ${formatTime(s.start)}, cropped`}
+                  className="max-h-64 w-full rounded-xl bg-white object-contain" />
+              </Row>
+            )}
+          </div>
         </details>
       </div>
     </li>

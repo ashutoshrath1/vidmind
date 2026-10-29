@@ -2,23 +2,9 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-/** The backdrop every page shares: drifting spectrum light, film grain, and a soft light that follows the pointer
- * (CSS reads the position, so React never re-renders for it). */
+/** The backdrop every page shares. Apple pages are calm: the page colour is the backdrop, so this draws nothing. */
 export default function Ambient() {
-  useEffect(() => {
-    const move = (e: PointerEvent) => {
-      document.documentElement.style.setProperty("--sx", `${e.clientX}px`);
-      document.documentElement.style.setProperty("--sy", `${e.clientY}px`);
-    };
-    window.addEventListener("pointermove", move, { passive: true });
-    return () => window.removeEventListener("pointermove", move);
-  }, []);
-  return (
-    <>
-      <div className="aurora print:hidden" aria-hidden><span /><span /><span /></div>
-      <div className="spotlight print:hidden" aria-hidden />
-    </>
-  );
+  return null;
 }
 
 const LAUNCHED = "vidmind-launched";
