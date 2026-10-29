@@ -23,10 +23,10 @@ Built for the Meta AI Developer Hackathon (Oct 26 – Nov 4, 2026).
 
 | Model | Does |
 |---|---|
-| Muse Spark 1.3 | notes, overview, takeaways and diagram; reads keyframes and short clips |
-| Muse Spark 1.2 | backup when 1.3 is slow or fails (hedged); first for listen-first sections, where it was steadier |
-| Muse Voice Transcribe | speech to text, in ~6 s pieces sent in parallel, diarized, English and Hindi |
-| SAM 3.1 | finds diagrams in keyframes and outlines what was pointed at |
+| Muse Spark 1.2 | notes from each section's transcript and keyframes, overview, takeaways and diagram (12 sections at once: 5.7 s vs 6.85 s on 1.3) |
+| Muse Spark 1.3 | backup when 1.2 is slow or fails (hedged); reads the keyframes' screen text after the notes |
+| Muse Voice Transcribe | speech to text, in ~6 s pieces sent in one wave over kept-alive connections, slow pieces re-sent; diarized, English and Hindi |
+| SAM 3.1 | finds diagrams in keyframes and crops them |
 | Muse Image | the summary card |
 
 Without `MODEL_API_KEY`, notes use the `LLM_MODELS` pool (Groq, NVIDIA; see `.env.example`) and speech uses
@@ -52,6 +52,8 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
 
 ## Measured
 
+- A 595 s (10-minute) YouTube talk, start to checked notes: **12.4-13.1 s** over 3 runs (Oct 29), from 16.9 s
+  before. Audio ~1 s, transcript ~5-7 s, notes ~4-5 s a section, all 12 sections at once.
 - The sample (a real Muse run of a 4:44 lecture): all notes in **10.35 s**; **19 of 19** notes passed the
   evidence check. The e2e tests check it stays under 11 s.
 - Speech on 105 s of lecture audio (M2 Air): Parakeet TDT 0.6B 2.5 s, faster-whisper base 4.1 s, faster-whisper

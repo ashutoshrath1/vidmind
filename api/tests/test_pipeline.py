@@ -1,4 +1,5 @@
 import json
+import time
 import re
 import shutil
 import subprocess
@@ -27,7 +28,7 @@ def fake_ask_factory(calls):
         frame_t = float(frame.group(1)) if frame else None
         quote = " ".join(first_line.group(2).split()[:6])
         if lo == 0 and len(messages) == 2:
-            quote = "activation requires a paid plan"  # fabricated → triggers exactly one repair round
+            quote = "activation requires a paid plan"  # fabricated: the check drops this citation
         out = {
             "title": f"Section at {lo:.0f}s", "summary": "What this part covers.", "key_terms": ["metric"],
             "notes": [{"text": "A grounded note.", "evidence": [
@@ -54,11 +55,18 @@ def test_sections_run_in_parallel_with_fallback_repair_and_progress(fixture_clip
 
     starts = [c.start_seconds for c in result.chapters]
     assert len(starts) == 3 and starts[0] == 0 and starts == sorted(starts)
-    assert result.title == "Product analytics 101" and result.tldr
+    assert result.pending  # the notes are out first; title, summary and takeaways follow
+    for _ in range(100):
+        later = json.loads((tmp_path / "result.json").read_text())
+        if not later["pending"]:
+            break
+        time.sleep(0.05)
+    assert later["title"] == "Product analytics 101" and later["tldr"]
     assert result.dropped_notes == 0 and result.rejected == []
-    assert result.notes_checked == 3 and result.citations_rechecked == 1  # the fabricated quote, fixed on repair
+    assert result.notes_checked == 3 and result.citations_rechecked == 1  # the fabricated quote, counted
     assert "model-b" not in result.model  # b always fails; its sections were won by a racing or fallback model
-    assert sum(1 for lo, m, _ in calls if lo == 0 and m == "model-a") == 2, "fabricated quote → one repair call"
+    # The fabricated quote is dropped and the note stands on its keyframe: no ~5 s repair round for one bad citation.
+    assert sum(1 for lo, m, _ in calls if lo == 0 and m == "model-a") == 1
     assert [e.frame_url for c in result.chapters for e in c.notes[0].evidence if e.kind == "frame"] == \
         ["frames/0.jpg", "frames/1.jpg", "frames/2.jpg"]
     assert all(c.cover_url and c.summary and c.key_terms for c in result.chapters)
@@ -68,7 +76,11 @@ def test_sections_run_in_parallel_with_fallback_repair_and_progress(fixture_clip
     assert len(json.loads((tmp_path / "frames.json").read_text())) == 3  # kept for "Ask the video"
     assert not list(tmp_path.glob("*.wav"))
 
-    # The live "behind the scenes" trace: every step the page shows.
+    # The live "behind the scenes" trace: every step the page shows. Screen reading starts after the notes.
+    for _ in range(100):
+        if any(k == "stage" and d.get("name") == "ocr" and d.get("state") == "end" for k, d in events):
+            break
+        time.sleep(0.05)
     kinds = [k for k, _ in events]
     for kind in ("source", "plan", "transcript", "frame", "model", "check", "section", "overview"):
         assert kind in kinds, kind
@@ -228,138 +240,3 @@ def test_a_muse_key_means_muse_models_only(monkeypatch):
     assert pipeline._model_order(syn.models(), 1) == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]  # no rotation
     monkeypatch.delenv("MODEL_API_KEY")
     assert syn.models() == ["groq:gpt-oss", "nvidia:x"]
-
-
-def test_listen_first_writes_before_the_transcript_then_checks_against_it(fixture_clip, tmp_path, monkeypatch):
-    import time as _time
-
-    from vidmind.schema import Overview, VisualOutput
-
-    video, _ = fixture_clip
-    shutil.copy(video, tmp_path / "video.mp4")
-    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
-    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
-    monkeypatch.setenv("MODEL_API_KEY", "k")
-    monkeypatch.setenv("LLM_MODELS", "muse:muse-spark-1.3,muse:muse-spark-1.2")
-    heard = [Segment(1.0, 8.0, "Welcome to product analytics one oh one."),
-             Segment(21.0, 27.0, "Retention tells us how many users come back.")]
-    monkeypatch.setattr(pipeline, "transcribe", lambda audio: (heard, "asr-x"))
-    clips = []
-    monkeypatch.setattr(pipeline, "_clip", lambda src, lo, hi, emit, task, pool, sound=False: clips.append(sound) or b"clip")
-    monkeypatch.setattr(pipeline, "_track_figures", lambda src, emit: ({}, 0.0, None))
-    monkeypatch.setattr(pipeline.syn, "read_screen", lambda image: "")
-    monkeypatch.setattr(pipeline, "_extras", lambda *a: None)  # the card and web search are tested on their own
-    prompts, firsts = [], []
-
-    def fake_ask(messages, model, cls):
-        if cls is Overview:
-            return Overview(title="Product analytics 101", tldr="Activation and retention."), "{}"
-        if cls is VisualOutput:
-            return VisualOutput(), "{}"
-        text = messages[1]["content"][0]["text"]
-        lo = float(re.search(r"Section (\d+)s", text).group(1))
-        prompts.append(text)
-        firsts.append(model)
-        ev = {0: [{"kind": "transcript", "start_seconds": 1.0, "quote": "welcome to product analytics"},
-                  {"kind": "frame", "start_seconds": 12.0, "text": "the first slide"}],  # no keyframe this close
-              20: [{"kind": "transcript", "start_seconds": 21.0, "quote": "retention tells us how many users"}],
-              40: [{"kind": "frame", "start_seconds": 45.0, "text": "the last slide"}]}[int(lo)]
-        out = {"title": f"At {lo:.0f}s", "notes": [{"text": "A note.", "evidence": ev}], "quiz": []}
-        return SectionOutput.model_validate(out), json.dumps(out)
-
-    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
-    result = pipeline.run(tmp_path, lambda step=None, **kw: None)
-
-    assert result.pending and [c.start_seconds for c in result.chapters] == [0, 20, 40]
-    assert all(clips) and len(clips) == 3, "every section clip carries sound"
-    assert all("Not given: listen" in p and "Welcome" not in p for p in prompts), "written before the transcript"
-    assert set(firsts) == {"muse:muse-spark-1.2"}, "1.2 leads on listen-first sections"
-    frame = next(e for e in result.chapters[0].notes[0].evidence if e.kind == "frame")
-    assert frame.frame_url == "frames/at120.jpg" and (tmp_path / frame.frame_url).exists(), "cited second grabbed"
-    assert result.dropped_notes == 0 and result.citations_rechecked == 0
-    for _ in range(50):  # the title and takeaways land right after "done"
-        saved = json.loads((tmp_path / "result.json").read_text())
-        if not saved["pending"]:
-            break
-        _time.sleep(0.1)
-    assert not saved["pending"] and saved["title"] == "Product analytics 101"
-
-
-def test_listen_first_survives_a_failed_audio_fetch(fixture_clip, tmp_path, monkeypatch):
-    """The audio stream refusing twice must not sink the job: notes with on-screen proof stand."""
-    import subprocess as sp
-
-    video, _ = fixture_clip
-    shutil.copy(video, tmp_path / "video.mp4")
-    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
-    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
-    monkeypatch.setenv("MODEL_API_KEY", "k")
-    monkeypatch.setenv("LLM_MODELS", "muse:muse-spark-1.2")
-    monkeypatch.setattr(pipeline, "load_audio", lambda *a: (_ for _ in ()).throw(sp.CalledProcessError(8, "ffmpeg")))
-    monkeypatch.setattr(pipeline, "_clip", lambda *a, **k: b"clip")
-    monkeypatch.setattr(pipeline, "_track_figures", lambda src, emit: ({}, 0.0, None))
-    monkeypatch.setattr(pipeline.syn, "read_screen", lambda image: "")
-    monkeypatch.setattr(pipeline, "_extras", lambda *a: None)
-
-    def fake_ask(messages, model, cls):
-        if cls is not SectionOutput:
-            return cls.model_validate({"title": "T", "tldr": "S"} if "tldr" in cls.model_fields else {}), "{}"
-        lo = float(re.search(r"Section (\d+)s", messages[1]["content"][0]["text"]).group(1))
-        out = {"title": "T", "notes": [{"text": "Shown on screen.", "evidence": [
-            {"kind": "transcript", "start_seconds": lo + 1, "quote": "words nobody can check now"},
-            {"kind": "frame", "start_seconds": lo + 1, "text": "a slide"}]}]}
-        return SectionOutput.model_validate(out), json.dumps(out)
-
-    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
-    result = pipeline.run(tmp_path, lambda step=None, **kw: None)
-    assert len(result.chapters) == 3
-    assert all(e.kind == "frame" for c in result.chapters for n in c.notes for e in n.evidence)  # quotes dropped
-
-
-def test_grabbed_frames_merge_into_a_new_sorted_list_without_duplicates(fixture_clip, tmp_path, monkeypatch):
-    """Listen-first grabs a frame at each cited second; when keyframes land later at the same second, the saved
-    list keeps one image per time, in order, and the keyframe list the side pool indexes is never changed."""
-    import threading
-
-    from vidmind.schema import Frame
-
-    video, _ = fixture_clip
-    shutil.copy(video, tmp_path / "video.mp4")
-    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
-    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
-    monkeypatch.setenv("MODEL_API_KEY", "k")
-    monkeypatch.setenv("LLM_MODELS", "muse:muse-spark-1.2")
-    monkeypatch.setattr(pipeline, "transcribe", lambda audio: ([], "asr-x"))
-    monkeypatch.setattr(pipeline, "_clip", lambda *a, **k: b"clip")
-    monkeypatch.setattr(pipeline, "_track_figures", lambda src, emit: ({}, 0.0, None))
-    monkeypatch.setattr(pipeline, "_read_screens", lambda *a, **k: None)
-    monkeypatch.setattr(pipeline, "_extras", lambda *a: None)
-    extract, grabs = pipeline.fr.extract_frame, threading.Semaphore(0)
-    monkeypatch.setattr(pipeline.fr, "extract_frame", lambda *a: (extract(*a), grabs.release()))
-    keys = [Frame(0.0, "frames/0.jpg"), Frame(12.0, "frames/12.jpg"), Frame(30.0, "frames/30.jpg")]
-    before = list(keys)
-
-    def late_keyframes(src, job_dir, emit):  # after all three cited seconds were grabbed, so 12 s is grabbed and keyed
-        assert all(grabs.acquire(timeout=20) for _ in range(3))
-        return keys
-
-    monkeypatch.setattr(pipeline, "_keyframes", late_keyframes)
-
-    def fake_ask(messages, model, cls):
-        if cls is not SectionOutput:
-            return cls.model_validate({"title": "T", "tldr": "S"} if "tldr" in cls.model_fields else {}), "{}"
-        lo = int(float(re.search(r"Section (\d+)s", messages[1]["content"][0]["text"]).group(1)))
-        cite = {0: 12.0, 40: 45.0}.get(lo, lo + 1.0)
-        out = {"title": "T", "notes": [{"text": "On screen.", "evidence": [
-            {"kind": "frame", "start_seconds": cite, "text": "a slide"}]}]}
-        return SectionOutput.model_validate(out), json.dumps(out)
-
-    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
-    pipeline.run(tmp_path, lambda step=None, **kw: None)
-
-    saved = json.loads((tmp_path / "frames.json").read_text())
-    times, urls = [f["t"] for f in saved], [f["url"] for f in saved]
-    assert len(set(urls)) == len(urls) and len(set(times)) == len(times), "one image per time"
-    assert times == sorted(times) and 12.0 in times and 45.0 in times
-    assert "frames/12.jpg" in urls and "frames/at450.jpg" in urls, "the keyframe wins; a new second is added"
-    assert keys == before, "the keyframe list is never mutated"

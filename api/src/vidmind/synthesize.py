@@ -138,19 +138,12 @@ def _fmt_frames(frames: list[Frame]) -> str:
 
 def section_messages(
     segments: list[Segment], frames: list[Frame], lo: float, hi: float, job_dir: Path, vision: bool,
-    clip: bytes | None = None, listening: bool = False,
 ) -> list[dict]:
-    if listening:  # no transcript yet: the clip carries the sound, and the transcript checks the quotes afterwards
-        text = (f"Section {lo:.0f}s-{hi:.0f}s\n\nTRANSCRIPT\nNot given: listen to the clip's audio. Quote words exactly as "
-                f"spoken. A moment's start_seconds is {lo:.0f} plus its second in the clip.\n\nKEYFRAMES\nNot listed: for "
-                f"frame evidence, give the video second ({lo:.0f} plus the clip second) where you see it.")
-    else:
-        text = f"Section {lo:.0f}s-{hi:.0f}s\n\nTRANSCRIPT\n{_fmt_segments(segments)}\n\nKEYFRAMES\n{_fmt_frames(frames)}"
+    text = f"Section {lo:.0f}s-{hi:.0f}s\n\nTRANSCRIPT\n{_fmt_segments(segments)}\n\nKEYFRAMES\n{_fmt_frames(frames)}"
     content: list[dict] = [{"type": "text", "text": text}]
     if vision and frames:
         # NVIDIA-hosted Muse Glimmer returns a bare 500 above 8 images; OCR text above still covers every frame.
-        # With the clip attached Spark sees the motion itself; a few stills are enough for fine print.
-        n = min(4 if clip else int(os.environ.get("LLM_MAX_IMAGES", "8")), len(frames))
+        n = min(int(os.environ.get("LLM_MAX_IMAGES", "8")), len(frames))
         picks = sorted({round(i * (len(frames) - 1) / max(1, n - 1)) for i in range(n)})  # evenly spaced
         for f in (frames[i] for i in picks):
             b64 = base64.b64encode((job_dir / f.url).read_bytes()).decode()
@@ -162,18 +155,13 @@ def section_messages(
                 fig = base64.b64encode((job_dir / f.figure_url).read_bytes()).decode()
                 content += [{"type": "text", "text": f"The diagram in the frame at {f.t:g}s, enlarged:"},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{fig}"}}]
-    if clip:
-        # Spark watches the section itself (360p, 2 fps, no sound: the transcript has the speech), so it sees
-        # motion and screens between keyframes; ~260 tokens a second of video.
-        content += [{"type": "text", "text": f"The section as video (starts at {lo:.0f}s; times in it are relative):"},
-                    {"type": "video_url", "video_url": {"url": "data:video/mp4;base64," + base64.b64encode(clip).decode()}}]
     return [{"role": "system", "content": SECTION_SYSTEM}, {"role": "user", "content": content}]
 
 
 def mode_messages(mode: str, segments: list[Segment], frames: list[Frame], duration: float, job_dir: Path,
-                  vision: bool, clip: bytes | None = None) -> list[dict]:
+                  vision: bool) -> list[dict]:
     """The whole video at once (Spark's 1M context holds a 10 min transcript easily) for the whole-video outputs."""
-    messages = section_messages(segments, frames, 0, duration, job_dir, vision, clip)
+    messages = section_messages(segments, frames, 0, duration, job_dir, vision)
     return [{"role": "system", "content": MODE_SYSTEM[mode]}, messages[1]]
 
 
@@ -255,13 +243,11 @@ def ask[T: BaseModel](messages: list[dict], model: str, cls: type[T]) -> tuple[T
         return _parse(raw, cls), raw
 
 
-def repair_messages(messages: list[dict], raw: str, problems: list[str], transcript: list[Segment] | None = None) -> list[dict]:
+def repair_messages(messages: list[dict], raw: str, problems: list[str]) -> list[dict]:
     issues = "\n".join(f"- {p}" for p in problems[:30])
-    # A section written by listening gets the transcript now, so quotes can be corrected to its exact words.
-    heard = f"\nThe transcript of this section, to quote from:\n{_fmt_segments(transcript)}\n" if transcript is not None else ""
     return messages + [
         {"role": "assistant", "content": raw},
-        {"role": "user", "content": f"These citations failed verification:\n{issues}\n{heard}"
+        {"role": "user", "content": f"These citations failed verification:\n{issues}\n"
          "Fix or remove them. Use only real frame timestamps and verbatim quotes. Return the full corrected JSON only."},
     ]
 

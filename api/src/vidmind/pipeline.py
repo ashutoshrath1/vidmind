@@ -23,9 +23,9 @@ import numpy as np
 
 from . import frames as fr
 from . import synthesize as syn
-from .schema import (FRAME_WINDOW_S, Chapter, Frame, LearnOutput, LearnResult, Overview, QuizItem, Rejected,
+from .schema import (Chapter, Frame, LearnOutput, LearnResult, Overview, QuizItem, Rejected,
                      SectionOutput, Segment, VisualOutput, _words, ground, ground_notes, snap_quote)
-from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
+from .transcribe import CHUNK_S, SAMPLE_RATE, parse_vtt, quietest, transcribe, warm
 
 log = logging.getLogger(__name__)
 MAX_DURATION_S = 12 * 3600  # Muse ASR caps one request at 10 minutes; audio goes in 6 s pieces, so that cap never applies
@@ -35,7 +35,7 @@ SECTION_S = 50.0  # one LLM call per section, all in parallel: shorter sections 
 SNAP_S = 5.0  # move each cut up to this far to the quietest moment, so sentences are not split
 HEDGE_S = 25.0  # NVIDIA takes 12-60 s a section; start a backup model only when one is clearly stuck
 FAST_HEDGE_S = {"groq": 6.0,  # Groq answers in 1-3 s; still silent at 6 s is usually hung (Qwen once sat 24 s)
-                "muse": 10.0}  # Spark, 50 s sections: 6-10 s; the backup covers stalls (27 s, 39 s seen), not normal calls
+                "muse": 6.0}  # Spark on a 50 s section's text: 3.5-6 s; the backup covers the slow tail (7-12 s seen)
 PIPELINE_VERSION = "32"
 Emit = Callable[..., None]  # emit(kind, **data): one event for the live "behind the scenes" view; see jobs.tracer
 
@@ -101,12 +101,24 @@ def _embedded_captions(video: Path) -> list[Segment] | None:
     return (parse_vtt(proc.stdout) or None) if proc.returncode == 0 else None
 
 
-def load_audio(src: Path | str, headers: str = "") -> np.ndarray:
-    raw = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", *fr.ff_input(src, headers),
-         "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
-        capture_output=True, check=True,
-    ).stdout
+AUDIO_RANGES = 4
+
+
+def load_audio(src: Path | str, headers: str = "", duration: float = 0) -> np.ndarray:
+    def pull(*span: str) -> bytes:
+        return subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", *span, *fr.ff_input(src, headers),
+             "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
+            capture_output=True, check=True,
+        ).stdout
+
+    if isinstance(src, str) and src.startswith("http") and duration > 120:
+        # A stream is fetched as 4 ranges at once: 595 s of YouTube audio in 0.63 s vs 1.52 s as one request.
+        span = duration / AUDIO_RANGES
+        with ThreadPoolExecutor(AUDIO_RANGES) as ex:
+            raw = b"".join(ex.map(lambda i: pull("-ss", f"{i * span:.3f}", "-t", f"{span:.3f}"), range(AUDIO_RANGES)))
+    else:
+        raw = pull()
     return np.frombuffer(raw, np.int16).astype(np.float32) / 32768
 
 
@@ -126,31 +138,6 @@ def plan_sections(
         cuts = [c if abs(c - t) <= SNAP_S and 0 < c < duration else t for c, t in zip(near, cuts)]
     bounds = [0.0, *cuts, duration]
     return [(round(a, 2), round(b, 2)) for a, b in zip(bounds, bounds[1:])]
-
-
-def _clip(src: Source, lo: float, hi: float, emit: Emit, task: str, pool: list[str], sound: bool = False) -> bytes | None:
-    """The span as a small MP4 for Muse Spark (None when no Muse model is in the pool or ffmpeg fails). With sound,
-    Spark hears it too, so it can write notes before the transcript exists."""
-    if not any(syn.provider(m) == "muse" for m in pool):
-        return None
-    started = time.monotonic()
-    span = ["-ss", f"{lo}", "-to", f"{hi}"]
-    video = [*span, *fr.ff_input(src.scan or src.video, src.headers)]
-    if sound and src.audio and src.audio != (src.scan or src.video):
-        av = [*video, *span, *fr.ff_input(src.audio, src.headers), "-map", "0:v", "-map", "1:a"]
-    elif sound and src.audio:
-        av = [*video, "-map", "0:v", "-map", "0:a?"]
-    else:
-        av = [*video, "-an"]
-    proc = subprocess.run(
-        ["ffmpeg", "-v", "error", *av, "-vf", "scale=-2:360,fps=1", "-c:v", "libx264", "-crf", "30", "-preset", "veryfast",
-         *(["-c:a", "aac", "-b:a", "32k", "-ac", "1"] if sound and src.audio else []),
-         "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"], capture_output=True)
-    if proc.returncode or not proc.stdout:
-        log.warning("clip %.0f-%.0fs failed: %s", lo, hi, proc.stderr[-200:])
-        return None
-    emit("clip", task=task, at=[lo, hi], kb=len(proc.stdout) // 1024, seconds=_since(started), sound=sound)
-    return proc.stdout
 
 
 def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quiet) -> None:
@@ -292,7 +279,7 @@ def _read_keyframes(src: Source, job_dir: Path, emit: Emit) -> list[Frame]:
     started = time.monotonic()
     emit("stage", name="scenes", state="start",
          detail="Scanning every frame for slide and scene changes" + (" (360p stream)" if src.scan else ""))
-    cuts = fr.scene_cuts(src.scan or src.video, src.headers)
+    cuts = fr.scene_cuts(src.scan or src.video, src.headers, src.duration)
     times = fr.pick_times(cuts, src.duration)
     emit("stage", name="scenes", state="end", seconds=_since(started), cuts=len(cuts), picked=times)
     started = time.monotonic()
@@ -303,8 +290,8 @@ def _read_keyframes(src: Source, job_dir: Path, emit: Emit) -> list[Frame]:
 
 
 def _read_screens(frames: list[Frame], job_dir: Path, emit: Emit = _quiet, tracked: Future | None = None) -> None:
-    """Screen text and diagrams for each keyframe, in place. Runs beside the notes, which don't wait for it: Spark
-    already watches each section's clip. It feeds the Keyframes tab, Ask the video and the saved frames."""
+    """Screen text and diagrams for each keyframe, in place. Runs after the notes, which see the keyframe images
+    themselves. It feeds the Keyframes tab and the saved frames."""
     started = time.monotonic()
     emit("stage", name="ocr", state="start", detail="Reading on-screen text", frames=[
         {"i": i, "at": f.t, "url": f.url} for i, f in enumerate(frames)])
@@ -392,18 +379,17 @@ def hedged[T](order: list[str], attempt: Callable[[str], T], what: str, emit: Em
 
 def write_section(
     lo: float, hi: float, segments: list[Segment], frames: list[Frame], job_dir: Path, duration: float,
-    model_order: list[str], emit: Emit = _quiet, i: int = 0, clip: bytes | None = None, listen=None,
+    model_order: list[str], emit: Emit = _quiet, i: int = 0,
 ) -> Part:
     """One section → its chapter, quiz and evidence-check audit; hedged across model_order."""
-    return hedged(model_order, lambda m: _attempt(m, lo, hi, segments, frames, job_dir, duration, emit, i, clip, listen),
+    return hedged(model_order, lambda m: _attempt(m, lo, hi, segments, frames, job_dir, duration, emit, i),
                   f"section {lo:.0f}-{hi:.0f}s", emit, f"s{i}")
 
 
-def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0, clip=None,
-             listen=None) -> Part:
+def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0) -> Part:
     started = time.monotonic()
     try:
-        result = _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit, i, clip, listen)
+        result = _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit, i)
         log.info("section %.0f-%.0fs: %s answered in %.1fs", lo, hi, model, time.monotonic() - started)
         return result
     except Exception:
@@ -411,32 +397,19 @@ def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _q
         raise
 
 
-def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0,
-                   clip=None, listen=None) -> Part:
-    """listen: the listen-first path. Spark writes from the clip with sound before the transcript exists; then
-    listen() waits for the transcript and the cited frames, and the same evidence check runs on them."""
-    # Only Muse Spark takes video; the other providers get the keyframes alone.
-    watch = clip if syn.provider(model) == "muse" else None
-    hearing = listen is not None and watch is not None
-    if watch:
-        emit("watch", task=f"s{i}", model=model, seconds=round(hi - lo, 2))
-    messages = syn.section_messages([] if hearing else segments, [] if hearing else frames, lo, hi, job_dir,
-                                    syn.is_vision(model) and not hearing, watch, listening=hearing)
+def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0) -> Part:
+    messages = syn.section_messages(segments, frames, lo, hi, job_dir, syn.is_vision(model))
     out, raw = syn.ask(messages, model, SectionOutput)
-    if listen is not None:
-        segments, frames = listen(out)
-        out = _snap(out, segments)
+    out = _snap(out, segments)
     clean, problems, rejected = _ground_section(out, lo, segments, frames, duration)
-    emit("check", task=f"s{i}", model=model, round=1, notes=len(out.notes), problems=problems[:12],
-         kept=sum(len(c.notes) for c in clean.chapters))
-    rechecked = len(problems)
-    # Listen-first: a repair round costs ~4-5 s, so it runs only when under half the section's notes survived the
-    # check; otherwise the unproven ones are dropped (and listed as thrown out, with why).
     kept = sum(len(c.notes) for c in clean.chapters)
-    if problems and (not hearing or kept * 2 < len(out.notes)):
-        out, _ = syn.ask(syn.repair_messages(messages, raw, problems, segments if hearing else None), model, SectionOutput)
-        if listen is not None:
-            segments, frames = listen(out)
+    emit("check", task=f"s{i}", model=model, round=1, notes=len(out.notes), problems=problems[:12], kept=kept)
+    rechecked = len(problems)
+    # A repair round costs ~4-5 s, so it runs only when under half the section's notes survived the check;
+    # otherwise the unproven ones are dropped (and listed as thrown out, with why).
+    if problems and kept * 2 < len(out.notes):
+        out, _ = syn.ask(syn.repair_messages(messages, raw, problems), model, SectionOutput)
+        out = _snap(out, segments)
         clean, problems, rejected = _ground_section(out, lo, segments, frames, duration)
         emit("check", task=f"s{i}", model=model, round=2, notes=len(out.notes), problems=problems[:12],
              kept=sum(len(c.notes) for c in clean.chapters), rejected=[r.model_dump() for r in rejected])
@@ -448,8 +421,8 @@ def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emi
 
 
 def _snap(out: SectionOutput, segments: list[Segment]) -> SectionOutput:
-    """Listen-first: each heard quote becomes the transcript's exact nearby words when they're close, so a quote
-    one word off doesn't cost a ~5 s repair round. Quotes with nothing close are left for the check to reject."""
+    """Each quote becomes the transcript's exact nearby words when they're close, so a quote one word off doesn't
+    cost a ~5 s repair round. Quotes with nothing close are left for the check to reject."""
     notes = []
     for n in out.notes:
         evidence = []
@@ -493,19 +466,23 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
          transcript="subtitles" if src.captions is not None else ("speech" if src.audio else "none"),
          caption_lines=len(src.captions or []), models=pool)
 
-    # Listen-first: with Muse, speech and no subtitles, each section goes to Spark at once as a clip with sound,
-    # while the whole audio is transcribed alongside; the transcript then checks the quotes. Notes no longer wait
-    # for speech recognition (Kafka, 5 min: about 16 s before this).
-    fast = bool(os.environ.get("MODEL_API_KEY")) and bool(src.audio) and src.captions is None \
-        and any(syn.provider(m) == "muse" for m in pool)
     # Subtitles make speech recognition unnecessary, so the audio is not even fetched.
     audio = None
-    if src.audio and src.captions is None and not fast:
+    if src.audio and src.captions is None:
         started = time.monotonic()
         emit("stage", name="audio", state="start", detail="Pulling the audio track into memory (16 kHz mono)")
-        audio = load_audio(src.audio, src.headers)
+        if os.environ.get("MODEL_API_KEY"):
+            threading.Thread(target=warm, args=(int(duration / CHUNK_S) + 1,), daemon=True).start()
+        for attempt in range(2):  # YouTube's audio stream occasionally refuses a request (ffmpeg exit 8)
+            try:
+                audio = load_audio(src.audio, src.headers, duration)
+                break
+            except subprocess.CalledProcessError:
+                if attempt:
+                    raise
+                log.warning("audio fetch failed; retrying")
         emit("stage", name="audio", state="end", seconds=_since(started), samples=len(audio))
-    sections = plan_sections(audio, duration, src.captions)  # listen-first: fixed cuts, no waiting for audio
+    sections = plan_sections(audio, duration, src.captions)
     emit("plan", sections=sections)
     update("transcribing", sections_done=0, sections_total=len(sections))
 
@@ -543,62 +520,13 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             pending=state["pending"],
         )
 
-    grabbed: list[Frame] = []  # frames grabbed at the seconds Spark cited, listen-first only
-
-    def hear_all() -> list[Segment]:
-        """Never raises: sections wait on it, so a failed fetch would sink them all. Without a transcript their
-        quotes can't be checked and are dropped; notes with on-screen proof still stand."""
-        started = time.monotonic()
-        emit("stage", name="audio", state="start", detail="Pulling the audio track into memory (16 kHz mono)")
-        for attempt in range(2):  # YouTube's audio stream occasionally refuses a request (ffmpeg exit 8)
-            try:
-                whole = load_audio(src.audio, src.headers)
-                break
-            except subprocess.CalledProcessError:
-                log.warning("audio fetch failed (attempt %d)", attempt + 1)
-        else:
-            emit("stage", name="audio", state="end", seconds=_since(started), error="the audio stream refused us twice")
-            return []
-        emit("stage", name="audio", state="end", seconds=_since(started), samples=len(whole))
-        segs, state["transcriber"] = transcribe(whole)
-        for i, (lo, hi) in enumerate(sections):
-            emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=_since(started),
-                 lines=[x.__dict__ for x in segs if lo <= x.start < hi])
-        return segs
-
-    def evidence_for(out: SectionOutput) -> tuple[list[Segment], list[Frame]]:
-        """For the check: the whole transcript, and a real frame at every second Spark cited that no keyframe
-        covers (grabbed from the video now), so on-screen proof is checked against an actual image."""
-        segs = heard_f.result()
-        have = [*(frames_f.result() if frames_f.done() else []), *grabbed]
-        cited = {round(ev.start_seconds, 1) for n in out.notes for ev in n.evidence if ev.kind == "frame"}
-        need = [t for t in cited if 0 <= t <= duration and not any(abs(f.t - t) <= FRAME_WINDOW_S for f in have)]
-
-        def grab(t: float) -> Frame:
-            (job_dir / "frames").mkdir(exist_ok=True)  # a fast section can come back before the keyframes exist
-            name = f"at{int(t * 10)}.jpg"
-            fr.extract_frame(src.video, t, job_dir / "frames" / name, src.headers)
-            return Frame(t=t, url=f"frames/{name}")
-
-        with ThreadPoolExecutor(max_workers=max(1, len(need))) as pool_:
-            new = list(pool_.map(grab, need))
-        with lock:
-            grabbed.extend(new)
-        return segs, have + new
-
     def section(i: int, lo: float, hi: float, segs: list[Segment]) -> None:
         # Publishes inside the task, not in a done-callback: callbacks run after waiters wake, so the card once read
         # an empty result and drew an invented list.
         try:
-            if fast:
-                # Spark 1.2 first here: on the same sections it was steadier (4.7-6.0 s vs 6.1-11 s) and Meta's docs
-                # say its audio understanding is fuller than 1.3's.
-                order = sorted(_model_order(pool, i), key=lambda m: m != "muse:muse-spark-1.2")
-                part = write_section(lo, hi, [], [], job_dir, duration, order, emit, i,
-                                     _clip(src, lo, hi, emit, f"s{i}", pool, sound=True), listen=evidence_for)
-            else:
-                part = write_section(lo, hi, segs, [x for x in frames_f.result() if lo <= x.t < hi], job_dir, duration,
-                                     _model_order(pool, i), emit, i, _clip(src, lo, hi, emit, f"s{i}", pool))
+            # Transcript and screen text only, no clip: 3.4-4.9 s a section vs 7.0-8.8 s with a clip attached.
+            part = write_section(lo, hi, segs, [x for x in frames_f.result() if lo <= x.t < hi], job_dir, duration,
+                                 _model_order(pool, i), emit, i)
         except Exception:
             log.exception("section %d failed on every model", i)
             part = Part(None, [], "failed")
@@ -637,42 +565,36 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         # the job never waits on.
         side = ThreadPoolExecutor(max_workers=2)
         tracked = side.submit(_track_figures, src, emit) if os.environ.get("MODEL_API_KEY") else None  # video only
-        screens_f = side.submit(lambda: _read_screens(frames_f.result(), job_dir, emit, tracked))
+        # Spark's screen reading waits for the notes (run beside them, it slowed every notes call); the timeout keeps
+        # it from waiting forever if the notes step raises.
+        notes_out = threading.Event()
+        screens_f = side.submit(lambda: (notes_out.wait(120), _read_screens(frames_f.result(), job_dir, emit, tracked)))
         side.shutdown(wait=False)
-        if fast:
-            heard_f = ex.submit(hear_all)
-            futures = [ex.submit(section, i, lo, hi, []) for i, (lo, hi) in enumerate(sections)]
-            update("writing_notes")
-            for f in futures:
-                f.exception()
-            all_segments = heard_f.result() if not heard_f.exception() else []
-        else:
-            heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
-                if src.captions is None and audio is not None else []
-            futures = []
-            for i, (lo, hi) in enumerate(sections):
-                segs: list[Segment] = []
-                took = 0.0
-                if src.captions is not None:
-                    segs = [s for s in src.captions if lo <= s.start < hi]
-                elif heard:
-                    segs, state["transcriber"], took = heard[i].result()
-                emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=took,
-                     lines=[s.__dict__ for s in segs])
-                all_segments += segs
-                # The section's task waits for the keyframes, not this loop: the next section keeps transcribing.
-                futures.append(ex.submit(section, i, lo, hi, segs))
-            update("writing_notes")
-            whole_video(all_segments, frames_f.result(), ex)  # beside the sections, which read the transcript too
-            for f in futures:
-                f.exception()  # failures are already recorded in section()
+        heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
+            if src.captions is None and audio is not None else []
+        futures = []
+        for i, (lo, hi) in enumerate(sections):
+            segs: list[Segment] = []
+            took = 0.0
+            if src.captions is not None:
+                segs = [s for s in src.captions if lo <= s.start < hi]
+            elif heard:
+                segs, state["transcriber"], took = heard[i].result()
+            emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=took,
+                 lines=[s.__dict__ for s in segs])
+            all_segments += segs
+            # The section's task waits for the keyframes, not this loop: the next section keeps transcribing.
+            futures.append(ex.submit(section, i, lo, hi, segs))
+        update("writing_notes")
+        for f in futures:
+            f.exception()  # failures are already recorded in section()
+        notes_out.set()
 
     # A new list: screen reading and diagram tracking may still be walking the keyframe list by index, so it must
     # never change under them (appending and sorting it once reported one image at two indices).
     with lock:
-        frames = sorted([*frames_f.result(), *(g for g in grabbed if all(abs(g.t - f.t) > 0.05 for f in frames_f.result()))],
-                        key=lambda f: f.t)
-    state["pending"] = fast  # listen-first: title, takeaways and diagram follow right after the notes
+        frames = sorted(frames_f.result(), key=lambda f: f.t)
+    state["pending"] = True  # title, takeaways and diagram follow right after the notes
     result = assemble()
     if not result.chapters:
         raise RuntimeError("No section produced grounded notes; see the API log for model errors")
@@ -688,13 +610,12 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     screens_f.add_done_callback(save_frames)  # screen reading isn't part of the notes; the job doesn't wait for it
 
     def after() -> None:
-        """The work that follows the notes: whole-video outputs (listen-first), then the card and web sources."""
-        if fast:
-            with ThreadPoolExecutor(max_workers=3) as ex2:
-                whole_video(all_segments, frames, ex2)
-            state["pending"] = False
-            with lock:
-                (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
+        """The work that follows the notes: whole-video outputs, then the card."""
+        with ThreadPoolExecutor(max_workers=3) as ex2:
+            whole_video(all_segments, frames, ex2)
+        state["pending"] = False
+        with lock:
+            (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
         if os.environ.get("MODEL_API_KEY"):
             _extras(assemble, job_dir, state, emit, lock)
 

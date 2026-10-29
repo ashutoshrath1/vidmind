@@ -100,7 +100,7 @@ function Job({ id, at }: { id: string; at: number }) {
     const timer = setInterval(() => setTick(Date.now()), 100);
     return () => clearInterval(timer);
   }, [running]);
-  // The title, takeaways and diagram (listen-first runs), then the card, land a few seconds after
+  // The title, takeaways and diagram, then the card, land a few seconds after
   // the notes; pick each up as it arrives.
   const pending = job?.status === "done" && !!result && (!!result.pending || !result.card_url);
   useEffect(() => {

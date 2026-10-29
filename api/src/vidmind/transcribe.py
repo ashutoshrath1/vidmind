@@ -9,7 +9,7 @@ import re
 import threading
 import time
 import wave
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from functools import lru_cache
 
 import httpx
@@ -101,6 +101,8 @@ def _wav_bytes(audio: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
+MAX_STREAMS = 256  # Muse ASR concurrent streams
+HEDGE_S = 3.5  # re-send a piece still out after this (warm connections: p50 2.6 s, p90 3.1 s)
 CHUNK_S = 6.0  # Muse times whole turns only (a lone speaker was one 34 s turn); 6 s pieces: finer and fastest (3.4 s vs 4.0 s at 12 s, 4.9 s at 4 s)
 
 
@@ -123,11 +125,52 @@ def muse_asr_chunked(audio: np.ndarray) -> list[Segment]:
     cuts = [quietest(audio, t, 2.0) for t in np.arange(CHUNK_S, end - CHUNK_S / 2, CHUNK_S)]
     bounds = [0.0, *cuts, end]
     pieces = [(a, audio[int(a * SAMPLE_RATE) : int(b * SAMPLE_RATE)]) for a, b in zip(bounds, bounds[1:])]
-    # Every piece at once (Muse allows 256 streams): a 5-minute video is ~50 pieces, done in about one piece's time.
-    with ThreadPoolExecutor(max_workers=min(64, len(pieces))) as ex:
-        found = ex.map(lambda p: [Segment(round(s.start + p[0], 2), round(s.end + p[0], 2), s.text)
-                                  for s in muse_asr(p[1])], pieces)
-    return [s for part in found for s in part]
+    # Every piece in one wave (Muse allows 256 streams): 99 pieces of a 10-minute video in 5.05 s, vs 7.29 s as two
+    # waves of 64. A piece still out after HEDGE_S is sent again and the first reply wins (p50 3.6 s, max 5.0 s).
+    ex = ThreadPoolExecutor(max_workers=min(MAX_STREAMS, 2 * len(pieces)))
+    try:
+        copies = [[ex.submit(muse_asr, audio_piece)] for _, audio_piece in pieces]
+        wait([c[0] for c in copies], timeout=HEDGE_S)
+        for c, (_, audio_piece) in zip(copies, pieces):
+            if not c[0].done():
+                c.append(ex.submit(muse_asr, audio_piece))
+        found = [_first_answer(c) for c in copies]
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)  # don't wait on the losing copies
+    return [Segment(round(s.start + at, 2), round(s.end + at, 2), s.text)
+            for (at, _), part in zip(pieces, found) for s in part]
+
+
+def _first_answer(copies: list) -> list[Segment]:
+    """The first copy to succeed; raises only when every copy failed."""
+    pending = list(copies)
+    while True:
+        done, _ = wait(pending, return_when=FIRST_COMPLETED)
+        for f in done:
+            if f.exception() is None:
+                return f.result()
+            pending.remove(f)
+        if not pending:
+            return copies[0].result()  # all failed: raise the first error
+
+
+# One kept-alive pool for every ASR request: 99 pieces in 3.91 s on open connections, 4.74 s on a shared but cold
+# pool, 5.85 s with a new connection per request.
+_http = httpx.Client(limits=httpx.Limits(max_connections=MAX_STREAMS, max_keepalive_connections=MAX_STREAMS), timeout=300)
+
+
+def warm(n: int) -> None:
+    """Opens up to n connections to Muse ASR ahead of the audio (TLS handshakes overlap the download)."""
+    n = max(1, min(MAX_STREAMS, n))
+    with ThreadPoolExecutor(n) as ex:
+        list(ex.map(lambda _: _ping(), range(n)))
+
+
+def _ping() -> None:
+    try:
+        _http.head(MUSE_ASR_URL, timeout=5)
+    except httpx.HTTPError:
+        pass  # only a head start: the real request opens its own connection
 
 
 def muse_asr(audio: np.ndarray) -> list[Segment]:
@@ -140,14 +183,13 @@ def muse_asr(audio: np.ndarray) -> list[Segment]:
     headers = {"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}"}
     body = _wav_bytes(audio)
     for attempt in range(4):
-        resp = httpx.post(
+        resp = _http.post(
             MUSE_ASR_URL,
             headers=headers,
             files={
                 "request": (None, json.dumps(request), "application/json"),
                 "audio": ("audio.wav", body, "audio/wav"),
             },
-            timeout=300,
         )
         if resp.status_code != 429 or attempt == 3:
             break
