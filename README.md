@@ -58,7 +58,12 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
   diagram and Keyframes tab. Earlier: 8.8-9.1 s.
   YouTube's own captions of the original audio in ~0.4 s, keyframes ~3.5 s, notes ~4 s a section, all 12 at
   once. YouTube route after keyframe-only scanning: 7.4-7.8 s. Any file or link without captions (Muse speech
-  recognition, the generic route): 9.6-11.3 s.
+  recognition, the generic route): 9.0-9.4 s on a warm server (3 runs), from 9.6-11.3 s: speech sent at 2x
+  (atempo; word error 4.9% vs 5.1%), 3 s pieces in one pool, diagram tracking after the notes.
+- Muse Voice Transcribe is throughput-bound: 10 minutes takes ~4 s however many pieces run at once (60: 6.5 s,
+  120: 4.1 s, 198: 4.1 s). With Spark's ~2.9 s (first token ~2.0 s), the generic route's floor is about 7 s.
+- YouTube rate-limits caption downloads (HTTP 429) after many requests from one IP; the job then falls back to
+  speech recognition (the generic route) on its own.
 - Benchmarks on that file (Oct 29): keyframe-only scene scan 0.36-0.48 s vs 6.22 s decoding every frame; audio
   decode in 4 ranges 0.31 s vs 0.81 s; Muse Voice Transcribe 4.8 s (word error 3.9% vs YouTube's captions).
   A Spark notes call takes ~4.2 s whatever the section length (50, 25 or 15 s).

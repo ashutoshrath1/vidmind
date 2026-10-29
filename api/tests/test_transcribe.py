@@ -84,6 +84,7 @@ def test_muse_falls_back_to_the_other_copy_when_one_fails(monkeypatch):
         return [tr.Segment(0.1, 1.0, "ok")]
 
     monkeypatch.setattr(tr, "HEDGE_S", 0.1)
+    monkeypatch.setattr(tr, "CHUNK_S", 12.0)  # one piece
     monkeypatch.setattr(tr, "muse_asr", asr)
     assert [s.text for s in tr.muse_asr_chunked(np.full(5 * 16000, 0.5, np.float32))] == ["ok"]
 
@@ -98,3 +99,15 @@ def test_json3_captions_become_one_segment_per_line_ending_where_the_next_starts
         {"tStartMs": 9000, "dDurationMs": 100},  # no words
     ]}
     assert [(s.start, s.end, s.text) for s in parse_json3(data)] == [(0.0, 2.6, "often find"), (2.6, 6.6, "it harder")]
+
+
+def test_fast_transcription_sends_half_the_audio_and_puts_times_back_on_the_videos_clock(monkeypatch):
+    import numpy as np
+
+    from vidmind import transcribe as tr
+
+    sent = []
+    monkeypatch.setattr(tr, "muse_asr_chunked", lambda a: sent.append(len(a) / 16000) or [tr.Segment(5.0, 6.5, "hi")])
+    segs = tr.muse_asr_fast(np.sin(np.arange(8 * 16000) / 20).astype(np.float32), speed=2.0)
+    assert abs(sent[0] - 4.0) < 0.1  # 8 s of audio sent as ~4 s
+    assert [(s.start, s.end) for s in segs] == [(10.0, 13.0)]

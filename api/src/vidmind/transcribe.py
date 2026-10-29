@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import threading
 import time
 import wave
@@ -30,7 +31,7 @@ def transcribe(audio: np.ndarray) -> tuple[list[Segment], str]:
     # Muse is ~8 s per audio minute; pipeline.run sends sections in parallel (5 x 60 s: 10 s).
     if os.environ.get("MODEL_API_KEY"):
         try:
-            return muse_asr_chunked(audio), MUSE_ASR_MODEL
+            return muse_asr_fast(audio), MUSE_ASR_MODEL
         except Exception:
             log.exception("Muse transcription failed; falling back to local ASR")
     with _local:
@@ -113,8 +114,10 @@ def _wav_bytes(audio: np.ndarray) -> bytes:
 
 
 MAX_STREAMS = 256  # Muse ASR concurrent streams
-HEDGE_S = 3.5  # re-send a piece still out after this (warm connections: p50 2.6 s, p90 3.1 s)
-CHUNK_S = 6.0  # Muse times whole turns only (a lone speaker was one 34 s turn); 6 s pieces: finer and fastest (3.4 s vs 4.0 s at 12 s, 4.9 s at 4 s)
+HEDGE_S = 4.0  # re-send only real stragglers: at full load (198 pieces) p50 is 2.4 s, max 4.0 s; Muse is throughput-
+# bound, so re-sending at 2.6 s doubled the work and took the transcript from ~4 s to 10.3 s
+CHUNK_S = 3.0  # Muse times whole turns only, so short pieces also time quotes finely. On warm connections, 10 minutes
+# of speech took 2.71 s as 3 s pieces vs 2.88 s at 4 s, 3.55 s at 2 s and 4.10 s at 6 s (Oct 29).
 
 
 def quietest(audio: np.ndarray, t: float, span_s: float, window_s: float = 0.1) -> float:
@@ -129,11 +132,27 @@ def quietest(audio: np.ndarray, t: float, span_s: float, window_s: float = 0.1) 
     return lo / SAMPLE_RATE + (int(energy.argmin()) + 0.5) * window_s
 
 
+ASR_SPEED = 2.0  # Muse is throughput-bound: 10 minutes at 2x took 3.14 s vs 5.77 s, word error 4.9% vs 5.1%
+
+
+def faster(audio: np.ndarray, speed: float = ASR_SPEED) -> np.ndarray:
+    """The audio played `speed` times faster with its pitch kept (ffmpeg atempo), for less audio to transcribe."""
+    raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "f32le", "-ar", str(SAMPLE_RATE), "-ac", "1",
+                          "-i", "-", "-af", f"atempo={speed}", "-f", "f32le", "-"],
+                         input=audio.astype(np.float32).tobytes(), capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32)
+
+
+def muse_asr_fast(audio: np.ndarray, speed: float = ASR_SPEED) -> list[Segment]:
+    """Muse on the sped-up audio, with times scaled back to the original's clock."""
+    return [Segment(round(s.start * speed, 2), round(s.end * speed, 2), s.text) for s in muse_asr_chunked(faster(audio, speed))]
+
+
 def muse_asr_chunked(audio: np.ndarray) -> list[Segment]:
     """Muse on ~CHUNK_S pieces cut at quiet moments, in parallel: timestamps within a few seconds, and faster
     (Muse takes ~8 s per audio minute per request)."""
     end = len(audio) / SAMPLE_RATE
-    cuts = [quietest(audio, t, 2.0) for t in np.arange(CHUNK_S, end - CHUNK_S / 2, CHUNK_S)]
+    cuts = [quietest(audio, t, CHUNK_S / 3) for t in np.arange(CHUNK_S, end - CHUNK_S / 2, CHUNK_S)]
     bounds = [0.0, *cuts, end]
     pieces = [(a, audio[int(a * SAMPLE_RATE) : int(b * SAMPLE_RATE)]) for a, b in zip(bounds, bounds[1:])]
     # Every piece in one wave (Muse allows 256 streams): 99 pieces of a 10-minute video in 5.05 s, vs 7.29 s as two
@@ -166,22 +185,12 @@ def _first_answer(copies: list) -> list[Segment]:
 
 
 # One kept-alive pool for every ASR request: 99 pieces in 3.91 s on open connections, 4.74 s on a shared but cold
-# pool, 5.85 s with a new connection per request.
+# pool, 5.85 s with a new connection per request. No pre-warming: run beside the real requests it fought them for
+# connections (10-minute transcript ~10 s with it, 5.7 s without).
+# Every job's sections transcribe at once, each with its own pool: this one gate keeps all of them under Muse's
+# 256 concurrent streams (above it, 429s and their back-off took a 10-minute transcript from ~3 s to 7-11 s).
+_streams = threading.BoundedSemaphore(MAX_STREAMS - 16)
 _http = httpx.Client(limits=httpx.Limits(max_connections=MAX_STREAMS, max_keepalive_connections=MAX_STREAMS), timeout=300)
-
-
-def warm(n: int) -> None:
-    """Opens up to n connections to Muse ASR ahead of the audio (TLS handshakes overlap the download)."""
-    n = max(1, min(MAX_STREAMS, n))
-    with ThreadPoolExecutor(n) as ex:
-        list(ex.map(lambda _: _ping(), range(n)))
-
-
-def _ping() -> None:
-    try:
-        _http.head(MUSE_ASR_URL, timeout=5)
-    except httpx.HTTPError:
-        pass  # only a head start: the real request opens its own connection
 
 
 def muse_asr(audio: np.ndarray) -> list[Segment]:
@@ -194,14 +203,17 @@ def muse_asr(audio: np.ndarray) -> list[Segment]:
     headers = {"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}"}
     body = _wav_bytes(audio)
     for attempt in range(4):
-        resp = _http.post(
-            MUSE_ASR_URL,
-            headers=headers,
-            files={
-                "request": (None, json.dumps(request), "application/json"),
-                "audio": ("audio.wav", body, "audio/wav"),
-            },
-        )
+        with _streams:
+            resp = _http.post(
+                MUSE_ASR_URL,
+                headers=headers,
+                files={
+                    "request": (None, json.dumps(request), "application/json"),
+                    "audio": ("audio.wav", body, "audio/wav"),
+                },
+            )
+        if resp.status_code == 429:
+            log.warning("Muse ASR 429 (attempt %d)", attempt + 1)
         if resp.status_code != 429 or attempt == 3:
             break
         time.sleep(2**attempt)

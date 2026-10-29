@@ -25,7 +25,7 @@ from . import frames as fr
 from . import synthesize as syn
 from .schema import (Chapter, Frame, LearnOutput, LearnResult, Overview, QuizItem, Rejected,
                      SectionOutput, Segment, VisualOutput, _words, ground, ground_notes, snap_quote)
-from .transcribe import CHUNK_S, SAMPLE_RATE, parse_vtt, quietest, transcribe, warm
+from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
 
 log = logging.getLogger(__name__)
 MAX_DURATION_S = 12 * 3600  # Muse ASR caps one request at 10 minutes; audio goes in 6 s pieces, so that cap never applies
@@ -400,7 +400,9 @@ def _attempt(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _q
 
 
 def _attempt_inner(model, lo, hi, segments, frames, job_dir, duration, emit: Emit = _quiet, i: int = 0) -> Part:
-    messages = syn.section_messages(segments, frames, lo, hi, job_dir, syn.is_vision(model))
+    # Text only: transcript and the keyframes' timestamps and screen text. Images added ~0.6 s to every call (first
+    # token 2.5-2.7 s vs 2.0 s); the keyframe images go to the whole-video pass (takeaways, diagram) instead.
+    messages = syn.section_messages(segments, frames, lo, hi, job_dir, False)
     out, raw = syn.ask(messages, model, SectionOutput)
     out = _snap(out, segments)
     clean, problems, rejected = _ground_section(out, lo, segments, frames, duration)
@@ -473,8 +475,6 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     if src.audio and src.captions is None:
         started = time.monotonic()
         emit("stage", name="audio", state="start", detail="Pulling the audio track into memory (16 kHz mono)")
-        if os.environ.get("MODEL_API_KEY"):
-            threading.Thread(target=warm, args=(int(duration / CHUNK_S) + 1,), daemon=True).start()
         for attempt in range(2):  # YouTube's audio stream occasionally refuses a request (ffmpeg exit 8)
             try:
                 audio = load_audio(src.audio, src.headers, duration)
@@ -488,6 +488,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     emit("plan", sections=sections)
     update("transcribing", sections_done=0, sections_total=len(sections))
 
+    started_at = time.monotonic()
     lock = threading.Lock()
     done: dict[int, Part] = {}
     state = {"transcriber": src.captions_from if src.captions is not None else "none (no audio track)",
@@ -569,20 +570,30 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         # Diagram tracking and screen reading feed the Keyframes tab and Ask, not the notes: their own pool, which
         # the job never waits on.
         side = ThreadPoolExecutor(max_workers=2)
-        tracked = side.submit(_track_figures, src, emit) if os.environ.get("MODEL_API_KEY") else None  # video only
         # Spark's screen reading waits for the notes (run beside them, it slowed every notes call); the timeout keeps
         # it from waiting forever if the notes step raises.
         notes_out = threading.Event()
+        # Diagram tracking (ffmpeg clip encoding plus SAM calls) also waits: run from the start it slowed speech
+        # recognition, which every note waits on.
+        tracked = side.submit(lambda: (notes_out.wait(120), _track_figures(src, emit))[1]) \
+            if os.environ.get("MODEL_API_KEY") else None  # video only
         screens_f = side.submit(lambda: (notes_out.wait(120), _read_screens(frames_f.result(), job_dir, emit, tracked)))
         side.shutdown(wait=False)
-        heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
-            if src.captions is None and audio is not None else []
+        hearing = src.captions is None and audio is not None
+        # Muse: the whole audio as one wave of pieces in one pool. Its throughput caps 10 minutes at ~4.1 s however
+        # it is split, and 12 per-section pools on top of that took 6.5-9.8 s. Local ASR: section by section, so the
+        # first notes come early.
+        whole = ex.submit(transcribe, audio) if hearing and os.environ.get("MODEL_API_KEY") else None
+        heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] if hearing and not whole else []
         futures = []
         for i, (lo, hi) in enumerate(sections):
             segs: list[Segment] = []
             took = 0.0
             if src.captions is not None:
                 segs = [s for s in src.captions if lo <= s.start < hi]
+            elif whole:
+                every, state["transcriber"] = whole.result()
+                segs, took = [s for s in every if lo <= s.start < hi], _since(started_at)
             elif heard:
                 segs, state["transcriber"], took = heard[i].result()
             emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=took,
