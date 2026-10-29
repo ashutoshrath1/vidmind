@@ -8,6 +8,7 @@ plays the video in YouTube's own player. Other sites (or videos with embedding d
 
 import ipaddress
 import socket
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -123,18 +124,31 @@ def _original_audio(info: dict) -> dict | None:
 
 def stream_source(plan: dict) -> Source:
     captions, auto = None, "fmt=json3" in (plan.get("captions") or "")
-    for _ in range(2 if plan.get("captions") else 0):
-        try:
-            # Short timeout: one caption request once sat 9.4 s and held up the whole job; speech recognition
-            # (5-7 s) covers a caption track that doesn't come quickly.
-            body = httpx.get(plan["captions"], timeout=3).raise_for_status()
-            captions = (parse_json3(body.json()) if auto else parse_vtt(body.text)) or None
-            break
-        except (httpx.HTTPError, ValueError):
-            continue
+    if plan.get("captions"):
+        captions = _first_captions(plan["captions"], auto)
     return Source(plan["video"], plan["duration"], audio=plan["audio"], scan=plan["scan"], headers=plan["headers"],
                   captions=captions, youtube_id=plan["youtube_id"],
                   captions_from="YouTube captions (auto)" if auto else "creator subtitles")
+
+
+def _first_captions(url: str, auto: bool, copies: int = 2) -> list | None:
+    """The caption track, asked for twice at once; the first good answer wins. One request once sat 9.4 s while
+    the norm is 0.4 s, and the whole job waits on it. None after 3 s: speech recognition covers it."""
+    def get() -> list | None:
+        body = httpx.get(url, timeout=3).raise_for_status()
+        return (parse_json3(body.json()) if auto else parse_vtt(body.text)) or None
+
+    ex = ThreadPoolExecutor(copies)
+    try:
+        pending = {ex.submit(get) for _ in range(copies)}
+        while pending:
+            done, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for f in done:
+                if f.exception() is None and f.result():
+                    return f.result()
+        return None
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
 
 
 def download(url: str, job_dir: Path) -> Path:

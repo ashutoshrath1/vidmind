@@ -35,7 +35,8 @@ SECTION_S = 50.0  # one LLM call per section, all in parallel: shorter sections 
 SNAP_S = 5.0  # move each cut up to this far to the quietest moment, so sentences are not split
 HEDGE_S = 25.0  # NVIDIA takes 12-60 s a section; start a backup model only when one is clearly stuck
 FAST_HEDGE_S = {"groq": 6.0,  # Groq answers in 1-3 s; still silent at 6 s is usually hung (Qwen once sat 24 s)
-                "muse": 6.0}  # Spark on a 50 s section's text: 3.5-6 s; the backup covers the slow tail (7-12 s seen)
+                "muse": 0.0}  # Spark 1.2 and 1.3 at once (separate rate limits), first good answer wins: the job waits
+                              # on its slowest section, and one Spark call varies 3.5-6 s
 PIPELINE_VERSION = "32"
 Emit = Callable[..., None]  # emit(kind, **data): one event for the live "behind the scenes" view; see jobs.tracer
 
@@ -526,7 +527,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         # an empty result and drew an invented list.
         try:
             # Transcript and screen text only, no clip: 3.4-4.9 s a section vs 7.0-8.8 s with a clip attached.
-            part = write_section(lo, hi, segs, [x for x in frames_f.result() if lo <= x.t < hi], job_dir, duration,
+            # Never waits for the keyframes: with captions the transcript is in at 0.4 s and keyframes at ~2.2 s.
+            # Ready ones go in (always, without captions: speech recognition takes longer than keyframes).
+            seen = frames_f.result() if frames_f.done() else []
+            part = write_section(lo, hi, segs, [x for x in seen if lo <= x.t < hi], job_dir, duration,
                                  _model_order(pool, i), emit, i)
         except Exception:
             log.exception("section %d failed on every model", i)

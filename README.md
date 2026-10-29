@@ -52,7 +52,10 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
 
 ## Measured
 
-- A 595 s (10-minute) YouTube talk, start to checked notes: **8.8-9.1 s** over 3 runs (Oct 29), from 16.9 s.
+- A 595 s (10-minute) YouTube talk, start to checked notes: **4.2-5.1 s** over 4 runs (Oct 29; 3 of 4 under 5 s),
+  from 16.9 s. Captions in ~0.4 s (two requests raced), every section sent to Spark 1.2 and 1.3 at once without
+  waiting for keyframes. Trade-off: on this route notes cite the transcript only; keyframes feed the takeaways,
+  diagram and Keyframes tab. Earlier: 8.8-9.1 s.
   YouTube's own captions of the original audio in ~0.4 s, keyframes ~3.5 s, notes ~4 s a section, all 12 at
   once. YouTube route after keyframe-only scanning: 7.4-7.8 s. Any file or link without captions (Muse speech
   recognition, the generic route): 9.6-11.3 s.
