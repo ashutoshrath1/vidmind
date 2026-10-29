@@ -31,7 +31,9 @@ def scene_cuts(video: Path | str, headers: str = "", duration: float = 0) -> lis
     a 10-minute 360p YouTube stream in 1.04 s vs 2.00 s, with the same 493 cuts."""
     def scan(*span: str) -> list[float]:
         proc = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-nostats", *span, *ff_input(video, headers), "-an",
+            # Keyframes only (-skip_frame nokey): encoders put them at scene changes and every few seconds, and
+            # decoding just those found the frames of a 10-minute 720p talk in 0.36 s vs 6.22 s for every frame.
+            ["ffmpeg", "-hide_banner", "-nostats", "-skip_frame", "nokey", *span, *ff_input(video, headers), "-an",
              "-vf", f"select='gt(scene,{SCENE_THRESHOLD})',showinfo", "-f", "null", "-"],
             capture_output=True, text=True, check=True,
         )

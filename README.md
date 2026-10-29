@@ -54,7 +54,11 @@ The output contract is `api/src/vidmind/schema.py`, mirrored in `web/lib/api.ts`
 
 - A 595 s (10-minute) YouTube talk, start to checked notes: **8.8-9.1 s** over 3 runs (Oct 29), from 16.9 s.
   YouTube's own captions of the original audio in ~0.4 s, keyframes ~3.5 s, notes ~4 s a section, all 12 at
-  once. Without captions (Muse speech recognition): 12.4-13.1 s.
+  once. YouTube route after keyframe-only scanning: 7.4-7.8 s. Any file or link without captions (Muse speech
+  recognition, the generic route): 9.6-11.3 s.
+- Benchmarks on that file (Oct 29): keyframe-only scene scan 0.36-0.48 s vs 6.22 s decoding every frame; audio
+  decode in 4 ranges 0.31 s vs 0.81 s; Muse Voice Transcribe 4.8 s (word error 3.9% vs YouTube's captions).
+  A Spark notes call takes ~4.2 s whatever the section length (50, 25 or 15 s).
 - The sample (a real Muse run of a 4:44 lecture): all notes in **10.35 s**; **19 of 19** notes passed the
   evidence check. The e2e tests check it stays under 11 s.
 - Speech on 105 s of lecture audio (M2 Air): Parakeet TDT 0.6B 2.5 s, faster-whisper base 4.1 s, faster-whisper
