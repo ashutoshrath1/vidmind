@@ -30,7 +30,7 @@ from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
 log = logging.getLogger(__name__)
 MAX_DURATION_S = 12 * 3600  # Muse ASR caps one request at 10 minutes; audio goes in 6 s pieces, so that cap never applies
 MAX_BYTES = 2 * 1024**3  # 2 GB: a 10-minute 4K screen recording fits
-FIRST_S = 40.0  # short first section: its notes are on screen within seconds while the rest are written
+FIRST_S = 20.0  # short first section: its notes are on screen within seconds while the rest are written
 SECTION_S = 50.0  # one LLM call per section, all in parallel: shorter sections finish sooner
 SNAP_S = 5.0  # move each cut up to this far to the quietest moment, so sentences are not split
 HEDGE_S = 25.0  # NVIDIA takes 12-60 s a section; start a backup model only when one is clearly stuck
@@ -488,7 +488,6 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     emit("plan", sections=sections)
     update("transcribing", sections_done=0, sections_total=len(sections))
 
-    started_at = time.monotonic()
     lock = threading.Lock()
     done: dict[int, Part] = {}
     state = {"transcriber": src.captions_from if src.captions is not None else "none (no audio track)",
@@ -544,10 +543,20 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
             update(None, sections_done=len(done))
 
+    first_queued = threading.Event()
+
     def listen(i: int, lo: float, hi: float) -> tuple[list[Segment], str, float]:
         started = time.monotonic()
         emit("stage", name="transcribe", state="start", task=f"s{i}", detail=f"Listening to {lo:.0f}-{hi:.0f}s")
-        local, engine = transcribe(audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)])
+        # The first section goes first: the others queue their pieces only once its pieces are in line, so its
+        # transcript (and so the first notes) comes back at light-load speed (p50 ~1.6 s vs ~2.4 s at full load).
+        if i:
+            first_queued.wait(5)
+        try:
+            local, engine = transcribe(audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)], first_queued if i == 0 else None)
+        finally:
+            if i == 0:
+                first_queued.set()  # local speech recognition never queues pieces: don't hold the others back
         return [Segment(round(s.start + lo, 2), round(s.end + lo, 2), s.text) for s in local], engine, _since(started)
 
     def whole_video(all_segments: list[Segment], frames: list[Frame], ex: ThreadPoolExecutor) -> None:
@@ -579,31 +588,27 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             if os.environ.get("MODEL_API_KEY") else None  # video only
         screens_f = side.submit(lambda: (notes_out.wait(120), _read_screens(frames_f.result(), job_dir, emit, tracked)))
         side.shutdown(wait=False)
-        hearing = src.captions is None and audio is not None
-        # Muse: the whole audio as one wave of pieces in one pool. Its throughput caps 10 minutes at ~4.1 s however
-        # it is split, and 12 per-section pools on top of that took 6.5-9.8 s. Local ASR: section by section, so the
-        # first notes come early.
-        whole = ex.submit(transcribe, audio) if hearing and os.environ.get("MODEL_API_KEY") else None
-        heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] if hearing and not whole else []
-        futures = []
-        for i, (lo, hi) in enumerate(sections):
+        heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
+            if src.captions is None and audio is not None else []
+        heard_by: dict[int, list[Segment]] = {}
+
+        def hear_then_write(i: int, lo: float, hi: float) -> None:
+            """Each section waits only for its own transcript, so a slow one never holds back the next."""
             segs: list[Segment] = []
             took = 0.0
             if src.captions is not None:
                 segs = [s for s in src.captions if lo <= s.start < hi]
-            elif whole:
-                every, state["transcriber"] = whole.result()
-                segs, took = [s for s in every if lo <= s.start < hi], _since(started_at)
             elif heard:
                 segs, state["transcriber"], took = heard[i].result()
-            emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=took,
-                 lines=[s.__dict__ for s in segs])
-            all_segments += segs
-            # The section's task waits for the keyframes, not this loop: the next section keeps transcribing.
-            futures.append(ex.submit(section, i, lo, hi, segs))
+            emit("transcript", task=f"s{i}", engine=state["transcriber"], seconds=took, lines=[s.__dict__ for s in segs])
+            heard_by[i] = segs
+            section(i, lo, hi, segs)
+
+        futures = [ex.submit(hear_then_write, i, lo, hi) for i, (lo, hi) in enumerate(sections)]
         update("writing_notes")
         for f in futures:
             f.exception()  # failures are already recorded in section()
+        all_segments = [s for i in sorted(heard_by) for s in heard_by[i]]
         notes_out.set()
 
     # A new list: screen reading and diagram tracking may still be walking the keyframe list by index, so it must
@@ -625,10 +630,36 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     save_frames()  # now (times and images), and again with the screen text once that finishes
     screens_f.add_done_callback(save_frames)  # screen reading isn't part of the notes; the job doesn't wait for it
 
+    def on_screen() -> None:
+        """Section notes are written from text alone (images cost every call ~0.6 s); this one call reads the
+        keyframes and adds facts only on screen, checked like any note, each to the section its keyframe falls in."""
+        started = time.monotonic()
+        emit("stage", name="screen", state="start", detail="Adding what the keyframes show")
+        try:
+            written = [n.text for p in done.values() if p.chapter for n in p.chapter.notes]
+            messages = syn.screen_messages(written, frames, duration, job_dir)
+            out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, SectionOutput)[0], "on-screen notes", emit, "screen")
+            clean, _, _ = _ground_section(out, 0, all_segments, frames, duration)
+            added = 0
+            with lock:
+                for note in (clean.chapters[0].notes if clean.chapters else []):
+                    at = min(e.start_seconds for e in note.evidence)
+                    i = next((k for k, (lo, hi) in enumerate(sections) if lo <= at < hi), None)
+                    if i is not None and done.get(i) and done[i].chapter:
+                        done[i].chapter.notes.append(note)
+                        added += 1
+            emit("stage", name="screen", state="end", seconds=_since(started), added=added)
+        except Exception as e:
+            log.exception("on-screen notes failed; the notes stand without them")
+            emit("stage", name="screen", state="end", seconds=_since(started), error=type(e).__name__)
+
     def after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
-        with ThreadPoolExecutor(max_workers=3) as ex2:
+        with ThreadPoolExecutor(max_workers=4) as ex2:
+            screen = ex2.submit(on_screen) if frames else None
             whole_video(all_segments, frames, ex2)
+            if screen:
+                screen.exception()  # logs its own failure
         state["pending"] = False
         with lock:
             (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))

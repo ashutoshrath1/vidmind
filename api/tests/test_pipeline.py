@@ -18,6 +18,8 @@ def fake_ask_factory(calls):
             return Overview(title="Product analytics 101", tldr="Activation, retention and the north star."), "raw"
         if cls is VisualOutput:
             return VisualOutput(), "{}"  # whole-video takeaways: covered by their own test
+        if messages[0]["content"] is pipeline.syn.SCREEN_SYSTEM:
+            return SectionOutput(title="On screen", notes=[]), "{}"  # the on-screen pass: covered by its own test
         prompt = messages[1]["content"][0]["text"]
         lo = float(re.search(r"Section (\d+)s", prompt).group(1))
         calls.append((lo, model, len(messages)))
@@ -95,9 +97,9 @@ def test_sections_run_in_parallel_with_fallback_repair_and_progress(fixture_clip
 def test_short_first_section_and_cuts_snap_to_silence():
     sr = pipeline.SAMPLE_RATE
     audio = np.random.default_rng(0).normal(0, 0.3, 200 * sr).astype(np.float32)
-    audio[int(37 * sr) : int(38 * sr)] = 0  # the only quiet second near the 40 s first cut
+    audio[int(18 * sr) : int(19 * sr)] = 0  # the only quiet second near the 20 s first cut
     sections = pipeline.plan_sections(audio, 200)
-    assert len(sections) == 4 and 37 <= sections[0][1] <= 38 and sections[-1][1] == 200  # 40 s, then ~50 s each
+    assert len(sections) == 5 and 18 <= sections[0][1] <= 19 and sections[-1][1] == 200  # 20 s, then ~45 s each
 
 
 def test_captions_replace_speech_recognition(fixture_clip, tmp_path, monkeypatch):
@@ -112,6 +114,45 @@ def test_captions_replace_speech_recognition(fixture_clip, tmp_path, monkeypatch
     result = pipeline.run(tmp_path, lambda *a, **k: None, src)
     assert result.transcriber == "creator subtitles" and result.youtube_id == "abc"
     assert [c.start_seconds for c in result.chapters] == [0, 22, 42]  # cuts at 20 and 40 s moved onto caption starts
+
+
+def test_sections_written_before_the_keyframes_get_checked_on_screen_notes_afterwards(fixture_clip, tmp_path, monkeypatch):
+    video, _ = fixture_clip
+    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
+    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
+    monkeypatch.setenv("LLM_MODELS", "model-a")
+    keyframes = pipeline._keyframes
+    monkeypatch.setattr(pipeline, "_keyframes", lambda *a: (time.sleep(1.0), keyframes(*a))[1])  # captions come first
+    sections_ask = fake_ask_factory([])
+    seen_screen = []
+
+    def fake_ask(messages, model, cls):
+        if messages[0]["content"] is pipeline.syn.SCREEN_SYSTEM:
+            text = messages[1]["content"][0]["text"]
+            frame_t = float(re.findall(r"\[frame ([\d.]+)s\]", text)[-1])  # a real keyframe
+            seen_screen.append(text)
+            out = {"title": "On screen", "notes": [
+                {"text": "The slide shows the target.", "evidence": [{"kind": "frame", "start_seconds": frame_t, "text": "slide"}]},
+                {"text": "Invented.", "evidence": [{"kind": "frame", "start_seconds": 59.9, "text": "nothing there"}]}]}
+            return SectionOutput.model_validate(out), json.dumps(out)
+        return sections_ask(messages, model, cls)
+
+    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
+    captions = [Segment(t + 1, t + 4, f"caption number {t} says something useful here") for t in (0, 21, 41)]
+    src = pipeline.Source(str(video), 60.0, audio=str(video), captions=captions, youtube_id="abc")
+    result = pipeline.run(tmp_path, lambda *a, **k: None, src)
+    assert result.pending and all(len(c.notes) == 1 for c in result.chapters)  # written without keyframes
+    for _ in range(100):
+        later = json.loads((tmp_path / "result.json").read_text())
+        if not later["pending"]:
+            break
+        time.sleep(0.05)
+    assert seen_screen and "NOTES ALREADY WRITTEN\n- A grounded note." in seen_screen[0]
+    at = float(re.findall(r"\[frame ([\d.]+)s\]", seen_screen[0])[-1])
+    starts = [c["start_seconds"] for c in later["chapters"]]
+    home = max(k for k, lo in enumerate(starts) if lo <= at)
+    # The slide note joined the section its keyframe falls in; the invented one failed the check.
+    assert [len(c["notes"]) for c in later["chapters"]] == [2 if k == home else 1 for k in range(len(starts))]
 
 
 def test_probe_rejects_non_video(tmp_path):

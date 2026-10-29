@@ -25,13 +25,13 @@ SAMPLE_RATE = 16000  # mono float32 in [-1, 1]; what faster-whisper expects and 
 _local = threading.Lock()  # one local ASR run at a time: jobs run in parallel, the model and the CPU/GPU are shared
 
 
-def transcribe(audio: np.ndarray) -> tuple[list[Segment], str]:
+def transcribe(audio: np.ndarray, queued: threading.Event | None = None) -> tuple[list[Segment], str]:
     """Timestamps are relative to the start of `audio`. Returns (segments, transcriber name).
     Order: Muse (if keyed) → Parakeet (if ASR_ENGINE=parakeet) → local faster-whisper, each falling through on error."""
     # Muse is ~8 s per audio minute; pipeline.run sends sections in parallel (5 x 60 s: 10 s).
     if os.environ.get("MODEL_API_KEY"):
         try:
-            return muse_asr_fast(audio), MUSE_ASR_MODEL
+            return muse_asr_fast(audio, queued=queued), MUSE_ASR_MODEL
         except Exception:
             log.exception("Muse transcription failed; falling back to local ASR")
     with _local:
@@ -143,30 +143,33 @@ def faster(audio: np.ndarray, speed: float = ASR_SPEED) -> np.ndarray:
     return np.frombuffer(raw, np.float32)
 
 
-def muse_asr_fast(audio: np.ndarray, speed: float = ASR_SPEED) -> list[Segment]:
+def muse_asr_fast(audio: np.ndarray, speed: float = ASR_SPEED, queued: threading.Event | None = None) -> list[Segment]:
     """Muse on the sped-up audio, with times scaled back to the original's clock."""
-    return [Segment(round(s.start * speed, 2), round(s.end * speed, 2), s.text) for s in muse_asr_chunked(faster(audio, speed))]
+    return [Segment(round(s.start * speed, 2), round(s.end * speed, 2), s.text)
+            for s in muse_asr_chunked(faster(audio, speed), queued)]
 
 
-def muse_asr_chunked(audio: np.ndarray) -> list[Segment]:
+def muse_asr_chunked(audio: np.ndarray, queued: threading.Event | None = None) -> list[Segment]:
     """Muse on ~CHUNK_S pieces cut at quiet moments, in parallel: timestamps within a few seconds, and faster
     (Muse takes ~8 s per audio minute per request)."""
     end = len(audio) / SAMPLE_RATE
     cuts = [quietest(audio, t, CHUNK_S / 3) for t in np.arange(CHUNK_S, end - CHUNK_S / 2, CHUNK_S)]
     bounds = [0.0, *cuts, end]
     pieces = [(a, audio[int(a * SAMPLE_RATE) : int(b * SAMPLE_RATE)]) for a, b in zip(bounds, bounds[1:])]
-    # Every piece in one wave (Muse allows 256 streams): 99 pieces of a 10-minute video in 5.05 s, vs 7.29 s as two
-    # waves of 64. A piece still out after HEDGE_S is sent again and the first reply wins (p50 3.6 s, max 5.0 s).
-    ex = ThreadPoolExecutor(max_workers=min(MAX_STREAMS, 2 * len(pieces)))
-    try:
-        copies = [[ex.submit(muse_asr, audio_piece)] for _, audio_piece in pieces]
-        wait([c[0] for c in copies], timeout=HEDGE_S)
-        for c, (_, audio_piece) in zip(copies, pieces):
-            if not c[0].done():
-                c.append(ex.submit(muse_asr, audio_piece))
-        found = [_first_answer(c) for c in copies]
-    finally:
-        ex.shutdown(wait=False, cancel_futures=True)  # don't wait on the losing copies
+    # All pieces of every section share one pool, in the order sections ask: the first section's pieces go first,
+    # so its notes can start while later sections are still being heard. A piece still out after HEDGE_S is sent
+    # again and the first reply wins.
+    copies = [[_pool.submit(muse_asr, audio_piece)] for _, audio_piece in pieces]
+    if queued:
+        queued.set()  # this audio's pieces are in line; whoever waited on that may send theirs
+    wait([c[0] for c in copies], timeout=HEDGE_S)
+    for c, (_, audio_piece) in zip(copies, pieces):
+        if not c[0].done():
+            c.append(_pool.submit(muse_asr, audio_piece))
+    found = [_first_answer(c) for c in copies]
+    for c in copies:
+        for f in c:
+            f.cancel()  # a losing copy still queued never goes out
     return [Segment(round(s.start + at, 2), round(s.end + at, 2), s.text)
             for (at, _), part in zip(pieces, found) for s in part]
 
@@ -187,9 +190,8 @@ def _first_answer(copies: list) -> list[Segment]:
 # One kept-alive pool for every ASR request: 99 pieces in 3.91 s on open connections, 4.74 s on a shared but cold
 # pool, 5.85 s with a new connection per request. No pre-warming: run beside the real requests it fought them for
 # connections (10-minute transcript ~10 s with it, 5.7 s without).
-# Every job's sections transcribe at once, each with its own pool: this one gate keeps all of them under Muse's
-# 256 concurrent streams (above it, 429s and their back-off took a 10-minute transcript from ~3 s to 7-11 s).
-_streams = threading.BoundedSemaphore(MAX_STREAMS - 16)
+# One pool for every ASR request of every job: it keeps all of them under Muse's 256 concurrent streams.
+_pool = ThreadPoolExecutor(max_workers=MAX_STREAMS - 16)
 _http = httpx.Client(limits=httpx.Limits(max_connections=MAX_STREAMS, max_keepalive_connections=MAX_STREAMS), timeout=300)
 
 
@@ -203,15 +205,14 @@ def muse_asr(audio: np.ndarray) -> list[Segment]:
     headers = {"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}"}
     body = _wav_bytes(audio)
     for attempt in range(4):
-        with _streams:
-            resp = _http.post(
-                MUSE_ASR_URL,
-                headers=headers,
-                files={
-                    "request": (None, json.dumps(request), "application/json"),
-                    "audio": ("audio.wav", body, "audio/wav"),
-                },
-            )
+        resp = _http.post(
+            MUSE_ASR_URL,
+            headers=headers,
+            files={
+                "request": (None, json.dumps(request), "application/json"),
+                "audio": ("audio.wav", body, "audio/wav"),
+            },
+        )
         if resp.status_code == 429:
             log.warning("Muse ASR 429 (attempt %d)", attempt + 1)
         if resp.status_code != 429 or attempt == 3:

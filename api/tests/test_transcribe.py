@@ -107,7 +107,7 @@ def test_fast_transcription_sends_half_the_audio_and_puts_times_back_on_the_vide
     from vidmind import transcribe as tr
 
     sent = []
-    monkeypatch.setattr(tr, "muse_asr_chunked", lambda a: sent.append(len(a) / 16000) or [tr.Segment(5.0, 6.5, "hi")])
+    monkeypatch.setattr(tr, "muse_asr_chunked", lambda a, queued=None: sent.append(len(a) / 16000) or [tr.Segment(5.0, 6.5, "hi")])
     segs = tr.muse_asr_fast(np.sin(np.arange(8 * 16000) / 20).astype(np.float32), speed=2.0)
     assert abs(sent[0] - 4.0) < 0.1  # 8 s of audio sent as ~4 s
     assert [(s.start, s.end) for s in segs] == [(10.0, 13.0)]

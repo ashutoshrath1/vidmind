@@ -158,6 +158,23 @@ def section_messages(
     return [{"role": "system", "content": SECTION_SYSTEM}, {"role": "user", "content": content}]
 
 
+SCREEN_SYSTEM = """You add what ONE video shows on screen and its notes miss. You get the notes already written
+(from the transcript) and the video's keyframes (timestamp, screen text, some images).
+- Only facts visible on screen (numbers, labels, diagrams, code, UI text) that no note below already states.
+- Every note cites a keyframe: {"kind":"frame","start_seconds":<exact frame timestamp from the list>,"text":<what it shows>}.
+- 0-8 notes; none is fine. Do not invent facts.
+Return ONLY: {"title": "On screen", "notes": [{"text": "...", "uncertain": false, "uncertain_reason": null,
+  "evidence": [{"kind": "frame", "start_seconds": 30.0, "text": "..."}]}]}"""
+
+
+def screen_messages(notes: list[str], frames: list[Frame], duration: float, job_dir: Path) -> list[dict]:
+    """The keyframes of the whole video, with the notes already written, for the on-screen pass."""
+    messages = section_messages([], frames, 0, duration, job_dir, True)
+    written = "\n".join(f"- {n}" for n in notes)
+    messages[1]["content"][0]["text"] = f"NOTES ALREADY WRITTEN\n{written}\n\n" + messages[1]["content"][0]["text"]
+    return [{"role": "system", "content": SCREEN_SYSTEM}, messages[1]]
+
+
 def mode_messages(mode: str, segments: list[Segment], frames: list[Frame], duration: float, job_dir: Path,
                   vision: bool) -> list[dict]:
     """The whole video at once (Spark's 1M context holds a 10 min transcript easily) for the whole-video outputs."""
