@@ -180,6 +180,43 @@ def screen_messages(notes: list[str], frames: list[Frame], duration: float, job_
     return [{"role": "system", "content": SCREEN_SYSTEM}, messages[1]]
 
 
+ARTICLE_SYSTEM = """You turn ONE chapter's checked notes into a short tutorial section people want to keep reading,
+in the style of a good GeeksforGeeks or engineering-blog article. The numbered notes are your ONLY source.
+- hook: one sentence that opens with the most concrete thing in the notes (a number, an example, an output, a name).
+- paragraphs: 2-5 short paragraphs. Conclusion first, then the detail. Lead with the example, explain after.
+  Short sentences. Proof, not adjectives.
+- Every paragraph lists "cites": the numbers of the notes it rests on (at least one). State nothing that is not in
+  the notes it cites: no outside facts, no guesses, no numbers you did not see.
+- Write about the subject, never about the video ("the speaker says", "this video shows" are banned).
+- Banned: "In today's...", "game-changer", "cutting-edge", "revolutionary", "here's why this matters",
+  "let's dive in", warm-up sentences, rhetorical or closing questions, em dashes.
+- picture: one sentence describing a simple explanatory illustration of this chapter's main idea, with no text in it.
+Return ONLY: {"hook": "...", "paragraphs": [{"text": "...", "cites": [0, 2]}], "picture": "..."}"""
+
+
+def article_messages(title: str, summary: str, key_terms: list[str], notes: list[str]) -> list[dict]:
+    numbered = "\n".join(f"[{i}] {n}" for i, n in enumerate(notes))
+    text = f"CHAPTER: {title}\nSUMMARY: {summary}\nKEY TERMS: {', '.join(key_terms)}\n\nNOTES\n{numbered}"
+    return [{"role": "system", "content": ARTICLE_SYSTEM}, {"role": "user", "content": text}]
+
+
+SLIDES_SYSTEM = """You explain the keyframes of ONE video. For each keyframe you get its timestamp, its screen text,
+and what was said around it.
+- Skip keyframes with no meaningful content: logos, title cards, blank or nearly blank screens, talking heads,
+  and repeats of a screen already explained.
+- For each one kept: "t" (its exact timestamp from the list), "title" (2-6 words), "explanation" (1-2 sentences: what
+  it shows and why it matters). Use only its screen text and what was said; invent nothing. No em dashes.
+Return ONLY: {"slides": [{"t": 30.0, "title": "...", "explanation": "..."}]}"""
+
+
+def slides_messages(frames: list[Frame], segments: list[Segment], around: float = 15.0) -> list[dict]:
+    blocks = []
+    for f in frames:
+        said = " ".join(s.text for s in segments if f.t - around <= s.start <= f.t + around)
+        blocks.append(f"[frame {f.t:g}s]\nSCREEN: {f.ocr_text.replace(chr(10), ' | ') or '(no text)'}\nSAID: {said or '(nothing)'}")
+    return [{"role": "system", "content": SLIDES_SYSTEM}, {"role": "user", "content": "\n\n".join(blocks) or "(no keyframes)"}]
+
+
 def mode_messages(mode: str, segments: list[Segment], frames: list[Frame], duration: float, job_dir: Path,
                   vision: bool) -> list[dict]:
     """The whole video at once (Spark's 1M context holds a 10 min transcript easily) for the whole-video outputs."""
@@ -346,10 +383,18 @@ def read_screen(image: bytes) -> str:
     return (r.choices[0].message.content or "").strip()
 
 
-def draw_card(prompt: str) -> bytes:
+def draw_card(prompt: str, strength: str = "low") -> bytes:
     """Muse Image: one rendered summary card ($0.01). Its web and image search are off: with them on it added
-    features the video never showed ("drag-and-drop", "collaborate") and renamed the product."""
-    resp = _client("muse").images.generate(model=CARD_MODEL, prompt=prompt, n=1, extra_body={
-        "reasoning_strength": "low",
-        "tool_enablement": {"enable_image_search": False, "enable_web_search": False, "enable_shell": False}})
-    return base64.b64decode(resp.data[0].b64_json)
+    features the video never showed ("drag-and-drop", "collaborate") and renamed the product.
+    A strength the API rejects falls back to "low"."""
+    for s in dict.fromkeys([strength, "low"]):
+        try:
+            resp = _client("muse").images.generate(model=CARD_MODEL, prompt=prompt, n=1, extra_body={
+                "reasoning_strength": s,
+                "tool_enablement": {"enable_image_search": False, "enable_web_search": False, "enable_shell": False}})
+            return base64.b64decode(resp.data[0].b64_json)
+        except openai.BadRequestError:
+            if s == "low":
+                raise
+            log.warning("Muse Image rejected reasoning_strength=%s; using low", s)
+    raise AssertionError("unreachable")

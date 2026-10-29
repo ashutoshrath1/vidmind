@@ -138,16 +138,37 @@ function Checks({ checks }: { checks: Check[] }) {
 
 export const chapterId = (start: number) => `chapter-${Math.round(start)}`;
 
-type ChapterProps = { chapter: Chapter; seek: Seek; fresh?: boolean };
+type ChapterProps = { chapter: Chapter; seek: Seek; base: string; pending?: boolean; fresh?: boolean };
 
-/** A finished chapter, read like a tutorial section: heading, its summary as the opening paragraph, then the notes. */
-export function ChapterView({ chapter: ch, seek, fresh }: ChapterProps) {
-  const { nodes, rest } = boldTerms([ch.summary, ...ch.notes.map((n) => n.text)], ch.key_terms);
+/** A finished chapter, read like a blog section: heading, lead line, illustration, then prose with its checked
+ * citations. Results without the article yet (older ones, or still being written) show the notes instead. */
+export function ChapterView({ chapter: ch, seek, base, pending, fresh }: ChapterProps) {
+  const id = chapterId(ch.start_seconds);
+  const article = ch.article?.filter((p) => p.text) ?? [];
+  const lead = ch.hook || ch.summary;
+  const { nodes, rest } = boldTerms([lead, ...(article.length ? article.map((p) => p.text) : ch.notes.map((n) => n.text))], ch.key_terms);
   return (
-    <section id={chapterId(ch.start_seconds)} aria-labelledby={`${chapterId(ch.start_seconds)}-h`} className={`arrive scroll-mt-40 ${fresh ? "flash rounded-lg" : ""}`}>
-      <h2 id={`${chapterId(ch.start_seconds)}-h`} className="font-display text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[2rem]">{ch.title}</h2>
-      {ch.summary && <p className="mt-5">{nodes[0]}</p>}
-      <NoteList notes={ch.notes} texts={nodes.slice(1)} seek={seek} />
+    <section id={id} aria-labelledby={`${id}-h`} className={`arrive scroll-mt-40 ${fresh ? "flash rounded-lg" : ""}`}>
+      <h2 id={`${id}-h`} className="font-display text-[1.5rem] leading-[1.2] font-bold tracking-[-0.02em] text-balance sm:text-[1.75rem]">{ch.title}</h2>
+      {lead && <p className={`mt-4 ${ch.hook ? "font-semibold" : ""}`}>{nodes[0]}</p>}
+      {ch.image_url && (
+        // eslint-disable-next-line @next/next/no-img-element -- served by the API per job, not a static asset
+        <img src={`${base}/${ch.image_url}`} alt={ch.image_alt ?? ""} width={1280} height={720} loading="lazy" decoding="async"
+          className="mt-7 aspect-video w-full rounded-2xl bg-sheet object-cover" />
+      )}
+      {article.length ? (
+        article.map((p, i) => (
+          <p key={i} className="mt-5">
+            {nodes[i + 1]}
+            {p.cites.map((c) => ch.notes[c] && <NoteLine key={c} note={ch.notes[c]} text="" seek={seek} />)}
+          </p>
+        ))
+      ) : (
+        <>
+          {pending && <p className="scanning mt-5 w-fit rounded-full px-1 font-sans text-sm text-graphite">Writing the article…</p>}
+          <NoteList notes={ch.notes} texts={nodes.slice(1)} seek={seek} />
+        </>
+      )}
       {rest.length > 0 && (
         <p className="mt-6 font-sans text-[0.9375rem] text-graphite">
           <span className="font-semibold text-ink">Key terms:</span> {rest.join(", ")}

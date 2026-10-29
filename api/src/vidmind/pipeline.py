@@ -23,8 +23,9 @@ import numpy as np
 
 from . import frames as fr
 from . import synthesize as syn
-from .schema import (Chapter, Frame, LearnOutput, LearnResult, Note, Overview, QuizItem, Rejected,
-                     SectionOutput, Segment, VisualOutput, _words, ground, ground_notes, snap_quote)
+from .schema import (FRAME_WINDOW_S, ArticleOutput, Chapter, Frame, LearnOutput, LearnResult, Note, Overview,
+                     Paragraph, QuizItem, Rejected, SectionOutput, Segment, Slide, SlidesOutput, VisualOutput, _words,
+                     ground, ground_notes, snap_quote)
 from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
 
 log = logging.getLogger(__name__)
@@ -208,6 +209,87 @@ def _card(assemble, job_dir: Path, state: dict, emit: Emit = _quiet) -> None:
     except Exception as e:
         log.exception("summary card failed")
         emit("stage", name="card", state="end", seconds=_since(started), model=syn.CARD_MODEL, error=f"{type(e).__name__}: {str(e)[:120]}")
+
+
+def _clean_article(out: ArticleOutput, n_notes: int) -> ArticleOutput:
+    """Keeps only paragraphs that cite at least one real note; with none left, no article (the page shows the notes)."""
+    dash = lambda s: s.replace(" — ", ", ").replace("—", ", ").strip()  # noqa: E731
+    paras = []
+    for p in out.paragraphs:
+        cites = sorted({c for c in p.cites if 0 <= c < n_notes})
+        if cites and p.text.strip():
+            paras.append(Paragraph(text=dash(p.text), cites=cites))
+    if not paras:
+        return ArticleOutput()
+    return ArticleOutput(hook=dash(out.hook), paragraphs=paras, picture=dash(out.picture))
+
+
+def _articles(chapters: list[Chapter], pool: list[str], emit: Emit = _quiet) -> None:
+    """Each chapter written as a tutorial section from its checked notes only, all chapters at once."""
+    started = time.monotonic()
+    emit("stage", name="article", state="start", detail=f"Writing {len(chapters)} chapters as an article")
+
+    def one(c: Chapter) -> bool:
+        messages = syn.article_messages(c.title, c.summary, c.key_terms, [n.text for n in c.notes])
+        out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, ArticleOutput)[0], "article", emit, "article")
+        out = _clean_article(out, len(c.notes))
+        c.hook, c.article, c.image_alt = out.hook, out.paragraphs, out.picture
+        return bool(out.paragraphs)
+
+    with ThreadPoolExecutor(max_workers=max(1, len(chapters))) as ex:
+        futures = [ex.submit(one, c) for c in chapters]
+    errors = [f.exception() for f in futures if f.exception()]
+    for e in errors:
+        log.warning("article chapter failed: %s", e)
+    emit("stage", name="article", state="end", seconds=_since(started),
+         written=sum(f.result() for f in futures if not f.exception()), of=len(chapters),
+         **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
+
+
+def _images(chapters: list[Chapter], job_dir: Path, emit: Emit = _quiet) -> None:
+    """One Muse Image illustration per chapter with an article, drawn without text (image models misspell)."""
+    started = time.monotonic()
+    todo = [(i, c) for i, c in enumerate(chapters) if c.article]
+    emit("stage", name="images", state="start", detail=f"Drawing {len(todo)} illustrations", model=syn.CARD_MODEL)
+
+    def one(i: int, c: Chapter) -> None:
+        prompt = IMAGE_PROMPT.format(idea=c.image_alt or c.hook, text=" ".join([c.hook, *(p.text for p in c.article)]))
+        (job_dir / "frames" / f"ch{i}.webp").write_bytes(syn.draw_card(prompt, "high"))
+        c.image_url = f"frames/ch{i}.webp"
+        c.image_alt = c.image_alt or f"An illustration of {c.title}."
+
+    with ThreadPoolExecutor(max_workers=max(1, len(todo))) as ex:
+        futures = [ex.submit(one, i, c) for i, c in todo]
+    errors = [f.exception() for f in futures if f.exception()]
+    for e in errors:
+        log.warning("illustration failed: %s", e)
+    emit("stage", name="images", state="end", seconds=_since(started), drawn=len(todo) - len(errors), of=len(todo),
+         model=syn.CARD_MODEL, **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
+
+
+def _slides(frames: list[Frame], segments: list[Segment], pool: list[str], state: dict, emit: Emit = _quiet) -> None:
+    """Meaningful keyframes explained in one call; only timestamps within FRAME_WINDOW_S of a real keyframe are kept."""
+    started = time.monotonic()
+    emit("stage", name="slides", state="start", detail=f"Explaining {len(frames)} keyframes")
+    try:
+        messages = syn.slides_messages(frames, segments)
+        out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, SlidesOutput)[0], "slides", emit, "slides")
+        slides: dict[float, Slide] = {}
+        for s in out.slides:
+            f = min(frames, key=lambda f: abs(f.t - s.t))
+            if abs(f.t - s.t) <= FRAME_WINDOW_S and s.title.strip() and s.explanation.strip() and f.t not in slides:
+                slides[f.t] = s.model_copy(update={"t": f.t, "explanation": s.explanation.replace("—", ", ")})
+        state["slides"] = sorted(slides.values(), key=lambda s: s.t)
+        emit("stage", name="slides", state="end", seconds=_since(started), kept=len(slides), of=len(frames))
+    except Exception as e:
+        log.exception("slide explanations failed; the notes stand without them")
+        emit("stage", name="slides", state="end", seconds=_since(started), error=f"{type(e).__name__}: {str(e)[:120]}")
+
+
+IMAGE_PROMPT = """A clean editorial explanatory illustration in a flat, minimal Apple-like style: light off-white
+background, soft muted colors with one warm accent, simple shapes, generous space. It shows: {idea}
+Context: {text}
+Absolutely no text, letters, numbers, labels, captions or logos anywhere in the image."""
 
 
 FIGURE_FPS = 0.25  # SAM looks every 4 s: slides and diagrams stay up longer; ~$0.03 and ~15 s for 10 minutes
@@ -502,7 +584,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     done: dict[int, Part] = {}
     state = {"transcriber": src.captions_from if src.captions is not None else "none (no audio track)",
              "overview": None, "actions": [], "scenarios": [], "extra_rejected": [], "card": None, "takeaways": [],
-             "diagram": None, "questions": [], "pending": False}
+             "diagram": None, "questions": [], "pending": False, "slides": []}
 
     def assemble() -> LearnResult:
         parts = [done[i] for i in sorted(done)]
@@ -530,6 +612,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             diagram=state["diagram"],
             questions=state["questions"],
             pending=state["pending"],
+            slides=state["slides"],
         )
 
     live: dict[int, str] = {}  # section → the model whose notes are shown as they are written
@@ -682,11 +765,28 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
 
     def after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
-        with ThreadPoolExecutor(max_workers=4) as ex2:
-            screen = ex2.submit(on_screen) if frames else None
-            whole_video(all_segments, frames, ex2)
+        def article_then_images() -> None:
             if screen:
-                screen.exception()  # logs its own failure
+                screen.exception()  # on-screen notes first: the article cites notes by index
+            with lock:
+                chapters = [p.chapter for i, p in sorted(done.items()) if p.chapter]
+            _articles(chapters, pool, emit)
+            if os.environ.get("MODEL_API_KEY"):
+                _images(chapters, job_dir, emit)
+
+        def slides() -> None:
+            try:
+                screens_f.result(timeout=180)  # the explanations read each keyframe's screen text
+            except Exception:
+                pass  # read or not, the keyframes are explained from what is there
+            _slides(frames, all_segments, pool, state, emit)
+
+        with ThreadPoolExecutor(max_workers=6) as ex2:
+            screen = ex2.submit(on_screen) if frames else None
+            ex2.submit(article_then_images)
+            if frames:
+                ex2.submit(slides)
+            whole_video(all_segments, frames, ex2)
         state["pending"] = False
         with lock:
             (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))

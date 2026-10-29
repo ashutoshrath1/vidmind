@@ -67,6 +67,14 @@ test("exports notes as Markdown with timestamps that link to the moment", async 
   assert.match(md, /## \[0:20\]\(https:\/\/youtu\.be\/abc\?t=20\) Targets/);
   assert.match(md, /on screen at \[0:30\]\(https:\/\/youtu\.be\/abc\?t=30\): Week-1 retention target: 40%/);
   assert.match(md, /1\. Target\?\n {3}- Answer: 40%/);
+  const blog = toMarkdown({
+    title: "R", tldr: "", source: "live", duration_seconds: 60, transcriber: "t", model: "m", dropped_notes: 0, quiz: [],
+    chapters: [{ title: "T", start_seconds: 0, summary: "s", key_terms: [], cover_url: null, hook: "Lead.",
+      article: [{ text: "Prose.", cites: [0, 5] }], notes: [{ text: "N.", uncertain: false, uncertain_reason: null,
+        evidence: [{ kind: "transcript", start_seconds: 9, quote: "q" }] }] }],
+  });
+  assert.match(blog, /Lead\.\n\nProse\. \(0:09\)/);
+  assert.doesNotMatch(blog, /- N\./);
 });
 
 test("diagrams become Mermaid with safe ids and labels", async () => {

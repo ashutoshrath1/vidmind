@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TraceEvent } from "../lib/trace.ts";
 import { buildView } from "../lib/trace.ts";
-import { slidesOf } from "./OnScreenSlides.ts";
+import { explain, isFiller, isQuiet, slidesOf } from "./OnScreenSlides.ts";
 
 const frame = (i: number, at: number, text: string): TraceEvent =>
   ({ t: 1, kind: "frame", i, at, url: `frames/${i}.jpg`, text, conf: 1, low_conf: false, seconds: 0 });
@@ -24,4 +24,15 @@ test("same words in another order fold into one slide; frame notes win over spok
   assert.deepEqual(s[0].notes.map((n) => n.text), ["cites the first"]);
   assert.deepEqual(s[1].notes.map((n) => n.text), ["said late"]);
   assert.deepEqual(s.map((x) => x.said.map((l) => l.text)), [["hello"], ["next"]]);
+});
+
+test("explanations match slides within 2 s; quiet screens and filler speech are spotted", () => {
+  const view = buildView([frame(0, 0, "Logo"), frame(1, 30, "one two three four five six seven")]);
+  const s = explain(slidesOf(view), [{ t: 31.5, title: "T", explanation: "E" }, { t: 10, title: "far", explanation: "x" }]);
+  assert.equal(s[0].explained, undefined);
+  assert.equal(s[1].explained?.title, "T");
+  assert.equal(isQuiet(s[0]), true);
+  assert.equal(isQuiet({ ...s[1], explained: undefined }), false);
+  assert.equal(isFiller({ start: 0, end: 1, text: "Yeah." }), true);
+  assert.equal(isFiller({ start: 0, end: 1, text: "Kubernetes runs pods" }), false);
 });

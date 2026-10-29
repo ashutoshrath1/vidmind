@@ -156,3 +156,10 @@ def test_events_resume_after_last_event_id():
     assert ids == sorted(ids) and [t.get("text") for t in traces] == ["second"]  # nothing replayed twice
 
 
+
+
+def test_frames_serves_only_pipeline_file_names():
+    for ok in ("0.jpg", "0_fig.jpg", "ch0.webp", "card.webp"):
+        assert client.get(f"/jobs/sample/frames/{ok}").status_code == 200, ok
+    for bad in ("../result.json", "x.png", "ch0.webp.jpg", "0.jpeg", "result.json"):
+        assert client.get(f"/jobs/sample/frames/{bad}").status_code == 404, bad

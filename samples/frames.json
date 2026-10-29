@@ -2,7 +2,7 @@
   {
     "t": 1.0,
     "url": "frames/0.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nService\nGitHub\nReact\nAPI\nDepartment\nConfig\nApp\nService\nGateway\nServer\nOrganization\nService\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/0_fig.jpg",
@@ -16,7 +16,7 @@
   {
     "t": 65.0,
     "url": "frames/1.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nRestTemplate\nWebClient\nSpringCloud Open Feign\nEmployee\nService\nGitHub\nDepartment\nService\nConfig\nServer\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nRestTemplate\nWebClient\nSpringCloud Open Feign\nEmployee\nService\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/1_fig.jpg",
@@ -30,7 +30,7 @@
   {
     "t": 81.0,
     "url": "frames/2.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nService\nGitHub\nReact\nApp\nAPI\nConfig\nServer\nGateway\nDepartment\nService\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/2_fig.jpg",
@@ -44,7 +44,7 @@
   {
     "t": 91.67,
     "url": "frames/3.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nSpring Cloud Netflix\nEureka Server\nGitHub\nConfig\nServer\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nGitHub\nEmployee\nService\nConfig\nServer\nReact\nApp\nAPI\nGateway\nSpring Cloud Netflix\nEureka Server\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/3_fig.jpg",
@@ -58,7 +58,7 @@
   {
     "t": 102.33,
     "url": "frames/4.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nGitHub\nEmployee\nService\nConfig\nServer\nReact\nAPI\nApp\nDepartment\nGateway\nService\nService\nRegistry\nOrganization\nSpring Cloud\nService\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/4_fig.jpg",
@@ -72,7 +72,7 @@
   {
     "t": 118.33,
     "url": "frames/5.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nSpring Cloud\nConfig Server\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nSpring Cloud\nConfig Server\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/5_fig.jpg",
@@ -100,7 +100,7 @@
   {
     "t": 198.33,
     "url": "frames/7.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nSpring Cloud\nSleuth module\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nGitHub\nService\nReact\nAPI\nConfig\nApp\nDepartment\nServer\nGateway\nService\nService\nSpring Cloud\nRegistry\nSleuth module\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/7_fig.jpg",
@@ -114,7 +114,7 @@
   {
     "t": 235.67,
     "url": "frames/8.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nGitHub\nDepartment\nService\nConfig\nServer\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/8_fig.jpg",
@@ -128,7 +128,7 @@
   {
     "t": 278.33,
     "url": "frames/9.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nCircuit\nbreaker\npattern\nReact\nApp\nAPI\nGateway\nEmployee\nService\nGitHub\nDepartment\nService\nConfig\nServer\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
     "ocr_conf": 100.0,
     "low_conf": false,
     "figure_url": "frames/9_fig.jpg",

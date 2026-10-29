@@ -254,10 +254,11 @@ export type Lane = { name: string; bars: Bar[] };
 
 const LANE_OF_STAGE: Record<string, string> = {
   fetch: "Source", audio: "Transcript", scenes: "Scene changes", frames: "Keyframes", crop: "Diagrams", ocr: "Screen text", card: "Summary card", screen: "On screen", web: "Go deeper",
+  article: "Article", images: "Images", slides: "Slides",
 };
-const LANE_OF_TASK: Record<string, string> = { overview: "Title", visual: "Takeaways", meet: "Actions", test: "Tests" };
-const LANE_ORDER = ["Source", "Transcript", "Scene changes", "Keyframes", "Diagrams", "Screen text", "Notes", "On screen", "Title", "Takeaways", "Actions", "Tests", "Go deeper", "Summary card"];
-const STAGE_LABEL: Record<string, string> = { fetch: "fetch", audio: "audio", scenes: "scan", frames: "grab", crop: "track diagrams", ocr: "read text", card: "draw card", screen: "read keyframes", web: "web search" };
+const LANE_OF_TASK: Record<string, string> = { overview: "Title", visual: "Takeaways", meet: "Actions", test: "Tests", screen: "On screen" };
+const LANE_ORDER = ["Source", "Transcript", "Scene changes", "Keyframes", "Diagrams", "Screen text", "Notes", "On screen", "Title", "Takeaways", "Actions", "Tests", "Article", "Images", "Slides", "Go deeper", "Summary card"];
+const STAGE_LABEL: Record<string, string> = { fetch: "fetch", audio: "audio", scenes: "scan", frames: "grab", crop: "track diagrams", ocr: "read text", card: "draw card", screen: "read keyframes", web: "web search", article: "write article", images: "draw images", slides: "explain slides" };
 
 /** The run as lanes of timed bars (the "behind the scenes" chart): every stage, transcription part and model attempt.
  * Bars still open at `now` are running, so the same chart animates live and in a replay. */

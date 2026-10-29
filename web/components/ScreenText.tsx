@@ -2,15 +2,15 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import OnScreenLightbox from "@/components/OnScreenLightbox";
-import { type Slide, slideText, slidesOf } from "@/components/OnScreenSlides";
+import { type Slide, explain, isFiller, isQuiet, slideText, slidesOf } from "@/components/OnScreenSlides";
 import SlidesGlyph from "@/components/SlidesGlyph";
 import { Button, type Seek } from "@/components/ui";
-import { formatTime } from "@/lib/api";
+import { type LearnResult, formatTime } from "@/lib/api";
 import { highlight, screenBlocks, screenText, searchFrames } from "@/lib/screen";
 import type { View } from "@/lib/trace";
 
-/** What the video showed, slide by slide, like a presenter view: each screen large, and beside it the checked notes
- * about it, what was said while it was up and the text on it, as grouped lists. Search covers all three. */
+/** "The slides, explained": each screen large, beside it the model's explanation of it (result.slides), else the checked
+ * notes about it; the transcript and screen text stay folded. Logo and blank screens fold into one quiet row. */
 export default function ScreenText({ view, base, seek }: { view: View; base: string; seek: Seek }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<number | null>(null);
@@ -20,14 +20,24 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
     const t = setTimeout(() => setCopied(null), 2000);
     return () => clearTimeout(t);
   }, [copied]);
+  // Workspace passes only the trace, so read the explanations from the result once the run is over.
+  const [explained, setExplained] = useState<LearnResult["slides"]>();
+  const ended = !!view.end;
+  useEffect(() => {
+    if (!ended) return;
+    let live = true;
+    fetch(`${base}/result`).then((r) => (r.ok ? r.json() : null)).then((r: LearnResult | null) => live && setExplained(r?.slides)).catch(() => {});
+    return () => { live = false; };
+  }, [base, ended]);
 
   if (!view.frames.length || view.keyframesError) return null;
-  const slides = slidesOf(view);
+  const slides = explain(slidesOf(view), explained);
   const texts = slides.map((s) => ({ at: s.start, url: s.frames[0].url, text: s.text }));
   const withText = searchFrames(texts, "");
   const q = query.trim();
   const hits = new Set(searchFrames(slides.map((s) => ({ at: s.start, url: s.frames[0].url, text: slideText(s) })), q).map((f) => f.url));
-  const shown = q ? slides.filter((s) => hits.has(s.frames[0].url)) : slides;
+  const shown = q ? slides.filter((s) => hits.has(s.frames[0].url)) : slides.filter((s) => !isQuiet(s));
+  const quiet = q ? [] : slides.filter(isQuiet);
   const reading = !!view.stages.ocr && !view.stages.ocr.end;
   const readCount = view.frames.filter((f) => f?.read).length;
 
@@ -42,7 +52,7 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
     <section aria-label="On screen" className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight">On screen</h2>
+          <h2 className="font-display text-2xl font-semibold tracking-tight">The slides, explained</h2>
           <p className="tabular mt-0.5 text-sm text-graphite">
             {reading ? `Reading screens, ${readCount} of ${view.frames.length}` : `${slides.length} screens, in order`}
           </p>
@@ -81,6 +91,26 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
             onOpen={() => setOpen(n)} onCopy={copy} copied={copied?.key} />;
         })}
       </ol>
+      {quiet.length > 0 && (
+        <details className="group rounded-[18px] bg-sheet shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+          <summary className="hit flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[15px] text-graphite [&::-webkit-details-marker]:hidden">
+            <span>{quiet.length} more {quiet.length === 1 ? "screen" : "screens"}: titles, logos and blank frames</span>
+            <SlidesGlyph name="right" className="size-3.5 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" />
+          </summary>
+          <ul className="grid grid-cols-2 gap-3 px-4 pb-4 sm:grid-cols-4">
+            {quiet.map((s) => (
+              <li key={s.frames[0].url + s.start}>
+                <button onClick={() => setOpen(slides.indexOf(s))} aria-label={`Open the screen at ${formatTime(s.start)} full size`}
+                  className="block w-full overflow-hidden rounded-xl bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-scan">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
+                  <img src={`${base}/${s.frames[0].url}`} width={320} height={180} loading="lazy" alt="" className="w-full" />
+                </button>
+                <span className="tabular mt-1 block text-[13px] text-graphite">{formatTime(s.start)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {open !== null && <OnScreenLightbox frames={slides.map((s) => s.frames[0])} at={open} go={setOpen} close={() => setOpen(null)} base={base} seek={seek} />}
     </section>
   );
@@ -97,14 +127,16 @@ export function TimeCapsule({ t, seek, dark = false }: { t: number; seek: Seek; 
   );
 }
 
-/** A Settings-style inset group: a quiet caption above, rows on one surface split by hairlines. */
-function Group({ title, children, footer }: { title: ReactNode; children: ReactNode; footer?: ReactNode }) {
+/** A Settings-style inset group, folded under a quiet caption. */
+function Fold({ title, children, open }: { title: ReactNode; children: ReactNode; open: boolean }) {
   return (
-    <div>
-      <h4 className="px-4 pb-1.5 text-[13px] font-medium text-graphite">{title}</h4>
+    <details open={open} className="group/f">
+      <summary className="hit flex cursor-pointer list-none items-center gap-1 px-4 pb-1.5 text-[13px] font-medium text-graphite [&::-webkit-details-marker]:hidden">
+        {title}
+        <SlidesGlyph name="right" className="size-3 transition-transform duration-300 ease-spring group-open/f:rotate-90 motion-reduce:transition-none" />
+      </summary>
       <div className="overflow-hidden rounded-[18px] bg-sheet shadow-[0_1px_2px_rgb(0_0_0/0.04)]">{children}</div>
-      {footer && <div className="px-4 pt-1.5">{footer}</div>}
-    </div>
+    </details>
   );
 }
 const Row = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
@@ -115,13 +147,12 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
   s: Slide; n: number; base: string; seek: Seek; query: string;
   onOpen: () => void; onCopy: (key: string, text: string, say: string) => void; copied?: string;
 }) {
-  const [moreSaid, setMoreSaid] = useState(false);
   const f = s.frames[0];
   const read = f.read;
   const marked = (t: string) =>
     highlight(t, query).map((p, i) => (p.hit ? <mark key={i} className="rounded-sm bg-marker text-ink">{p.text}</mark> : p.text));
-  const long = s.text.length > 200 || s.text.split("\n").length > 6;
-  const said = moreSaid || query ? s.said : s.said.slice(0, 3);
+  const said = s.said.filter((l) => !isFiller(l));
+  const ex = s.explained;
 
   return (
     <li className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -142,34 +173,42 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
       </div>
 
       <div className="min-w-0 space-y-6 text-[15px] leading-relaxed">
-        <Group title="What the notes say">
-          {s.notes.length ? s.notes.map((note, i) => (
-            <Row key={i} className="flex gap-3">
-              <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-scan" />
-              <span className="min-w-0">
-                {marked(note.text)}
-                {note.uncertain && <span className="ml-1.5 text-[13px] text-strike">Uncertain</span>}
-              </span>
-            </Row>
-          )) : <Row className="text-graphite">No note points at this screen.</Row>}
-        </Group>
+        {ex ? (
+          <div className="space-y-3">
+            <h3 className="font-display text-2xl leading-tight font-semibold tracking-tight text-balance">{marked(ex.title)}</h3>
+            <p className="font-serif text-[19px] leading-[1.6] text-ink">{marked(ex.explanation)}</p>
+            {s.notes.length > 0 && (
+              <Fold title={<span className="inline-flex items-center gap-1 text-proof"><SlidesGlyph name="check" className="size-4" />In the notes</span>} open={!!query}>
+                {s.notes.map((note, i) => <Row key={i}>{marked(note.text)}</Row>)}
+              </Fold>
+            )}
+          </div>
+        ) : s.notes.length > 0 && (
+          <ul className="space-y-3 font-serif text-[19px] leading-[1.6]">
+            {s.notes.map((note, i) => (
+              <li key={i} className="flex gap-3">
+                <span aria-hidden className="mt-3 size-1.5 shrink-0 rounded-full bg-scan" />
+                <span className="min-w-0">
+                  {marked(note.text)}
+                  {note.uncertain && <span className="ml-1.5 font-sans text-[13px] text-strike">Uncertain</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        {s.said.length > 0 && (
-          <Group title="What was said" footer={s.said.length > 3 && !query && (
-            <button onClick={() => setMoreSaid(!moreSaid)} aria-expanded={moreSaid} className="hit text-sm font-medium text-scan-ink hover:underline">
-              {moreSaid ? "Show less" : `Show all ${s.said.length} lines`}
-            </button>
-          )}>
+        {said.length > 0 && (
+          <Fold title={<>Transcript <span className="tabular font-normal">· {said.length}</span></>} open={!!query}>
             {said.map((l, i) => (
               <Row key={i} className="flex items-baseline gap-3">
                 <TimeCapsule t={l.start} seek={seek} />
                 <span className="min-w-0">{marked(l.text)}</span>
               </Row>
             ))}
-          </Group>
+          </Fold>
         )}
 
-        <details open={!long || !!query} className="group">
+        <details open={!!query} className="group">
           <summary className="hit flex cursor-pointer list-none items-center gap-1 px-4 pb-1.5 text-[13px] font-medium text-graphite marker:hidden [&::-webkit-details-marker]:hidden">
             Text on screen
             <SlidesGlyph name="right" className="size-3 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" />

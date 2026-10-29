@@ -9,7 +9,7 @@ import { useMiniPlayer } from "@/components/MiniPlayer";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import { SummaryCard } from "@/components/SummaryCard";
 import ProofSheet from "@/components/ProofSheet";
-import { ChapterView, SectionLive, chapterId } from "@/components/Sections";
+import { ChapterView, SectionLive } from "@/components/Sections";
 import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
 import Timeline from "@/components/Timeline";
@@ -46,7 +46,6 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
   const running = replaying || (!!job && job.status !== "done" && job.status !== "failed");
   const youtubeId = result?.youtube_id ?? view.source?.youtube_id ?? null;
   const title = result?.title ?? view.overview.result?.title ?? view.ready?.title ?? job?.source_title ?? "Your video";
-  const tldr = result?.tldr || view.overview.result?.tldr;
   // Uploads have the file at once; downloaded links once the download ends; YouTube plays from YouTube.
   const hasVideo = !!youtubeId || !!result || view.ready?.origin === "upload" || (!!view.stages.fetch?.end && !view.source?.streaming);
   const player = useMiniPlayer(youtubeId, base, title, at);
@@ -95,13 +94,12 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
         )}
 
         {tab === "notes" && (
-          <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-20">
-            <Contents result={result} view={view} />
-            <article className="mx-auto w-full max-w-[68ch] min-w-0 font-serif text-[1.1875rem] leading-[1.6] sm:text-[1.25rem] lg:mx-0">
+          <div>
+            <article className="mx-auto w-full max-w-[68ch] min-w-0 font-serif text-[1.1875rem] leading-[1.6] sm:text-[1.25rem]">
               {running && <div className="mb-10 font-sans text-base">{run}</div>}
-              <h1 className="font-display text-[2.25rem] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[3.5rem]">{title}</h1>
-              {tldr && <p className="arrive mt-6 font-display text-[1.25rem] leading-[1.45] tracking-[-0.01em] text-graphite sm:text-[1.375rem]">{tldr}</p>}
-              <div className="mt-14 space-y-16">
+              <h1 className="font-display text-[1.75rem] leading-[1.2] font-bold tracking-[-0.02em] text-balance sm:text-[2rem]">{title}</h1>
+              <ArticleMeta result={result} channel={view.ready?.channel} />
+              <div className="mt-10 space-y-16">
                 {result && !replaying && <Highlights result={result} seek={seek} />}
                 <Notes result={result} view={view} base={base} seek={seek} now={now} job={job} replaying={replaying} fresh={celebrate} />
               </div>
@@ -165,20 +163,40 @@ const Chevron = () => (
   </svg>
 );
 
-/** The video's title joins the bar once the large title has scrolled away, like an iOS navigation bar. */
+/** Once the title has scrolled away the bar names where you are: the video, then each chapter's heading as you reach it. */
 function ShellTitle({ title }: { title: string }) {
-  const [shown, setShown] = useState(false);
+  const [label, setLabel] = useState<string | null>(null);
   useEffect(() => {
-    const on = () => setShown(scrollY > 220);
+    const on = () => {
+      let at: string | null = scrollY > 160 ? title : null;
+      // The current chapter is the last one whose top has passed under the bar.
+      for (const el of document.querySelectorAll<HTMLElement>('[id^="chapter-"]'))
+        if (el.getBoundingClientRect().top < 140) at = el.querySelector("h2")?.textContent ?? at;
+      setLabel(at);
+    };
     on();
     addEventListener("scroll", on, { passive: true });
     return () => removeEventListener("scroll", on);
-  }, []);
+  }, [title]);
   return (
-    <p aria-hidden={!shown} className={`min-w-0 flex-1 truncate text-center font-display text-[0.9375rem] font-semibold tracking-[-0.01em] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}>
-      {title}
+    <p aria-live="polite" className="min-w-0 flex-1 truncate text-center font-display text-[0.9375rem] font-semibold tracking-[-0.01em]">
+      {/* Keyed so each new heading fades in (the arrive animation is still under reduced motion). */}
+      {label && <span key={label} className="arrive">{label}</span>}
     </p>
   );
+}
+
+/** One quiet line under the title, like a blog byline: length, how many notes were checked, the channel. */
+function ArticleMeta({ result, channel }: { result: LearnResult | null; channel?: string | null }) {
+  if (!result) return null;
+  const notes = result.chapters.reduce((n, c) => n + c.notes.length, 0);
+  const unsure = result.chapters.reduce((n, c) => n + c.notes.filter((x) => x.uncertain).length, 0);
+  const parts = [
+    result.duration_seconds ? `${Math.max(1, Math.round(result.duration_seconds / 60))} min video` : null,
+    notes ? `${notes} notes checked against the video${unsure ? `, ${unsure} marked unsure` : ""}` : null,
+    channel,
+  ].filter(Boolean);
+  return <p className="mt-3 font-sans text-[0.9375rem] text-graphite">{parts.join(" · ")}</p>;
 }
 
 /** Tabs as a segmented control: a solid capsule glides under the chosen tab on a spring. */
@@ -216,64 +234,6 @@ function Segmented({ tabs, tab, onPick }: { tabs: [Tab, string, number | null][]
   );
 }
 
-/** Chapters to jump to: a plain list beside the article on wide screens, the one being read in the tint; a "Contents" disclosure on phones. */
-function Contents({ result, view }: { result: LearnResult | null; view: View }) {
-  const items = result?.chapters.length
-    ? result.chapters.map((c) => ({ id: chapterId(c.start_seconds), label: c.title }))
-    : view.sections.map((s) => ({ id: chapterId(s.lo), label: `Section ${s.i + 1}` }));
-  const [current, setCurrent] = useState<string | null>(null);
-  const ids = items.map((i) => i.id).join(" ");
-  useEffect(() => {
-    // The current chapter is the last one whose heading has passed the top third of the screen.
-    const pick = () => {
-      let on: string | null = null;
-      for (const id of ids.split(" ")) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top < innerHeight / 3) on = id;
-      }
-      setCurrent(on);
-    };
-    pick();
-    addEventListener("scroll", pick, { passive: true });
-    return () => removeEventListener("scroll", pick);
-  }, [ids]);
-  if (!items.length) return <div aria-hidden />;
-  const jump = (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-  };
-  const list = (
-    <ol className="space-y-1">
-      {items.map((c) => (
-        <li key={c.id}>
-          <a
-            href={`#${c.id}`}
-            onClick={(e) => jump(e, c.id)}
-            aria-current={current === c.id ? "location" : undefined}
-            className={`block rounded-md py-1 text-[0.875rem] leading-snug transition-colors ${current === c.id ? "font-semibold text-scan-ink" : "text-graphite hover:text-ink"}`}
-          >
-            {c.label}
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-  return (
-    <>
-      <nav aria-label="Contents" className="sticky top-36 hidden max-h-[calc(100vh-10rem)] self-start overflow-y-auto pt-3 lg:block">
-        <p className="mb-3 text-xs font-semibold tracking-wide text-graphite uppercase">Contents</p>
-        {list}
-      </nav>
-      <details className="group/d mx-auto mb-10 max-w-[68ch] border-b border-rule pb-3 lg:hidden">
-        <summary className="hit flex cursor-pointer list-none items-center justify-between font-display font-semibold [&::-webkit-details-marker]:hidden">
-          Contents <Chevron />
-        </summary>
-        <nav aria-label="Contents (compact)" className="pt-3">{list}</nav>
-      </details>
-    </>
-  );
-}
-
 /** Results made before the trace existed have no run panel; they still get a status. */
 function Status({ job }: { job: JobStatus | null }) {
   if (!job) return <span className="text-sm text-graphite">Connecting</span>;
@@ -306,7 +266,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
     return (
       <div className="space-y-14">
         {chapters.map((ch, i) => (
-          <ChapterView key={i} chapter={ch} seek={seek} />
+          <ChapterView key={i} chapter={ch} seek={seek} base={base} pending={result?.pending} />
         ))}
       </div>
     );
@@ -317,7 +277,7 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
         // Only once its section is done in the trace, so a replay rebuilds the chapters in the order they landed.
         const chapter = s.done && chapters.find((c) => Math.abs(c.start_seconds - s.lo) < 1);
         return chapter ? (
-          <ChapterView key={s.i} chapter={chapter} seek={seek} fresh={fresh} />
+          <ChapterView key={s.i} chapter={chapter} seek={seek} base={base} pending={result?.pending} fresh={fresh} />
         ) : (
           <SectionLive key={s.i} section={s} now={now} failed={!!s.done && !s.done.ok} base={base} seek={seek} />
         );

@@ -1,9 +1,9 @@
 // The On screen walkthrough's data: keyframes folded into slides, each with the notes and speech of its time on screen.
 // Relative .ts imports only: `node --test components/OnScreenSlides.test.ts` runs this file without the Next toolchain.
-import type { Note } from "../lib/api.ts";
+import type { Note, Slide as Explained } from "../lib/api.ts";
 import type { FrameView, Line, View } from "../lib/trace.ts";
 
-export type Slide = { frames: FrameView[]; start: number; end: number; text: string; notes: Note[]; said: Line[] };
+export type Slide = { frames: FrameView[]; start: number; end: number; text: string; notes: Note[]; said: Line[]; explained?: Explained };
 
 // OCR reads the same slide's words in a different order frame to frame, so compare the sorted words.
 const key = (text = "") => text.toLowerCase().split(/\s+/).filter(Boolean).sort().join(" ");
@@ -37,3 +37,13 @@ export function slidesOf(view: View): Slide[] {
 
 /** Everything a slide holds as one searchable string: screen text, speech, notes. */
 export const slideText = (s: Slide) => [s.text, ...s.said.map((l) => l.text), ...s.notes.map((n) => n.text)].join("\n");
+
+/** Attach each model explanation (result.slides) to the slide with a frame within 2 s of its time. */
+export const explain = (slides: Slide[], explained: Explained[] = []): Slide[] =>
+  slides.map((s) => ({ ...s, explained: explained.find((x) => x.explanation?.trim() && s.frames.some((f) => Math.abs(f.at - x.t) <= 2)) }));
+
+const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
+/** Speech filler worth hiding: "Yeah", "Okay.", "Thank you". */
+export const isFiller = (l: Line) => words(l.text) <= 2;
+/** A logo, title or blank screen: nothing explains it, no note cites it, and it holds only a few words. */
+export const isQuiet = (s: Slide) => !s.explained && !s.notes.length && words(s.text) < 6;

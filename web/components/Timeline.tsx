@@ -1,6 +1,6 @@
 import { formatSeconds, formatTime, modelName } from "@/lib/api";
 import SlidesGlyph, { type GlyphName } from "@/components/SlidesGlyph";
-import { type Bar, type Rejected, type TraceEvent, type View, lanesOf, modelsUsed } from "@/lib/trace";
+import { type Bar, type Rejected, type TraceEvent, type View, lanesOf } from "@/lib/trace";
 
 type Of<K extends TraceEvent["kind"]> = Extract<TraceEvent, { kind: K }>;
 const ofKind = <K extends TraceEvent["kind"]>(ev: TraceEvent[], k: K) => ev.filter((e): e is Of<K> => e.kind === k);
@@ -27,25 +27,24 @@ export function runStats(view: View) {
   };
 }
 
-/** "How it was made": the headline numbers, the trust story (what was checked and what was thrown out), the steps in
- * plain words with their measured seconds, then the lane chart and the full log for people who want every detail. */
+/** "How it was made", for a judge with 5 seconds: the headline numbers, the pipeline in four stages with the real
+ * numbers and models from the trace, the trust story, then the full chart and log folded under "Run details". */
 export default function Timeline({ view, now, running }: { view: View; now: number; running: boolean }) {
   if (!view.events.length)
     return <p className="text-graphite">This result was made before VidMind kept a step-by-step record.</p>;
   const steps = view.events.flatMap((e) => {
     const text = sentence(e);
-    return text ? [{ t: e.t, text, tone: tone(e), lane: laneOf(e) }] : [];
+    return text ? [{ t: e.t, text, tone: tone(e), phase: phaseOf(e) }] : [];
   });
   const total = view.end?.t ?? (running ? now : view.last);
   const s = runStats(view);
-  const used = modelsUsed(view.events).filter((m) => m.did.length);
   const hero: [string, string, string][] = [
     ...(s.firstNote !== undefined ? [[formatSeconds(s.firstNote), "first note", "First checked note on the page"] as [string, string, string]] : []),
     [formatSeconds(total), running ? "so far" : "all notes", running ? "Time so far" : "Every section written and checked"],
     ...(s.proven !== undefined ? [[`${s.proven}%`, "proven", `${s.kept} of ${s.kept + s.dropped} notes matched the transcript or a keyframe`] as [string, string, string]] : []),
   ];
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header className={CARD}>
         <h2 className="font-display text-2xl font-semibold tracking-tight">{running ? "Making the notes" : "From video to checked notes"}</h2>
         <dl className="mt-5 grid grid-cols-3 divide-x divide-rule">
@@ -58,127 +57,134 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
             </div>
           ))}
         </dl>
-        <p className="mt-6 border-t border-rule pt-4 text-[15px] leading-relaxed text-graphite">
-          {view.source && <>{formatTime(view.source.duration)} of video, </>}
-          {plural(s.sections, "section")} written in parallel, {plural(s.kept, "note")} kept{s.dropped > 0 && <>, <span className="text-strike">{s.dropped} dropped</span></>}
-          {s.fixed > 0 && <>, {plural(s.fixed, "quote")} snapped to the exact words</>}
-          {s.onScreen > 0 && <>, then {plural(s.onScreen, "on-screen note")} from the keyframes</>}.
-          {view.last > total + 0.5 && <> Extras like the summary card finished by {formatSeconds(view.last)}.</>}
-        </p>
-        {used.length > 0 && (
-          <section aria-label="Models used" className="mt-4">
-            <ul className="flex flex-wrap gap-2">
-              {used.map((m) => (
-                <li key={m.model} title={`${m.model}: ${m.did.join(", ")}`} className="max-w-full rounded-full bg-lightbox px-3 py-1.5 text-[13px]">
-                  <span className="font-semibold">{pretty(m.model)}</span>
-                  <span className="text-graphite"> · {m.did.join(", ")}{m.seconds > 0 && ` · ${formatSeconds(m.seconds)}`}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </header>
+      <Pipeline view={view} stats={s} />
       <Trust stats={s} />
-      <Story view={view} now={now} />
-      <RunChart events={view.events} now={now} running={running} />
       <details className="group overflow-hidden rounded-[20px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
         <summary className="hit flex cursor-pointer list-none items-center justify-between px-5 py-3.5 font-medium [&::-webkit-details-marker]:hidden">
-          <span>Every event, in order</span>
-          <span className="flex items-center gap-1.5 text-graphite"><span className="tabular">{steps.length}</span>
+          <span>Run details</span>
+          <span className="flex items-center gap-1.5 text-[15px] text-graphite"><span className="tabular">{steps.length} events</span>
             <SlidesGlyph name="right" className="size-3.5 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" /></span>
         </summary>
-        <div className="overflow-x-auto">
-        <table className="w-full border-t border-rule text-sm">
-          <thead className="sr-only"><tr><th>Time</th><th>Step</th><th>What happened</th></tr></thead>
-          <tbody className="divide-y divide-rule">
-            {steps.map((s, i) => (
-              <tr key={i} className="align-top hover:bg-lightbox">
-                <td className="tabular w-16 py-2 pr-2 pl-4 text-right font-mono text-xs text-graphite">{formatSeconds(s.t)}</td>
-                <td className="hidden w-32 py-2 pr-2 sm:table-cell"><span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${LANE_TONE[s.lane] ?? "bg-lightbox text-graphite"}`}>{s.lane}</span></td>
-                <td className={`py-2 pr-4 break-words ${s.tone}`}>{s.text}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+        <div className="border-t border-rule p-3 sm:p-4"><RunChart events={view.events} now={now} running={running} /></div>
+        <ol aria-label="Every event, in order" className="divide-y divide-rule border-t border-rule text-sm">
+          {steps.map((s, i) => (
+            <li key={i} className="grid grid-cols-[3.75rem_minmax(0,1fr)] items-baseline gap-x-3 px-4 py-2 hover:bg-lightbox sm:grid-cols-[4rem_4.5rem_minmax(0,1fr)]">
+              <span className="tabular text-right font-mono text-xs whitespace-nowrap text-graphite">{formatSeconds(s.t)}</span>
+              <span className="hidden sm:block"><span className={`inline-block w-full rounded-full py-0.5 text-center text-[11px] font-semibold ${PHASE_TONE[s.phase]}`}>{s.phase}</span></span>
+              <span className={`break-words ${s.tone}`}>{s.text}</span>
+            </li>
+          ))}
+        </ol>
       </details>
     </div>
   );
 }
 
-/** "muse-voice-transcribe-1.0" → "Muse Voice Transcribe 1.0"; short words are acronyms ("sam-3.1" → "SAM 3.1"). */
-export const pretty = (id: string) => modelName(id).split("-").map((w) => (/^\d/.test(w) ? w : w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
+type Phase = "Listen" | "Watch" | "Write" | "Check" | "Done";
+const PHASE_TONE: Record<Phase, string> = {
+  Listen: "bg-lightbox text-cyan", Watch: "bg-lightbox text-pink", Write: "bg-scan-soft text-scan-ink", Check: "bg-proof-soft text-proof", Done: "bg-proof-soft text-proof",
+};
+const LISTEN = ["fetch", "audio", "transcribe"], WATCH = ["scenes", "frames", "crop", "ocr"];
+/** Which of the four stages an event belongs to (the log's tag column). */
+function phaseOf(e: TraceEvent): Phase {
+  if (e.kind === "source_ready" || e.kind === "source" || e.kind === "plan" || e.kind === "transcript") return "Listen";
+  if (e.kind === "stage") return LISTEN.includes(e.name) ? "Listen" : WATCH.includes(e.name) ? "Watch" : "Write";
+  if (e.kind === "frame" || e.kind === "keyframes_failed") return "Watch";
+  if (e.kind === "check" || e.kind === "section") return "Check";
+  if (e.kind === "done" || e.kind === "failed") return "Done";
+  return "Write";
+}
+// The chart's lanes (trace.ts ids) folded into the same four stages.
+const PHASE_OF_LANE: Record<string, Phase> = { Source: "Listen", Transcript: "Listen", "Scene changes": "Watch", Keyframes: "Watch", Diagrams: "Watch", "Screen text": "Watch" };
 
-type Step = { title: string; models: string[]; start: number; end: number; icon: GlyphName };
-const span = <E extends TraceEvent>(es: E[], from: (e: E) => number = (e) => e.t) => es.length ? [Math.min(...es.map(from)), Math.max(...es.map((e) => e.t))] as const : null;
+type Card = { name: Phase; icon: GlyphName; line: string; seconds?: number; models: string[]; warn?: string };
+const spanOf = (xs: [number, number][]) => (xs.length ? Math.max(...xs.map((x) => x[1])) - Math.min(...xs.map((x) => x[0])) : undefined);
+const MUSE_IMAGE_JOBS: Record<string, string> = { article: "the article", images: "its illustrations", slides: "slide explanations", card: "a summary card" };
 
-/** The run in plain words, in order. Only measured spans from the trace; a step that didn't happen isn't shown. */
-function Story({ view, now }: { view: View; now: number }) {
+/** The run as four cards, left to right: Listen, Watch, Write, Check. Every number and model comes from the trace. */
+function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof runStats> }) {
   const ev = view.events;
-  const of = <K extends TraceEvent["kind"]>(k: K) => ev.filter((e): e is Extract<TraceEvent, { kind: K }> => e.kind === k);
-  const stage = (n: string) => ev.filter((e): e is Extract<TraceEvent, { kind: "stage" }> => e.kind === "stage" && e.name === n);
-  const out: Step[] = [];
-  const add = (title: string, models: (string | undefined)[], s: readonly [number, number] | null, icon: GlyphName = "sparkle") =>
-    s && out.push({ title, models: [...new Set(models.filter((m): m is string => !!m))], start: s[0], end: s[1], icon });
+  const stages = ofKind(ev, "stage");
+  const stage = (n: string) => stages.filter((e) => e.name === n);
+  const ended = (n: string) => stage(n).find((e) => e.state === "end");
+  const spans = (es: TraceEvent[]) => es.map((e): [number, number] => [e.kind === "transcript" ? e.t - e.seconds : e.t, e.t]);
+  const uniq = (xs: (string | undefined)[]) => [...new Set(xs.filter((x): x is string => !!x))];
 
-  const fetch = stage("fetch");
-  const streamed = view.source?.streaming;
-  add(view.ready?.origin === "upload" ? "Received the upload" : `Opened the video on ${site(view.ready?.site) ?? "the web"}${streamed ? ", streamed (nothing downloaded)" : ""}`, [], span<TraceEvent>(fetch.length ? fetch : of("source_ready")), "link");
-  const tr = of("transcript").filter((e) => e.lines.length);
+  const tr = ofKind(ev, "transcript").filter((e) => e.lines.length);
   const subs = view.source?.transcript === "subtitles" || tr.some((e) => /subtitle/.test(e.engine));
-  if (tr.length || subs)
-    add(subs ? "Used the video's own captions, so no speech recognition was needed"
-      : `Transcribed ${view.source ? formatTime(view.source.duration) : "the"} of speech, ${plural(tr.length, "part")} at once${tr.some((e) => /muse/.test(e.engine)) ? " (sped up 2x, cut into 3-second pieces)" : ""}`,
-    subs ? [] : tr.map((e) => e.engine), span([...stage("audio"), ...tr], (e) => (e.kind === "transcript" ? e.t - e.seconds : e.t)), "wave");
-  const scenes = stage("scenes").find((e) => e.state === "end");
-  const frames = stage("frames");
-  if (scenes) add(`Found ${plural(scenes.cuts ?? 0, "slide or scene change")} and took a keyframe at each`, [], span([...stage("scenes"), ...frames]), "scenes");
-  const secs = of("section").filter((e) => e.ok);
-  const tries = of("model").filter((e) => /^s\d/.test(e.task));
-  const racers = [...new Set(tries.map((e) => e.model))];
-  if (secs.length) add(`Wrote ${plural(secs.length, "section")} in parallel${racers.length > 1 ? `, each sent to ${racers.length} models at once, the first good answer kept` : ""}`, secs.map((e) => e.model), span([...tries, ...secs]), "pen");
-  const checks = of("check");
-  const kept = secs.reduce((n, e) => n + e.notes, 0), dropped = secs.reduce((n, e) => n + e.rejected, 0);
-  if (checks.length) add(`Checked every quote against the transcript and every frame against a keyframe: ${plural(kept, "note")} kept${dropped ? `, ${dropped} dropped` : ""}`, [], span(checks), "check");
-  const ov = of("model").filter((e) => e.task === "overview");
-  if (view.overview.result || of("overview").length) add("Wrote the title and summary", ov.filter((e) => e.state === "win").map((e) => e.model), span([...ov, ...of("overview")]), "notes");
-  const vis = of("visual")[0];
-  if (vis) add(`Drew out ${plural(vis.takeaways, "takeaway")}${vis.diagram ? ` and a${/^[aeiou]/.test(vis.diagram) ? "n" : ""} ${vis.diagram} diagram` : ""}`, of("model").filter((e) => e.task === "visual" && e.state === "win").map((e) => e.model), span([...of("model").filter((e) => e.task === "visual"), vis]));
-  const screen = stage("screen").find((e) => e.state === "end");
-  if (screen) add(`Looked at the keyframes and added ${plural(screen.added ?? 0, "checked on-screen note")}`, [], span(stage("screen")), "eye");
-  const ocr = stage("ocr").find((e) => e.state === "end");
-  if (ocr) add(`Read the text on ${plural(of("frame").length || (stage("ocr")[0]?.frames?.length ?? 0), "keyframe")}`, [ocr.model], span([...stage("ocr"), ...of("frame")]), "text");
-  const crop = stage("crop").find((e) => e.state === "end" && !e.error);
-  if (crop?.cropped) add(`Cut out ${plural(crop.cropped, "diagram")}`, [crop.model], span(stage("crop")), "crop");
-  const card = stage("card").find((e) => e.state === "end");
-  if (card) add(card.error ? "Drew a summary card (dropped: its text didn't match)" : "Drew the summary card, then read its text back to check it", [card.model], span(stage("card")), "card");
-  if (!out.length) return null;
-  const total = Math.max(view.end?.t ?? 0, now, ...out.map((s) => s.end), 0.1);
+  const listen: Card = {
+    name: "Listen", icon: "wave",
+    line: subs ? "Used the video's own captions: no speech recognition needed"
+      : tr.length ? `Transcribed ${view.source ? formatTime(view.source.duration) : "the speech"} in ${plural(tr.length, "part")} at once` : "Listening…",
+    seconds: spanOf(spans([...stage("audio"), ...tr])),
+    models: subs ? ["Captions"] : uniq(tr.map((e) => e.engine)),
+  };
+
+  const cuts = ended("scenes")?.cuts, crop = ended("crop"), ocr = ended("ocr");
+  const watched = [cuts !== undefined && plural(cuts, "slide change"), view.frames.length && plural(view.frames.length, "keyframe"),
+    ocr && "text read", crop?.cropped && plural(crop.cropped, "diagram") + " cut out"].filter(Boolean);
+  const watch: Card = {
+    name: "Watch", icon: "eye",
+    line: view.keyframesError ? "Couldn't read the frames, so the notes come from speech alone" : watched.length ? watched.join(", ") : "Looking…",
+    seconds: spanOf(spans(stages.filter((e) => WATCH.includes(e.name)))),
+    models: uniq([crop?.model, ocr?.model]),
+  };
+
+  const tries = ofKind(ev, "model");
+  const extras = stages.filter((e) => e.state === "end" && MUSE_IMAGE_JOBS[e.name]);
+  const vis = ofKind(ev, "visual")[0];
+  const wrote = [
+    s.sections && `${plural(s.sections, "section")} in parallel`,
+    view.overview.result && "title and summary",
+    vis && plural(vis.takeaways, "takeaway"),
+    s.onScreen && plural(s.onScreen, "on-screen note"),
+    ...extras.filter((e) => !e.error).map((e) => MUSE_IMAGE_JOBS[e.name]),
+  ].filter(Boolean);
+  const failed = extras.filter((e) => e.error);
+  const write: Card = {
+    name: "Write", icon: "pen",
+    line: wrote.length ? wrote.join(", ") : "Writing…",
+    seconds: spanOf(spans([...tries, ...ofKind(ev, "section"), ...stages.filter((e) => !LISTEN.includes(e.name) && !WATCH.includes(e.name))])),
+    models: uniq([...tries.filter((e) => e.state === "win").map((e) => e.model), ...extras.map((e) => e.model)]),
+    warn: failed.length ? failed.map((e) => `${MUSE_IMAGE_JOBS[e.name][0].toUpperCase()}${MUSE_IMAGE_JOBS[e.name].slice(1)} was dropped: ${e.name === "card" ? "its text didn't match" : e.error}`).join(". ") : undefined,
+  };
+
+  const checks = ofKind(ev, "check");
+  const check: Card = {
+    name: "Check", icon: "check",
+    line: s.kept + s.dropped ? `${plural(s.kept, "note")} kept, ${s.fixed} ${s.fixed === 1 ? "quote" : "quotes"} fixed, ${s.dropped} dropped` : "Checking…",
+    seconds: spanOf(spans(checks)),
+    models: checks.length ? ["Exact match, no model"] : [],
+  };
+
   return (
-    <section aria-labelledby="how-steps">
-      <h3 id="how-steps" className="px-5 pb-2 font-display text-xl font-semibold tracking-tight">What happened, step by step</h3>
-      <ol className="overflow-hidden rounded-[22px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
-        {out.map((s) => (
-          <li key={s.title} className="grid grid-cols-[2rem_1fr_auto] items-start gap-x-3 border-b border-rule px-4 py-3.5 last:border-b-0 sm:px-5">
-            <span aria-hidden className="grid size-8 place-items-center rounded-[9px] bg-scan text-on-scan"><SlidesGlyph name={s.icon} className="size-[18px]" /></span>
-            <div className="min-w-0">
-              <p className="text-[15px] leading-snug">{s.title}</p>
-              {s.models.length > 0 && <p className="mt-0.5 text-[13px] text-graphite">{s.models.map(pretty).join(", ")}</p>}
-              {/* where the step sat in the run: a thin track scaled to the whole run */}
-              <span aria-hidden className="relative mt-2 block h-1 rounded-full bg-rule">
-                <span className="absolute inset-y-0 rounded-full bg-scan" style={{ left: `${(100 * s.start) / total}%`, width: `max(4px, ${(100 * (s.end - s.start)) / total}%)` }} />
-              </span>
+    <section aria-label="Pipeline">
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[listen, watch, write, check].map((c, i) => (
+          <li key={c.name} className="relative flex flex-col rounded-[22px] bg-sheet p-5 shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+            {i > 0 && <SlidesGlyph name="right" className="absolute top-1/2 -left-3 z-10 hidden size-3 -translate-y-1/2 text-graphite lg:block" />}
+            <div className="flex items-center justify-between">
+              <span aria-hidden className={`grid size-9 place-items-center rounded-[10px] ${c.name === "Check" ? "bg-proof text-white dark:text-black" : "bg-scan text-on-scan"}`}><SlidesGlyph name={c.icon} className="size-5" /></span>
+              {c.seconds !== undefined && <span className="tabular text-[15px] font-semibold">{formatSeconds(c.seconds)}</span>}
             </div>
-            <span className="tabular pt-0.5 text-right text-[15px]">
-              <span className="sr-only">took </span><span className="font-semibold">{formatSeconds(s.end - s.start)}</span>
-              <span className="block text-[13px] text-graphite">by {formatSeconds(s.end)}</span>
-            </span>
+            <h3 className="mt-3 font-display text-xl font-semibold tracking-tight"><span className="tabular mr-1.5 text-graphite">{i + 1}</span>{c.name}</h3>
+            <p className="mt-1 flex-1 text-[15px] leading-snug text-graphite first-letter:uppercase">{c.line}</p>
+            {c.warn && <p className="mt-2 text-[13px] leading-snug text-wait">{c.warn}</p>}
+            {c.models.length > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {c.models.map((m) => <li key={m} title={m} className="rounded-full bg-lightbox px-2.5 py-1 text-[12px] font-semibold">{m.includes(" ") ? m : pretty(m)}</li>)}
+              </ul>
+            )}
           </li>
         ))}
       </ol>
     </section>
   );
 }
+
+/** "muse-voice-transcribe-1.0" → "Muse Voice Transcribe 1.0"; short words are acronyms ("sam-3.1" → "SAM 3.1"). */
+export const pretty = (id: string) => modelName(id).split("-").map((w) => (/^\d/.test(w) ? w : w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
 
 /** The trust story: every note was checked before it reached the page; anything unsupported was thrown out, with why. */
 function Trust({ stats: s }: { stats: ReturnType<typeof runStats> }) {
@@ -225,35 +231,15 @@ function Trust({ stats: s }: { stats: ReturnType<typeof runStats> }) {
   );
 }
 
-const LANE_TONE: Record<string, string> = {
-  Source: "bg-lightbox text-ink", Transcript: "bg-lightbox text-cyan", Frames: "bg-lightbox text-pink",
-  Notes: "bg-scan-soft text-scan-ink", Check: "bg-proof-soft text-proof", Extras: "bg-lightbox text-wait", Result: "bg-proof-soft text-proof",
-};
-function laneOf(e: TraceEvent): string {
-  if (e.kind === "source_ready" || e.kind === "source" || e.kind === "plan") return "Source";
-  if (e.kind === "transcript" || (e.kind === "stage" && e.name === "audio")) return "Transcript";
-  if (e.kind === "frame" || e.kind === "keyframes_failed" || (e.kind === "stage" && ["scenes", "frames", "crop", "ocr", "screen"].includes(e.name))) return "Frames";
-  if (e.kind === "check") return "Check";
-  if (e.kind === "stage" && e.name === "card") return "Extras";
-  if ((e.kind === "model" || e.kind === "watch") && OTHER[e.task] && e.task !== "overview") return "Extras";
-  if (e.kind === "done" || e.kind === "failed") return "Result";
-  return "Notes";
-}
-
 const BAR: Record<Bar["state"], string> = {
   running: "animate-pulse bg-scan text-on-scan motion-reduce:animate-none",
-  done: "bg-graphite/45 text-ink",
-  won: "bg-proof text-white dark:text-black",
+  done: "bg-scan text-on-scan",
+  won: "bg-scan text-on-scan",
   lost: "bg-graphite/15 text-graphite",
   failed: "bg-strike text-white",
 };
-const OUTCOME: Record<Bar["state"], string> = { running: "working now", done: "done", won: "used in the notes", lost: "spare copy, finished but not needed", failed: "failed" };
-const LEGEND = [["done", "a step"], ["won", "model answer used"], ["lost", "spare copy (not needed)"], ["failed", "failed"], ["running", "working now"]] as const;
-// Plain-English lane names; trace.ts keeps the short ids.
-const LANE_LABEL: Record<string, string> = {
-  Source: "Getting the video", Transcript: "Speech to text", "Scene changes": "Slide changes", Keyframes: "Keyframes", Diagrams: "Diagrams",
-  "Screen text": "Text on screen", Notes: "Writing notes", Title: "Title & summary", "Summary card": "Summary card", "On screen": "On-screen notes", Takeaways: "Takeaways", "Go deeper": "Web search (older runs)",
-};
+const OUTCOME: Record<Bar["state"], string> = { running: "working now", done: "used", won: "used in the notes", lost: "spare copy, finished but not needed", failed: "failed" };
+const LEGEND = [["won", "used"], ["lost", "spare copy"], ["failed", "failed"]] as const;
 
 const barLabel = (b: Bar) => (b.model ? `${b.label.replace("section ", "§")} · ${pretty(b.model)}` : b.label);
 
@@ -271,35 +257,42 @@ function rows(bars: Bar[]): Bar[][] {
 /** One fixed-height row per step on a shared time axis. Overlapping attempts split the row into thinner bars, so
  * rows stay aligned; every bar opens a magnifier card on hover or focus. Grows live and in a replay. */
 export function RunChart({ events, now, running }: { events: View["events"]; now: number; running: boolean }) {
-  const lanes = lanesOf(events, now);
+  const grouped = new Map<Phase, Bar[]>();
+  for (const l of lanesOf(events, now)) {
+    const p = PHASE_OF_LANE[l.name] ?? "Write";
+    grouped.set(p, [...(grouped.get(p) ?? []), ...l.bars]);
+  }
+  const checks = ofKind(events, "check").map((c): Bar => ({ start: c.t - 0.2, end: c.t, label: `check ${task(c.task)}`, state: "done",
+    detail: c.problems.length ? `${plural(c.problems.length, "citation")} didn't match` : `all ${c.notes} notes matched` }));
+  if (checks.length) grouped.set("Check", checks);
+  const lanes = (["Listen", "Watch", "Write", "Check"] as const).filter((p) => grouped.has(p)).map((name) => ({ name, bars: grouped.get(name)! }));
   const end = Math.max(now, ...lanes.flatMap((l) => l.bars.map((b) => b.end)), 0.1);
   const step = [1, 2, 5, 10, 15, 30, 60].find((n) => end / n <= 6) ?? 120;
   const ticks = Array.from({ length: Math.floor(end / step) + 1 }, (_, i) => i * step);
   const x = (t: number) => `${(100 * t) / end}%`;
-  const ROW = 34;
   return (
     <section aria-label="The run, step by step" className={CARD}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-xl font-semibold tracking-tight">Second by second <span className="tabular font-normal text-graphite">{formatSeconds(end)}</span></h3>
+        <h3 className="text-[15px] font-semibold">Second by second <span className="tabular font-normal text-graphite">{formatSeconds(end)}</span></h3>
         <ul aria-label="Legend" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-graphite">
           {LEGEND.map(([k, label]) => (
             <li key={k} className="flex items-center gap-1.5"><span aria-hidden className={`h-2.5 w-4 rounded-full ${BAR[k].replace("animate-pulse ", "")}`} />{label}</li>
           ))}
         </ul>
       </div>
-      <div className="grid grid-cols-[5.5rem_1fr] sm:grid-cols-[9rem_1fr]">
+      <div className="grid grid-cols-[4rem_1fr] sm:grid-cols-[5rem_1fr]">
         <span />
         <div className="tabular relative h-5 text-[11px] text-graphite">
           {ticks.map((t) => <span key={t} className="absolute top-0 -translate-x-1/2 first:translate-x-0" style={{ left: x(t) }}>{t}s</span>)}
         </div>
         {lanes.map((lane) => {
           const laneRows = rows(lane.bars);
+          const ROW = Math.max(34, laneRows.length * 7 + 8); // a busy stage grows taller instead of squashing its bars
           const h = (ROW - 8) / laneRows.length;
           return (
             <div key={lane.name} className="contents">
               <span className="flex items-center gap-2 border-t border-rule pr-2 text-[12px] leading-tight font-medium sm:text-[13px]" style={{ height: ROW }}>
-                <span aria-hidden className={`size-2 shrink-0 rounded-full ${DOT[lane.name] ?? "bg-graphite"}`} />
-                <span>{LANE_LABEL[lane.name] ?? lane.name}</span>
+                <span>{lane.name}</span>
               </span>
               <div className="relative border-t border-rule" style={{ height: ROW }}>
                 {ticks.map((t) => <span key={t} aria-hidden className="absolute inset-y-0 w-px bg-rule" style={{ left: x(t) }} />)}
@@ -321,11 +314,6 @@ export function RunChart({ events, now, running }: { events: View["events"]; now
     </section>
   );
 }
-
-const DOT: Record<string, string> = {
-  Source: "bg-graphite", Transcript: "bg-cyan", "Scene changes": "bg-pink", Keyframes: "bg-pink", "Screen text": "bg-pink",
-  Notes: "bg-scan", "On screen": "bg-scan", Title: "bg-scan", Takeaways: "bg-wait", Diagrams: "bg-pink", "Go deeper": "bg-wait", Actions: "bg-wait", Tests: "bg-wait", "Summary card": "bg-wait",
-};
 
 /** A focusable target that shows a small details card on hover and keyboard focus. */
 export function Lens({ title, lines, children, className = "", style, below = false }: { title: string; lines: string[]; children: React.ReactNode; className?: string; style?: React.CSSProperties; below?: boolean }) {

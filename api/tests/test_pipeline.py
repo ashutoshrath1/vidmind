@@ -309,3 +309,60 @@ def test_a_muse_key_means_muse_models_only(monkeypatch):
     assert pipeline._model_order(syn.models(), 1) == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]  # no rotation
     monkeypatch.delenv("MODEL_API_KEY")
     assert syn.models() == ["groq:gpt-oss", "nvidia:x"]
+
+
+def test_clean_article_drops_paragraphs_without_valid_cites():
+    from vidmind.schema import ArticleOutput
+    out = ArticleOutput.model_validate({"hook": "Hook — here.", "picture": "A funnel.", "paragraphs": [
+        {"text": "Rests on note 1.", "cites": [1, 7]}, {"text": "No cites.", "cites": []},
+        {"text": "Bad cite only.", "cites": [5, -1]}]})
+    clean = pipeline._clean_article(out, 2)
+    assert [(p.text, p.cites) for p in clean.paragraphs] == [("Rests on note 1.", [1])] and clean.hook == "Hook, here."
+    assert pipeline._clean_article(ArticleOutput.model_validate(
+        {"hook": "h", "paragraphs": [{"text": "x", "cites": [9]}]}), 2) == ArticleOutput()
+
+
+def test_article_illustrations_and_slides_follow_the_notes(fixture_clip, tmp_path, monkeypatch):
+    from vidmind.schema import ArticleOutput, SlidesOutput
+    video, _ = fixture_clip
+    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
+    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
+    monkeypatch.setenv("LLM_MODELS", "model-a")
+    monkeypatch.setenv("MODEL_API_KEY", "test")  # turns on the illustrations (and the card, which fails here too)
+    sections_ask = fake_ask_factory([])
+    release = __import__("threading").Event()
+
+    def fake_ask(messages, model, cls, on_text=None):
+        if cls is ArticleOutput:
+            release.wait(5)  # holds the after-phase open so `pending` can be seen
+            return ArticleOutput.model_validate({"hook": "Activation is 40%.", "picture": "A rising bar.", "paragraphs": [
+                {"text": "Cited.", "cites": [0]}, {"text": "Invented.", "cites": [3]}]}), "{}"
+        if cls is SlidesOutput:
+            t = float(re.findall(r"\[frame ([\d.]+)s\]", messages[1]["content"])[0])
+            return SlidesOutput.model_validate({"slides": [
+                {"t": t + 0.5, "title": "Real slide", "explanation": "Shows the target."},
+                {"t": 33.0, "title": "Not a keyframe", "explanation": "Made up."}]}), "{}"
+        return sections_ask(messages, model, cls)
+
+    monkeypatch.setattr(pipeline.syn, "ask", fake_ask)
+    monkeypatch.setattr(pipeline.syn, "draw_card", lambda *a: (_ for _ in ()).throw(RuntimeError("image down")))
+    events = []
+    captions = [Segment(t + 1, t + 4, f"caption number {t} says something useful here") for t in (0, 21, 41)]
+    src = pipeline.Source(str(video), 60.0, audio=str(video), captions=captions)
+    result = pipeline.run(tmp_path, lambda *a, **k: None, src, lambda kind, **d: events.append((kind, d)))
+    time.sleep(0.5)
+    assert json.loads((tmp_path / "result.json").read_text())["pending"]  # article still being written
+    release.set()
+    for _ in range(200):
+        later = json.loads((tmp_path / "result.json").read_text())
+        if not later["pending"]:
+            break
+        time.sleep(0.05)
+    assert not later["pending"]
+    for c in later["chapters"]:
+        assert c["hook"] == "Activation is 40%." and [p["text"] for p in c["article"]] == ["Cited."]
+        assert c["notes"] and c["image_url"] is None  # the image failed; notes and article stand
+    assert [s["t"] for s in later["slides"]] == [1.0] and later["slides"][0]["title"] == "Real slide"
+    ends = {d["name"]: d for k, d in events if k == "stage" and d.get("state") == "end"}
+    assert "error" in ends["images"] and "error" not in ends["article"] and ends["slides"]["kept"] == 1
+    assert len(result.chapters) == 3

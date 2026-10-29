@@ -61,14 +61,6 @@ export default function Home() {
           </div>
         </section>
 
-        <Reveal className="mx-auto max-w-5xl px-4 sm:px-6">
-          <figure className="overflow-hidden rounded-3xl bg-sheet shadow-[0_30px_80px_-30px_rgb(0_0_0/0.35)] ring-1 ring-rule">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static product capture, already WebP and sized */}
-            <img src="/landing/notes.webp" width={1200} height={933} alt="A real VidMind result: notes, each with the moment in the video that backs it"
-              className="aspect-[16/10] w-full object-cover object-top" fetchPriority="high" />
-          </figure>
-        </Reveal>
-
         <section aria-labelledby="numbers" className="mx-auto max-w-5xl px-4 py-24 sm:px-6 sm:py-32">
           <h2 id="numbers" className="sr-only">Measured on real runs</h2>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-12 lg:grid-cols-4">

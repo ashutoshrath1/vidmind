@@ -79,6 +79,17 @@ class Slide(BaseModel):
     explanation: str = ""
 
 
+class ArticleOutput(BaseModel):
+    """The article writer's reply for one chapter; paragraphs are checked against the notes before use."""
+    hook: str = ""
+    paragraphs: list[Paragraph] = []
+    picture: str = ""  # one sentence: the illustration to draw, also its alt text
+
+
+class SlidesOutput(BaseModel):
+    slides: list[Slide] = []
+
+
 class QuizItem(BaseModel):
     question: str
     answer: str

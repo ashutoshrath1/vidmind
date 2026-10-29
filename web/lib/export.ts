@@ -11,7 +11,17 @@ export function toMarkdown(r: LearnResult): string {
   if (r.tldr) out.push(`> ${r.tldr}`, "");
   for (const ch of r.chapters) {
     out.push(`## ${at(ch.start_seconds)} ${ch.title}`, "");
-    if (ch.summary) out.push(ch.summary, "");
+    const lead = ch.hook || ch.summary;
+    if (lead) out.push(lead, "");
+    const article = ch.article?.filter((p) => p.text) ?? [];
+    if (article.length) {
+      // Each paragraph keeps the moments its notes were checked against.
+      for (const p of article) {
+        const times = p.cites.flatMap((c) => ch.notes[c]?.evidence.map((e) => at(e.start_seconds)) ?? []);
+        out.push(times.length ? `${p.text} (${[...new Set(times)].join(", ")})` : p.text, "");
+      }
+      continue;
+    }
     for (const n of ch.notes) {
       out.push(`- ${n.text}${n.uncertain ? " _(uncertain)_" : ""}`);
       for (const e of n.evidence)

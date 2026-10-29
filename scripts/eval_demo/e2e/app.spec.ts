@@ -4,14 +4,14 @@ import { expect, test } from "@playwright/test";
 const CACHED = "https://www.youtube.com/watch?v=Xrgk023l4lI";
 const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
-test("the hero fits the first screen: headline and input, a real product image, the footer at the end", async ({ page }) => {
+test("the hero fits the first screen: headline and input, no product image, the footer at the end", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Notes with proof.");
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
   await expect(page.getByLabel("Video link")).toBeInViewport();
   expect(await noSideScroll(page)).toBe(true);
   await expect(page.getByText("Built for the Meta AI Developer Hackathon, 2026 by Ashutosh Rath")).toBeAttached();
-  await expect(page.getByRole("img", { name: /A real VidMind result/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /A real VidMind result/ })).toHaveCount(0); // the hero image was removed
 });
 
 test("Add a file opens the picker and an upload reaches the result page", async ({ page }) => {
@@ -79,14 +79,15 @@ test.describe("result page", () => {
     await expect(page.getByText(/^\d+ screens, in order$/)).toBeVisible();
     await expect(page.getByRole("tab", { name: "Ask the video" })).toHaveCount(0);
     await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
+    await page.getByText("Run details").click({ force: true });
     const chart = page.getByRole("region", { name: "The run, step by step" });
-    await expect(chart.getByText("Writing notes", { exact: true })).toBeVisible();
-    await expect(chart.getByText("Speech to text", { exact: true })).toBeVisible();
+    await expect(chart.getByText("Write", { exact: true })).toBeVisible();
+    await expect(chart.getByText("Listen", { exact: true })).toBeVisible();
   });
 
   test("models are open by default; models are named from the run log", async ({ page }) => {
     await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
-    const panel = page.getByRole("region", { name: "Models used" });
+    const panel = page.getByRole("region", { name: "Pipeline" });
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("Muse Spark 1.2");
     await expect(panel).toContainText("Muse Voice Transcribe");
@@ -110,7 +111,7 @@ test("the finished example is a Muse run with a diagram and takeaways", async ({
   await expect(page.getByText("Precomputed sample")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("[data-diagram] svg")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
-  await expect(page.getByRole("region", { name: "Models used" })).toContainText("Muse Spark");
+  await expect(page.getByRole("region", { name: "Pipeline" })).toContainText("Muse Spark");
 });
 
 test("the theme switch turns on the dark theme and remembers it", async ({ page }) => {
@@ -154,7 +155,7 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
   const chart = page.getByRole("region", { name: "The run, step by step" });
   await chart.scrollIntoViewIfNeeded();
   await page.mouse.wheel(0, 400);
-  await expect(chart.getByText("Writing notes", { exact: true })).toBeVisible();
+  await expect(chart.getByText("Write", { exact: true })).toBeVisible();
   const slider = page.getByLabel("How many hours of video do you watch a week?");
   await slider.fill("10");
   await expect(page.getByText(/7 h 50 min/)).toBeVisible(); // 10 h x 47 min

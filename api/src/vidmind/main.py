@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import os
 import shutil
 import time
@@ -209,11 +210,16 @@ def get_video(job_id: str):
     return FileResponse(video)
 
 
+FRAME_NAME = re.compile(r"(\d+(_fig)?|at\d+)\.jpg|ch\d+\.webp|card\.webp")
+
+
 @app.get("/jobs/{job_id}/frames/{name}")
 def get_frame(job_id: str, name: str):
+    # Only names the pipeline writes: keyframes (3.jpg), diagram crops (3_fig.jpg), frames grabbed at a cited
+    # second (at400.jpg), chapter illustrations (ch2.webp) and the card. Nothing else, so no path tricks.
     path = _dir(job_id) / "frames" / name
-    if not (name.removesuffix(".jpg").removesuffix("_fig").isdigit() or name == "card.webp") or not path.exists():
+    if not FRAME_NAME.fullmatch(name) or not path.exists():
         raise HTTPException(404, "Frame not found")
-    return FileResponse(path, media_type="image/webp" if name == "card.webp" else "image/jpeg")
+    return FileResponse(path, media_type="image/webp" if name.endswith(".webp") else "image/jpeg")
 
 
