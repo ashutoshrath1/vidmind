@@ -58,6 +58,27 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
     ["trace", "How it was made", null],
   ];
   const tab = picked ?? "notes";
+  const [keysOpen, setKeysOpen] = useState(false);
+  // Keyboard: J/K move between sections, 1-3 switch tabs, C copies as Markdown, ? lists them. Never while typing.
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement)?.closest?.("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "?") return setKeysOpen((o) => !o);
+      if (e.key === "Escape") return setKeysOpen(false);
+      const tabKey = ({ "1": "notes", "2": "frames", "3": "trace" } as const)[e.key as "1" | "2" | "3"];
+      if (tabKey) return setTab(tabKey);
+      if (e.key === "c") return document.querySelector<HTMLButtonElement>("[data-copy-md]")?.click();
+      if (e.key !== "j" && e.key !== "k") return;
+      const heads = [...document.querySelectorAll<HTMLElement>("[id^='chapter-']")];
+      const y = 170; // under the floating bar
+      const next = e.key === "j"
+        ? heads.find((h) => h.getBoundingClientRect().top > y + 4)
+        : heads.findLast((h) => h.getBoundingClientRect().top < y - 4);
+      next?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    };
+    addEventListener("keydown", on);
+    return () => removeEventListener("keydown", on);
+  }, []);
   const base = jobUrl(jobId);
   const running = replaying || (!!job && job.status !== "done" && job.status !== "failed");
   const youtubeId = result?.youtube_id ?? view.source?.youtube_id ?? null;
@@ -167,6 +188,7 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
         )}
       </div>
       {player.player}
+      {keysOpen && <KeysSheet close={() => setKeysOpen(false)} />}
     </div>
     </FrameBase.Provider>
   );
@@ -306,7 +328,7 @@ function CopyMd({ result }: { result: LearnResult }) {
     setTimeout(() => setCopied(null), 2000);
   }
   return (
-    <Button variant="quiet" onClick={copy} aria-live="polite" className="min-h-9 shrink-0 px-3.5 py-1.5 text-sm max-sm:px-3">
+    <Button variant="quiet" onClick={copy} data-copy-md aria-live="polite" className="min-h-9 shrink-0 px-3.5 py-1.5 text-sm max-sm:px-3">
       {copied === "yes" ? <DoneMark>Copied</DoneMark> : copied === "no" ? "Couldn't copy" : <span>Copy<span className="max-sm:hidden"> as Markdown</span></span>}
     </Button>
   );
@@ -335,3 +357,23 @@ export function NotFound() {
   );
 }
 
+/** The keyboard shortcuts, one tap of ? away. */
+function KeysSheet({ close }: { close: () => void }) {
+  const keys: [string, string][] = [["J  K", "Next or previous section"], ["1  2  3", "Notes, On screen, How it was made"], ["C", "Copy as Markdown"], ["?", "Show or hide this list"]];
+  return (
+    <div role="dialog" aria-label="Keyboard shortcuts" className="glass fixed right-4 bottom-4 z-50 w-72 rounded-2xl p-4 font-sans text-sm shadow-xl">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="font-display font-semibold">Keyboard shortcuts</p>
+        <button onClick={close} aria-label="Close shortcuts" className="hit rounded-full px-2 text-graphite hover:text-ink">Esc</button>
+      </div>
+      <dl className="space-y-1.5">
+        {keys.map(([k, what]) => (
+          <div key={k} className="flex items-center justify-between gap-3">
+            <dt className="tabular rounded-md bg-graphite/15 px-1.5 py-0.5 font-mono text-[12px] text-ink">{k}</dt>
+            <dd className="text-right text-graphite">{what}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}

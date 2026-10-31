@@ -211,3 +211,18 @@ test("library: the sample is listed after visiting it, search filters it, and th
   await row.getByRole("link", { name: /Build GPT/ }).click();
   await expect(page).toHaveURL("/jobs/sample");
 });
+
+test("keyboard: ? lists the keys, J moves to the next section, 2 opens On screen", async ({ page }) => {
+  await page.goto("/jobs/sample", { waitUntil: "networkidle" }); // keys are listened for once the page is interactive
+  await page.getByRole("heading", { level: 1 }).waitFor({ timeout: 15_000 });
+  await page.keyboard.press("?");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toHaveCount(0);
+  const before = await page.evaluate(() => scrollY);
+  await page.keyboard.press("j");
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before + 100);
+  await page.keyboard.press("2");
+  await expect(page.getByRole("region", { name: "On screen" })).toBeVisible();
+});
+
