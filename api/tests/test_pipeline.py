@@ -379,3 +379,39 @@ def test_an_illustration_is_published_by_itself_as_soon_as_it_is_drawn(tmp_path,
     assert chapter.image_url == "frames/ch2.webp" and chapter.image_alt  # set before the page is told
     assert saved == ["frames/ch2.webp"] and events == ["image"]
     assert "Circuit breakers" in prompts[0][0] and "Stops calls" in prompts[0][0] and prompts[0][1] == "high"
+
+
+def test_a_raced_request_returns_the_faster_copy_and_survives_one_failure(monkeypatch):
+    import threading
+    import time
+
+    from vidmind import pipeline as pl
+
+    calls = []
+    lock = threading.Lock()
+
+    def draw():
+        with lock:
+            calls.append(1)
+            n = len(calls)
+        if n == 1:
+            time.sleep(2)  # the first copy is slow
+            return b"slow"
+        return b"fast"
+
+    started = time.monotonic()
+    assert pl._race(draw, 2) == b"fast" and time.monotonic() - started < 1.5
+
+    calls.clear()
+
+    def one_fails():
+        with lock:
+            calls.append(1)
+            n = len(calls)
+        if n == 1:
+            raise RuntimeError("500")
+        time.sleep(0.2)
+        return b"ok"
+
+    assert pl._race(one_fails, 2) == b"ok"
+    assert pl._race(lambda: b"single", 1) == b"single"  # one copy: no extra requests

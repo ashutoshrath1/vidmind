@@ -253,16 +253,38 @@ def _articles(chapters: list[Chapter], pool: list[str], emit: Emit = _quiet) -> 
          **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
-IMAGES_AT_ONCE = 6  # Muse Image "high": one image 9 s, 8 at once 22 s; 6 keeps the first ones fast
+FIRST_IMAGES_RACED = 2  # the first pictures to be drawn are sent twice, the faster copy wins
+IMAGES_AT_ONCE = 6  # Muse Image "high": one image 9 s alone; 6 at once finished all 13 in 52 s, 3 at once in 76 s
 
 
-def _draw_image(i: int, c: Chapter, job_dir: Path, emit: Emit, saved: Callable[[], None], started: float) -> None:
+def _race(draw: Callable[[], bytes], copies: int) -> bytes:
+    """The same request sent `copies` times; the first picture back wins. One image takes 9-18 s for the same prompt
+    (measured), and the first ones on the page are the ones people see, so they get a second chance."""
+    if copies < 2:
+        return draw()
+    ex = ThreadPoolExecutor(max_workers=copies)
+    try:
+        pending = {ex.submit(draw) for _ in range(copies)}
+        failure: Exception | None = None
+        while pending:
+            done, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for f in done:
+                if f.exception() is None:
+                    return f.result()
+                failure = f.exception()
+        raise failure  # every copy failed
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
+
+
+def _draw_image(i: int, c: Chapter, job_dir: Path, emit: Emit, saved: Callable[[], None], started: float,
+                copies: int = 1) -> None:
     """One Muse Image illustration for a chapter, drawn without text (image models misspell) from its summary and
     notes. Started the moment the chapter's notes exist, and published the moment it is drawn."""
     facts = " ".join([c.summary, *(n.text for n in c.notes[:4])])
     prompt = IMAGE_PROMPT.format(idea=c.image_alt or c.title, text=facts)
     (job_dir / "frames").mkdir(exist_ok=True)
-    (job_dir / "frames" / f"ch{i}.webp").write_bytes(syn.draw_card(prompt, "high"))
+    (job_dir / "frames" / f"ch{i}.webp").write_bytes(_race(lambda: syn.draw_card(prompt, "high"), copies))
     c.image_url = f"frames/ch{i}.webp"
     c.image_alt = c.image_alt or f"An illustration of {c.title}."
     emit("image", chapter=i, seconds=_since(started))
@@ -676,7 +698,8 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 if not img_started:
                     img_started.append(time.monotonic())
                     emit("stage", name="images", state="start", detail="Drawing the illustrations", model=syn.CARD_MODEL)
-                img_jobs.append(img_ex.submit(_draw_image, i, part.chapter, job_dir, emit, publish, img_started[0]))
+                img_jobs.append(img_ex.submit(_draw_image, i, part.chapter, job_dir, emit, publish, img_started[0],
+                                              2 if len(img_jobs) < FIRST_IMAGES_RACED else 1))
 
     first_queued = threading.Event()
 
@@ -813,7 +836,8 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             publish()
 
         with ThreadPoolExecutor(max_workers=6) as ex2:
-            screen = ex2.submit(on_screen) if frames else None
+            if frames:
+                ex2.submit(on_screen)
             ex2.submit(article_then_images)
             if os.environ.get("MODEL_API_KEY"):
                 ex2.submit(illustrations)  # right after the notes, beside the article: the first picture is the long pole
