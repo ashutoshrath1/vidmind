@@ -5,6 +5,7 @@ api/.venv/
 api/data/
 fixtures/
 .env*
+!.env.example
 .playwright-mcp/
 node_modules/
 .agents/

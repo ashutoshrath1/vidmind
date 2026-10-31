@@ -1,0 +1,43 @@
+# Runs the one-shot installers on fresh macOS, Ubuntu and Windows machines, so the README's commands are known to work.
+# Non-interactive: VIDMIND_PROVIDER picks Groq; no real key is needed to install and build.
+name: install
+on:
+  push:
+    branches: [main]
+    paths: [install.sh, install.ps1, uninstall.sh, uninstall.ps1, .env.example, api/pyproject.toml, web/package.json, .github/workflows/install.yml]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  unix:
+    strategy:
+      fail-fast: false
+      matrix: { os: [ubuntu-latest, macos-latest] }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install with the README one-liner
+        env: { VIDMIND_PROVIDER: "4", VIDMIND_API_KEY: test-key }
+        run: curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.sh" | bash
+      - name: Check the result
+        run: |
+          grep -q '^GROQ_API_KEY=test-key' ~/vidmind/.env
+          test -x ~/.local/bin/vidmind
+          test -d ~/vidmind/web/.next
+          cd ~/vidmind/api && uv run python -c "import vidmind.main"
+      - name: Uninstall with the README one-liner
+        run: curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/uninstall.sh" | bash && test ! -d ~/vidmind
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Install with the README one-liner
+        shell: powershell
+        env: { VIDMIND_PROVIDER: "4", VIDMIND_API_KEY: test-key }
+        run: irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1" | iex
+      - name: Check the result
+        shell: powershell
+        run: |
+          if (-not (Select-String -Path "$HOME\vidmind\.env" -Pattern '^GROQ_API_KEY=test-key')) { throw ".env missing the key" }
+          if (-not (Test-Path "$HOME\.local\bin\vidmind.cmd")) { throw "no vidmind command" }
+          if (-not (Test-Path "$HOME\vidmind\web\.next")) { throw "web not built" }
+      - name: Uninstall with the README one-liner
+        shell: powershell
+        run: irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/uninstall.ps1" | iex; if (Test-Path "$HOME\vidmind") { throw "not removed" }
