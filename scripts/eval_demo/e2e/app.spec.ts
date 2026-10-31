@@ -172,21 +172,19 @@ test("landing: real product images, scroll-replayed run, slider, FAQ, and paste-
   await expect(page.getByLabel("Video link")).toHaveValue("https://www.youtube.com/watch?v=WeY-ZnRofsk");
 });
 
-test("screen text: search a slide word, see it marked, click plays that moment; no match says so", async ({ page }) => {
+test("on screen: each slide with a time that plays that moment; no search box, no filler row", async ({ page }) => {
   await page.route("https://www.youtube-nocookie.com/embed/**", (r) => r.fulfill({ contentType: "text/html",
     body: "<script>window.got = []; addEventListener('message', (e) => got.push(JSON.parse(e.data)));</script>" }));
   await page.goto("/jobs/sample");
-  await page.getByRole("tab", { name: /Keyframes|On screen/ }).click({ timeout: 15_000 });
+  await page.getByRole("tab", { name: /On screen/ }).click({ timeout: 15_000 });
   const vault = page.getByRole("region", { name: "On screen" });
-  await vault.getByLabel("Search what was on screen").fill("juliet"); // the Shakespeare text on screen at 7:30
-  await expect(vault.getByText(/^[12] of \d+ screens match$/)).toBeVisible();
-  await expect(vault.locator("mark").first()).toHaveText(/^juliet$/i);
+  await expect(vault.getByRole("img", { name: "The screen at 7:30" })).toBeVisible(); // the Shakespeare text
+  await expect(vault.getByRole("searchbox")).toHaveCount(0);
+  await expect(vault.getByText(/titles, logos and blank frames/)).toHaveCount(0);
   await vault.getByRole("button", { name: "Play from 7:30" }).first().click();
   // The player opens on demand, so wait for its frame before reading what it was sent.
   await expect.poll(async () => (await page.frame({ url: /youtube-nocookie/ })?.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got)) ?? [])
     .toContainEqual({ event: "command", func: "seekTo", args: [450, true] });
-  await vault.getByLabel("Search what was on screen").fill("kafka");
-  await expect(vault.getByText("Nothing on screen matches “kafka”.")).toBeVisible();
   await expect(vault.getByRole("button", { name: "Copy all screen text" })).toBeVisible();
 });
 

@@ -106,28 +106,23 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
               </div>
               {result && !result.pending && !replaying && (
                 // The cheapest proof the check is real: what it threw out, and why.
-                <details className="group/d mt-20 border-t border-rule pt-6 font-sans text-base">
-                  <summary className="hit flex cursor-pointer list-none items-center gap-3 font-display text-[1.0625rem] font-semibold [&::-webkit-details-marker]:hidden">
-                    <span className="flex-1">
-                      {result.rejected?.length
-                        ? `${result.rejected.length} claim${result.rejected.length === 1 ? "" : "s"} removed: the video didn't support ${result.rejected.length === 1 ? "it" : "them"}`
-                        : `All ${result.notes_checked ?? ""} claims checked. None removed.`}
-                    </span>
-                    <Chevron />
-                  </summary>
+                <div className="mt-20 border-t border-rule pt-6 font-sans text-base text-graphite">
+                  <p>
+                    {result.rejected?.length
+                      ? `${result.notes_checked ?? ""} claims checked against the video; ${result.rejected.length} removed because the video didn't support ${result.rejected.length === 1 ? "it" : "them"}:`
+                      : `All ${result.notes_checked ?? ""} claims checked against the video. None removed.`}
+                  </p>
                   {result.rejected?.length ? (
-                    <ul className="mt-4 divide-y divide-rule">
+                    <ul className="mt-3 divide-y divide-rule">
                       {result.rejected.map((r, i) => (
                         <li key={i} className="py-3">
-                          <p className="text-graphite line-through decoration-strike/60">{r.text}</p>
+                          <p className="line-through decoration-strike/60">{r.text}</p>
                           <p className="mt-1 text-sm text-strike">{r.reasons.join("; ")}</p>
                         </li>
                       ))}
                     </ul>
-                  ) : (
-                    <p className="mt-3 text-graphite">Each quote was found in the transcript within seconds of where it says, and each screen citation is a real keyframe.</p>
-                  )}
-                </details>
+                  ) : null}
+                </div>
               )}
               {result?.card_url && !replaying && (
                 <section aria-labelledby="share-card" className="mt-16 font-sans">
@@ -157,12 +152,6 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
     </div>
   );
 }
-
-const Chevron = () => (
-  <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-graphite transition-transform group-open/d:rotate-90 motion-reduce:transition-none">
-    <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 /** Once the title has scrolled away the bar names where you are: the video, then each chapter's heading as you reach it. */
 function ShellTitle({ title }: { title: string }) {

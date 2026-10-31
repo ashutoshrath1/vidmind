@@ -166,8 +166,8 @@ export function ChapterView({ chapter: ch, seek, base, pending, fresh }: Chapter
           )}
         </figure>
       ) : ch.image_url && (
-        // eslint-disable-next-line @next/next/no-img-element -- served by the API per job, not a static asset
         // Drawn after the keyframe stand-in was shown: it arrives in place of it.
+        // eslint-disable-next-line @next/next/no-img-element -- served by the API per job, not a static asset
         <img key={ch.image_url} src={`${base}/${ch.image_url}`} alt={ch.image_alt ?? ""} width={1280} height={720} loading="lazy" decoding="async"
           className="arrive mt-7 aspect-video w-full rounded-2xl bg-sheet object-cover" />
       )}

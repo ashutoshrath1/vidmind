@@ -36,8 +36,6 @@ export function slidesOf(view: View): Slide[] {
 }
 
 /** Everything a slide holds as one searchable string: screen text, speech, notes. */
-export const slideText = (s: Slide) => [s.text, ...s.said.map((l) => l.text), ...s.notes.map((n) => n.text)].join("\n");
-
 /** Attach each model explanation (result.slides) to the slide with a frame within 2 s of its time. */
 export const explain = (slides: Slide[], explained: Explained[] = []): Slide[] =>
   slides.map((s) => ({ ...s, explained: explained.find((x) => x.explanation?.trim() && s.frames.some((f) => Math.abs(f.at - x.t) <= 2)) }));

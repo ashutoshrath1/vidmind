@@ -2,17 +2,16 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import OnScreenLightbox from "@/components/OnScreenLightbox";
-import { type Slide, explain, isFiller, isQuiet, slideText, slidesOf } from "@/components/OnScreenSlides";
+import { type Slide, explain, isFiller, isQuiet, slidesOf } from "@/components/OnScreenSlides";
 import SlidesGlyph from "@/components/SlidesGlyph";
 import { Button, type Seek } from "@/components/ui";
 import { type LearnResult, formatTime } from "@/lib/api";
-import { highlight, screenBlocks, screenText, searchFrames } from "@/lib/screen";
+import { screenBlocks, screenText, searchFrames } from "@/lib/screen";
 import type { View } from "@/lib/trace";
 
 /** "The slides, explained": each screen large, beside it the model's explanation of it (result.slides), else the checked
- * notes about it; the transcript and screen text stay folded. Logo and blank screens fold into one quiet row. */
+ * notes about it; the transcript and screen text stay folded. Logo and blank screens are left out. */
 export default function ScreenText({ view, base, seek }: { view: View; base: string; seek: Seek }) {
-  const [query, setQuery] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const [copied, setCopied] = useState<{ key: string; say: string } | null>(null);
   useEffect(() => {
@@ -34,10 +33,8 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
   const slides = explain(slidesOf(view), explained);
   const texts = slides.map((s) => ({ at: s.start, url: s.frames[0].url, text: s.text }));
   const withText = searchFrames(texts, "");
-  const q = query.trim();
-  const hits = new Set(searchFrames(slides.map((s) => ({ at: s.start, url: s.frames[0].url, text: slideText(s) })), q).map((f) => f.url));
-  const shown = q ? slides.filter((s) => hits.has(s.frames[0].url)) : slides.filter((s) => !isQuiet(s, !!explained?.length));
-  const quiet = q ? [] : slides.filter((s) => isQuiet(s, !!explained?.length));
+  // Titles, logos and blank frames are left out: nothing on them to explain.
+  const shown = slides.filter((s) => !isQuiet(s, !!explained?.length));
   const reading = !!view.stages.ocr && !view.stages.ocr.end;
   const readCount = view.frames.filter((f) => f?.read).length;
 
@@ -65,52 +62,13 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
       </div>
       <p aria-live="polite" className="sr-only">{copied?.say}</p>
 
-      <div role="search" className="relative">
-        <SlidesGlyph name="search" className="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-graphite" />
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100}
-          onKeyDown={(e) => e.key === "Escape" && setQuery("")}
-          placeholder="Search slides, speech and notes" aria-label="Search what was on screen"
-          className="h-11 w-full rounded-xl bg-[color-mix(in_srgb,var(--graphite)_14%,transparent)] pr-10 pl-10 text-base text-ink placeholder:text-graphite focus:ring-2 focus:ring-scan focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
-        {query && (
-          <button onClick={() => setQuery("")} aria-label="Clear search"
-            className="hit absolute top-1/2 right-2.5 grid size-6 -translate-y-1/2 place-items-center rounded-full text-graphite hover:text-ink">
-            <SlidesGlyph name="clear" className="size-[18px]" />
-          </button>
-        )}
-      </div>
-      {q && (
-        <p aria-live="polite" className="tabular text-sm text-graphite">
-          {shown.length ? `${shown.length} of ${slides.length} screens match` : `Nothing on screen matches “${q}”.`}
-        </p>
-      )}
-
       <ol className="space-y-14">
         {shown.map((s) => {
           const n = slides.indexOf(s);
-          return <SlideItem key={s.frames[0].url + s.start} s={s} n={n} base={base} seek={seek} query={q}
+          return <SlideItem key={s.frames[0].url + s.start} s={s} n={n} base={base} seek={seek}
             onOpen={() => setOpen(n)} onCopy={copy} copied={copied?.key} />;
         })}
       </ol>
-      {quiet.length > 0 && (
-        <details className="group rounded-[18px] bg-sheet shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
-          <summary className="hit flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[15px] text-graphite [&::-webkit-details-marker]:hidden">
-            <span>{quiet.length} more {quiet.length === 1 ? "screen" : "screens"}: titles, logos and blank frames</span>
-            <SlidesGlyph name="right" className="size-3.5 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" />
-          </summary>
-          <ul className="grid grid-cols-2 gap-3 px-4 pb-4 sm:grid-cols-4">
-            {quiet.map((s) => (
-              <li key={s.frames[0].url + s.start}>
-                <button onClick={() => setOpen(slides.indexOf(s))} aria-label={`Open the screen at ${formatTime(s.start)} full size`}
-                  className="block w-full overflow-hidden rounded-xl bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-scan">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- frames come from the API host */}
-                  <img src={`${base}/${s.frames[0].url}`} width={320} height={180} loading="lazy" alt="" className="w-full" />
-                </button>
-                <span className="tabular mt-1 block text-[13px] text-graphite">{formatTime(s.start)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
       {open !== null && <OnScreenLightbox frames={slides.map((s) => s.frames[0])} at={open} go={setOpen} close={() => setOpen(null)} base={base} seek={seek} />}
     </section>
   );
@@ -128,9 +86,9 @@ export function TimeCapsule({ t, seek, dark = false }: { t: number; seek: Seek; 
 }
 
 /** A Settings-style inset group, folded under a quiet caption. */
-function Fold({ title, children, open }: { title: ReactNode; children: ReactNode; open: boolean }) {
+function Fold({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
-    <details open={open} className="group/f">
+    <details className="group/f">
       <summary className="hit flex cursor-pointer list-none items-center gap-1 px-4 pb-1.5 text-[13px] font-medium text-graphite [&::-webkit-details-marker]:hidden">
         {title}
         <SlidesGlyph name="right" className="size-3 transition-transform duration-300 ease-spring group-open/f:rotate-90 motion-reduce:transition-none" />
@@ -143,14 +101,12 @@ const Row = ({ children, className = "" }: { children: ReactNode; className?: st
   <div className={`border-b border-rule px-4 py-3 last:border-b-0 ${className}`}>{children}</div>
 );
 
-function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
-  s: Slide; n: number; base: string; seek: Seek; query: string;
+function SlideItem({ s, n, base, seek, onOpen, onCopy, copied }: {
+  s: Slide; n: number; base: string; seek: Seek;
   onOpen: () => void; onCopy: (key: string, text: string, say: string) => void; copied?: string;
 }) {
   const f = s.frames[0];
   const read = f.read;
-  const marked = (t: string) =>
-    highlight(t, query).map((p, i) => (p.hit ? <mark key={i} className="rounded-sm bg-marker text-ink">{p.text}</mark> : p.text));
   const said = s.said.filter((l) => !isFiller(l));
   const ex = s.explained;
 
@@ -175,11 +131,11 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
       <div className="min-w-0 space-y-6 text-[15px] leading-relaxed">
         {ex ? (
           <div className="space-y-3">
-            <h3 className="font-display text-2xl leading-tight font-semibold tracking-tight text-balance">{marked(ex.title)}</h3>
-            <p className="font-serif text-[19px] leading-[1.6] text-ink">{marked(ex.explanation)}</p>
+            <h3 className="font-display text-2xl leading-tight font-semibold tracking-tight text-balance">{ex.title}</h3>
+            <p className="font-serif text-[19px] leading-[1.6] text-ink">{ex.explanation}</p>
             {s.notes.length > 0 && (
-              <Fold title={<span className="inline-flex items-center gap-1 text-proof"><SlidesGlyph name="check" className="size-4" />In the notes</span>} open={!!query}>
-                {s.notes.map((note, i) => <Row key={i}>{marked(note.text)}</Row>)}
+              <Fold title={<span className="inline-flex items-center gap-1 text-proof"><SlidesGlyph name="check" className="size-4" />In the notes</span>}>
+                {s.notes.map((note, i) => <Row key={i}>{note.text}</Row>)}
               </Fold>
             )}
           </div>
@@ -189,7 +145,7 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
               <li key={i} className="flex gap-3">
                 <span aria-hidden className="mt-3 size-1.5 shrink-0 rounded-full bg-scan" />
                 <span className="min-w-0">
-                  {marked(note.text)}
+                  {note.text}
                   {note.uncertain && <span className="ml-1.5 font-sans text-[13px] text-strike">Uncertain</span>}
                 </span>
               </li>
@@ -198,17 +154,17 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
         )}
 
         {said.length > 0 && (
-          <Fold title={<>Transcript <span className="tabular font-normal">· {said.length}</span></>} open={!!query}>
+          <Fold title={<>Transcript <span className="tabular font-normal">· {said.length}</span></>}>
             {said.map((l, i) => (
               <Row key={i} className="flex items-baseline gap-3">
                 <TimeCapsule t={l.start} seek={seek} />
-                <span className="min-w-0">{marked(l.text)}</span>
+                <span className="min-w-0">{l.text}</span>
               </Row>
             ))}
           </Fold>
         )}
 
-        <details open={!!query} className="group">
+        <details className="group">
           <summary className="hit flex cursor-pointer list-none items-center gap-1 px-4 pb-1.5 text-[13px] font-medium text-graphite marker:hidden [&::-webkit-details-marker]:hidden">
             Text on screen
             <SlidesGlyph name="right" className="size-3 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" />
@@ -220,13 +176,13 @@ function SlideItem({ s, n, base, seek, query, onOpen, onCopy, copied }: {
               const key = `${f.url}#${i}`;
               return b.code ? (
                 <Row key={i} className="flex items-start gap-2">
-                  <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] leading-relaxed"><code>{marked(b.text)}</code></pre>
+                  <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] leading-relaxed"><code>{b.text}</code></pre>
                   <button onClick={() => onCopy(key, b.text, `Copied the code at ${formatTime(s.start)}`)} aria-label={`Copy code at ${formatTime(s.start)}`}
                     className="hit shrink-0 rounded-full bg-scan-soft px-2.5 py-0.5 text-[13px] font-semibold text-scan-ink hover:bg-scan hover:text-on-scan">
                     {copied === key ? "Copied" : "Copy"}
                   </button>
                 </Row>
-              ) : <Row key={i} className="text-graphite">{marked(b.text)}</Row>;
+              ) : <Row key={i} className="text-graphite">{b.text}</Row>;
             })}
             {read?.figure && (
               <Row>

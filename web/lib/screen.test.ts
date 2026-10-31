@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { highlight, isCode, screenBlocks, screenText, searchFrames } from "./screen.ts";
+import { isCode, screenBlocks, screenText, searchFrames } from "./screen.ts";
 
 const frames = [
   { at: 1, url: "frames/0.jpg", text: "API Gateway\nSpring Cloud Netflix\nEureka Server" },
@@ -14,15 +14,6 @@ test("search: every word must appear, any case or order; empty query keeps frame
   assert.deepEqual(searchFrames(frames, "server").map((f) => f.at), [1, 87.8]);
   assert.deepEqual(searchFrames(frames, "kafka"), []);
   assert.deepEqual(searchFrames(frames, "").map((f) => f.at), [1, 87.8]);
-});
-
-test("highlight: marks every occurrence of every word, keeps case, escapes regex characters", () => {
-  assert.deepEqual(highlight("Eureka Server, eureka", "EUREKA"), [
-    { text: "Eureka", hit: true }, { text: " Server, ", hit: false }, { text: "eureka", hit: true },
-  ]);
-  assert.deepEqual(highlight("a (b) c", "(b)"), [{ text: "a ", hit: false }, { text: "(b)", hit: true }, { text: " c", hit: false }]);
-  assert.deepEqual(highlight("plain", " "), [{ text: "plain", hit: false }]);
-  assert.equal(highlight("Spring Cloud", "cloud spring").filter((p) => p.hit).length, 2);
 });
 
 test("code detection: prompts, commands, URLs, paths and code syntax, but not slide prose", () => {

@@ -3,7 +3,6 @@
 import { formatTime } from "./api.ts";
 
 export type ScreenFrame = { at: number; url: string; text: string };
-export type Piece = { text: string; hit: boolean };
 export type Block = { code: boolean; text: string };
 
 const terms = (query: string) => query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -12,16 +11,6 @@ const terms = (query: string) => query.toLowerCase().split(/\s+/).filter(Boolean
 export function searchFrames(frames: ScreenFrame[], query: string): ScreenFrame[] {
   const words = terms(query);
   return frames.filter((f) => f.text.trim() && words.every((w) => f.text.toLowerCase().includes(w)));
-}
-
-/** The text cut into plain and matched pieces, marking every occurrence of every query word. */
-export function highlight(text: string, query: string): Piece[] {
-  const words = terms(query).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  if (!words.length) return [{ text, hit: false }];
-  // Longest first, so "spring cloud" marks "springcloud" whole rather than "spring" alone.
-  const re = new RegExp(`(${words.sort((a, b) => b.length - a.length).join("|")})`, "gi");
-  // split with one capture group alternates plain, match, plain...: odd pieces are the matches.
-  return text.split(re).map((t, i) => ({ text: t, hit: i % 2 === 1 })).filter((p) => p.text);
 }
 
 const CODE = [
