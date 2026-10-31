@@ -82,7 +82,7 @@ def test_frame_names_are_restricted():
         ({"url": "https://www.udemy.com/course/x/learn/lecture/1", "rights_confirmed": True}, "Only YouTube"),
         ({"url": "http://localhost:8000/jobs", "rights_confirmed": True}, "Only YouTube"),
         ({"url": "http://169.254.169.254/latest/meta-data", "rights_confirmed": True}, "Only YouTube"),
-        ({"url": "file:///etc/passwd", "rights_confirmed": True}, "http(s) link"),
+        ({"url": "file:///etc/passwd", "rights_confirmed": True}, "starting with https://"),
     ],
 )
 def test_link_import_rejections(body, fragment, tmp_path):
@@ -245,3 +245,11 @@ def test_link_check_skips_the_youtube_page_and_falls_back_when_that_is_not_enoug
     calls.clear(); answers[:] = [fetch.DownloadError("Sign in to confirm you're not a bot"), {"title": "full"}]
     assert fetch._extract(yt) == {"title": "full"} and fetch._visitor["id"] is None
 
+
+
+def test_a_stopped_job_says_what_happened_in_plain_words():
+    say = jobs.failure_message
+    assert "little speech" in say(RuntimeError("No section produced grounded notes; see the API log"))
+    assert say(RuntimeError("Every model failed for notes (timeout)")).startswith("The AI model didn't answer")
+    assert say(ValueError("Video is 13.0 h; the limit is 12 hours")) == "Video is 13.0 h; the limit is 12 hours"
+    assert "Error" not in say(KeyError("x")) and "Try again" in say(KeyError("x"))

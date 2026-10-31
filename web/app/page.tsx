@@ -223,11 +223,11 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       const body = JSON.parse(xhr.responseText || "{}");
       if (xhr.status === 201) return onDone(body);
       setProgress(null);
-      setError(body.detail ?? `Upload failed (${xhr.status}).`);
+      setError(body.detail ?? "The upload didn't go through. Try again.");
     };
     xhr.onerror = () => {
       setProgress(null);
-      setError("Could not reach the VidMind API. Check that it is running on port 8000.");
+      setError("Can't reach VidMind. Check your connection, then try again (running it yourself? Start the API on port 8000).");
     };
     const form = new FormData();
     form.append("file", file);
@@ -246,12 +246,12 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       });
       const body = await res.json();
       if (res.status === 201) return onDone(body);
-      setError(typeof body.detail === "string" ? body.detail : `Request failed (${res.status}).`);
+      setError(typeof body.detail === "string" ? body.detail : "VidMind couldn't take this link right now. Try again in a moment.");
     } catch (err) {
       setError(
         err instanceof DOMException && err.name === "TimeoutError"
-          ? "Checking the link took over 90 seconds. Try again."
-          : "Could not reach the VidMind API. Check that it is running on port 8000.",
+          ? "YouTube took too long to answer. Try again in a moment."
+          : "Can't reach VidMind. Check your connection, then try again (running it yourself? Start the API on port 8000).",
       );
     }
     setChecking(null);

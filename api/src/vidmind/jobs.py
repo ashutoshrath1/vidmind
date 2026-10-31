@@ -122,12 +122,27 @@ def _work() -> None:
                 emit("stage", name="fetch", state="end", seconds=round(time.monotonic() - started, 2))
             update = lambda step=None, **kw: write_status(d, **({"status": step} if step else {}), **kw)  # noqa: E731
             pipeline.run(d, update, src, emit)
-            emit("done")  # before the status: the event stream closes as soon as it reads "done"
+            emit("done")  # the notes are out; the article, slides and card follow (see the event stream)
             write_status(d, status=DONE)
         except Exception as e:
             log.exception("job %s failed", job_id)
-            emit("failed", error=f"{type(e).__name__}: {e}")
-            write_status(d, status=FAILED, error=f"{type(e).__name__}: {e}")
+            emit("failed", error=failure_message(e))
+            write_status(d, status=FAILED, error=failure_message(e))
+
+
+def failure_message(e: Exception) -> str:
+    """What the page says when a job stops: what happened and what to try, never an exception class (the log has it)."""
+    msg = str(e)
+    if "No section produced grounded notes" in msg:
+        return ("No note could be checked against this video, so none is shown. This happens when a video has little "
+                "speech; try one where someone explains something.")
+    if msg.startswith("Every model failed"):
+        return "The AI model didn't answer (it may be busy). Try again in a minute."
+    if isinstance(e, ValueError):
+        return msg  # already written for people: limits, unreadable files
+    if msg.startswith("Download failed"):
+        return f"YouTube didn't let VidMind fetch this video {msg.removeprefix('Download failed').strip()}. Check it plays on YouTube, or download it and add it as a file."
+    return "Something went wrong while making the notes. Try again; if it happens again, add the video as a file."
 
 
 def start_workers() -> None:

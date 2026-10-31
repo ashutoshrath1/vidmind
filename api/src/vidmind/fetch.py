@@ -85,7 +85,7 @@ def check_url(url: str) -> dict:
     parsed = urlparse(url.strip())
     host = (parsed.hostname or "").lower()
     if parsed.scheme not in ("http", "https") or not host:
-        raise ValueError("Enter a full http(s) link")
+        raise ValueError("Paste the full YouTube link, starting with https://")
     # YouTube only (any other video is uploaded as a file): no private-network or paid-site link can get through.
     if not YoutubeIE.suitable(url):
         raise ValueError("Only YouTube links are supported. Download any other video and add it as a file.")
@@ -95,12 +95,12 @@ def check_url(url: str) -> dict:
     except DownloadError as e:
         msg = str(e).removeprefix("ERROR: ")
         if "DRM" in msg:
-            raise ValueError("This video is DRM-protected, so VidMind can't import it") from None
-        raise ValueError(f"Could not open this link ({_plain(msg)[:200]})") from None
+            raise ValueError("This video is copy-protected, so VidMind can't read it.") from None
+        raise ValueError(f"YouTube didn't open this video ({_plain(msg)[:160]}). Check it plays on YouTube, or add it as a file.") from None
     if info.get("_type") == "playlist":
-        raise ValueError("That link is a playlist or channel. Paste a link to a single video")
+        raise ValueError("That link is a playlist or channel. Paste the link of one video.")
     if info.get("is_live"):
-        raise ValueError("Live streams are not supported")
+        raise ValueError("Live streams can't be made into notes. Try again once the stream has ended.")
     duration = info.get("duration")
     if duration and duration > MAX_DURATION_S:
         raise ValueError(f"Video is {duration / 3600:.1f} h; the limit is {MAX_DURATION_S // 3600} hours")

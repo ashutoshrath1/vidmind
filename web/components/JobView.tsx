@@ -67,8 +67,8 @@ function Job({ id, at }: { id: string; at: number }) {
       // A dropped connection retries on its own; CLOSED means the job is gone or the API is down. Ask which.
       if (finished || cancelled || source.readyState !== EventSource.CLOSED) return;
       fetch(jobUrl(id)).then(
-        (r) => !cancelled && (r.status === 404 ? setMissing(true) : setError(`The VidMind API answered ${r.status}. Try reloading.`)),
-        () => !cancelled && setError("Can't reach the VidMind API. Check that it is running on port 8000, then reload."),
+        (r) => !cancelled && (r.status === 404 ? setMissing(true) : setError("VidMind had a problem loading these notes. Reload the page to try again.")),
+        () => !cancelled && setError("Can't reach VidMind. Check your connection, then reload (running it yourself? Start the API on port 8000)."),
       );
     };
     return () => {
