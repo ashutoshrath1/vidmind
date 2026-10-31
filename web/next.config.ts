@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
+  devIndicators: false, // the dev badge would show in screen recordings of the running app
   partialPrefetching: true,
   turbopack: {
     rules: {

@@ -11,7 +11,7 @@ pkill -f "vidmind.main:app" 2>/dev/null || true
 rm -f "$HOME/.local/bin/vidmind"
 if [ -d "$DIR" ]; then rm -rf "$DIR"; echo "✓ Removed $DIR"; else echo "Nothing at $DIR"; fi
 if command -v ollama >/dev/null 2>&1 && ollama list 2>/dev/null | grep -q "^$OLLAMA_MODEL"; then
-  read -r -p "Also delete the Ollama model $OLLAMA_MODEL (1.9 GB)? [y/N] " a </dev/tty
-  [[ "$a" =~ ^[Yy] ]] && ollama rm "$OLLAMA_MODEL" && echo "✓ Deleted $OLLAMA_MODEL"
+  a=""; { read -r -p "Also delete the Ollama model $OLLAMA_MODEL (1.9 GB)? [y/N] " a </dev/tty; } 2>/dev/null || true  # no terminal: keep it
+  if [[ "$a" =~ ^[Yy] ]]; then ollama rm "$OLLAMA_MODEL" && echo "✓ Deleted $OLLAMA_MODEL"; fi
 fi
 echo "✓ VidMind uninstalled."
