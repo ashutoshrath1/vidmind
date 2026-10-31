@@ -39,14 +39,15 @@ export default function MadeChart({ view, lead = 0 }: { view: View; lead?: numbe
                   className={`absolute top-0 h-7 min-w-2 rounded-full ${r.model ? "bg-scan" : "bg-graphite/40"} outline-offset-2 focus-visible:outline-2 focus-visible:outline-scan`}
                   style={{ left: pct(r.start), width: `calc(${pct(r.end - r.start)})` }}
                 />
-                <span
-                  className="tabular absolute top-0 flex h-7 items-center gap-1.5 text-[13px] leading-none whitespace-nowrap text-graphite"
-                  style={r.end / max > 0.6 ? { right: `calc(${100 - 100 * (r.start / max)}% + 8px)` } : { left: `calc(${pct(r.end)} + 8px)` }}
-                >
-                  <b className="font-semibold text-ink">{formatSeconds(r.end - r.start)}</b> {r.tool}
-                  {r.count ? <span className="hidden md:inline"> · {r.count}</span> : null}
-                </span>
               </div>
+              {/* Its own line under the bar, so it can never run into the step name or the next bar. */}
+              <p
+                className="tabular text-[13px] leading-snug text-graphite sm:col-start-2"
+                style={{ paddingLeft: `min(${pct(r.start)}, 55%)` }}
+              >
+                <b className="font-semibold text-ink">{formatSeconds(r.end - r.start)}</b> {r.tool}
+                {r.count ? <span className="hidden md:inline"> · {r.count}</span> : null}
+              </p>
             </li>
           ))}
         </ol>

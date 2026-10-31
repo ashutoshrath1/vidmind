@@ -148,6 +148,16 @@ def get_job(job_id: str):
     return jobs.read_status(job_id)
 
 
+STREAM_QUIET_S = 120.0  # follow-up work that died never clears pending; the card alone is ~20 s without events
+
+
+def _pending(d: Path) -> bool:
+    try:
+        return bool(json.loads((d / "result.json").read_bytes()).get("pending"))
+    except (OSError, ValueError):
+        return False
+
+
 @app.get("/jobs/{job_id}/events")
 async def job_events(job_id: str, request: Request):
     """Server-sent events until the job ends: the job status whenever it changes (default event), and each new line
@@ -161,6 +171,7 @@ async def job_events(job_id: str, request: Request):
     async def stream():
         last = object()  # not None: the sample's job.json has no updated_at
         offset = int(resume) if resume.isdigit() else 0
+        complete, quiet_since = False, time.monotonic()
         while True:
             try:
                 status = jobs.read_status(job_id)  # one small file read
@@ -171,14 +182,20 @@ async def job_events(job_id: str, request: Request):
                 with trace.open("rb") as f:
                     f.seek(offset)
                     chunk = f.read()
-                complete = chunk[: chunk.rfind(b"\n") + 1]  # a line still being written waits for the next tick
-                for line in complete.splitlines(keepends=True):
+                whole = chunk[: chunk.rfind(b"\n") + 1]  # a line still being written waits for the next tick
+                for line in whole.splitlines(keepends=True):
                     offset += len(line)
+                    complete = complete or b'"kind": "complete"' in line
+                    quiet_since = time.monotonic()
                     yield f"id: {offset}\nevent: trace\ndata: {line.decode().rstrip()}\n\n"
-            if status.get("updated_at") != last:
+            # "done" means the notes are out; the article, slides and card keep streaming until "complete". A job from
+            # before that event existed has pending off; one whose follow-up work died ends after a long silence.
+            ended = status.get("status") == jobs.FAILED or (status.get("status") == jobs.DONE and (
+                complete or time.monotonic() - quiet_since > STREAM_QUIET_S or not _pending(d)))
+            if status.get("updated_at") != last or ended:
                 last = status.get("updated_at")
-                yield f"data: {json.dumps({**status, 'server_time': time.time()})}\n\n"
-            if status.get("status") in (jobs.DONE, jobs.FAILED):
+                yield f"data: {json.dumps({**status, 'server_time': time.time(), **({'ended': True} if ended else {})})}\n\n"
+            if ended:
                 return
             await asyncio.sleep(0.1)
 

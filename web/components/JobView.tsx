@@ -48,7 +48,8 @@ function Job({ id, at }: { id: string; at: number }) {
     });
     source.onmessage = async (msg) => {
       const status: JobStatus = JSON.parse(msg.data);
-      finished = status.status === "done" || status.status === "failed";
+      // "ended" comes after the notes' follow-up work (article, screen text, slides, card) has streamed too.
+      finished = !!status.ended || status.status === "failed";
       if (finished) source.close(); // otherwise EventSource reconnects when the server ends the stream
       if (status.server_time) setClock({ offset: status.server_time - Date.now() / 1000, wall: Date.now() });
       setJob(status);

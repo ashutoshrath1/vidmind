@@ -89,6 +89,6 @@ function mermaidConfig(dark: boolean) {
     : { primaryColor: "#f5f5f7", primaryTextColor: "#1d1d1f", primaryBorderColor: "#0071e3", lineColor: "#86868b", secondaryColor: "#f5f5f7",
         tertiaryColor: "#ffffff", edgeLabelBackground: "#ffffff", textColor: "#424245", actorBkg: "#f5f5f7", actorBorder: "#0071e3",
         actorTextColor: "#1d1d1f", signalColor: "#86868b", signalTextColor: "#424245", noteBkgColor: "#fff9db", noteTextColor: "#1d1d1f" };
-  return { startOnLoad: false, securityLevel: "strict" as const, theme: "base" as const, flowchart: { htmlLabels: false, curve: "basis" as const },
+  return { startOnLoad: false, suppressErrorRendering: true, securityLevel: "strict" as const, theme: "base" as const, flowchart: { htmlLabels: false, curve: "basis" as const },
     themeVariables: { fontFamily: SYSTEM_FONT, fontSize: "15px", ...v } };
 }

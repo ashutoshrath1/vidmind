@@ -1,4 +1,6 @@
 import json
+import time
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
@@ -88,6 +90,25 @@ def test_events_stream_status_until_done():
         events = [json.loads(line[6:]) for line in r.iter_lines() if line.startswith("data: ")]
     assert [e["status"] for e in events if "status" in e] == ["done"]  # trace lines also start with "data: "
 
+
+
+def test_events_keep_streaming_after_done_until_the_follow_up_work_completes():
+    d = jobs.DATA_DIR / ("5" * 32)
+    d.mkdir(parents=True, exist_ok=True)
+    jobs.write_status(d, status=jobs.DONE)
+    (d / "result.json").write_text(json.dumps({"pending": True}))
+    (d / "trace.jsonl").write_text('{"t": 1, "kind": "done"}\n')
+
+    def finish_later():
+        time.sleep(0.5)
+        with (d / "trace.jsonl").open("a") as f:
+            f.write('{"t": 30, "kind": "stage", "name": "slides", "state": "end"}\n{"t": 40, "kind": "complete"}\n')
+
+    threading.Thread(target=finish_later).start()
+    with client.stream("GET", f"/jobs/{'5' * 32}/events") as r:
+        lines = [line for line in r.iter_lines() if line.startswith("data: ")]
+    kinds = [json.loads(x[6:]).get("kind") for x in lines]
+    assert "complete" in kinds and json.loads(lines[-1][6:])["ended"] is True
 
 def test_stream_plan_picks_fast_formats_and_creator_subtitles():
     f = lambda fid, h, vcodec, acodec="none", abr=None: {  # noqa: E731

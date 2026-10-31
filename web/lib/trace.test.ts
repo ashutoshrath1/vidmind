@@ -84,7 +84,7 @@ test("diagrams become Mermaid with safe ids and labels", async () => {
   const d = { kind: "sequence" as const, title: "Login", nodes: [node("client app", 'Client "web"'), node("api", "API; gateway")],
     edges: [{ source: "client app", target: "api", label: "POST /login" }, { source: "api", target: "gone", label: "" }] };
   assert.equal(toMermaid(d), "sequenceDiagram\n  participant n0 as Client web\n  participant n1 as API gateway\n  n0->>n1: POST /login");
-  assert.equal(toMermaid({ ...d, kind: "architecture" }), 'flowchart LR\n  n0["Client web"]\n  n1["API gateway"]\n  n0 -->|POST /login| n1');
+  assert.equal(toMermaid({ ...d, kind: "architecture" }), 'flowchart LR\n  n0["Client web"]\n  n1["API gateway"]\n  n0 -->|"POST /login"| n1');
 
 });
 

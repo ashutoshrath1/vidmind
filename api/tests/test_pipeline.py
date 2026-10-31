@@ -415,7 +415,7 @@ def test_an_illustration_is_published_by_itself_as_soon_as_it_is_drawn(tmp_path,
     assert (tmp_path / "frames" / "ch2.webp").read_bytes() == b"img"
     assert chapter.image_url == "frames/ch2.webp" and chapter.image_alt  # set before the page is told
     assert saved == ["frames/ch2.webp"] and events == ["image"]
-    assert "Circuit breakers" in prompts[0][0] and "Stops calls" in prompts[0][0] and prompts[0][1] == "high"
+    assert "Circuit breakers" in prompts[0][0] and "Stops calls" in prompts[0][0] and prompts[0][1] == "low"
     assert chapter.image_kind == "illustration"
     from vidmind.schema import Visual
     pl._draw_image(3, chapter, tmp_path, lambda *a, **k: None, lambda: None, 0.0,

@@ -15,7 +15,10 @@ export function rowsOf(view: View): Row[] {
     const start = all.find((e) => e.state === "start")?.t;
     const ends = all.filter((e) => e.state === "end");
     if (start === undefined || !ends.length) return undefined;
-    return { start, end: Math.max(...ends.map((e) => e.t)), model: ends.find((e) => e.model)?.model ?? all.find((e) => e.model)?.model };
+    // Steps whose models race (article, on-screen notes, slides) name them in the race's "win" events instead.
+    const won = ev.flatMap((e) => (e.kind === "model" && e.task === name && e.state === "win" ? [e.model] : []));
+    const model = ends.find((e) => e.model)?.model ?? all.find((e) => e.model)?.model ?? (won.length ? won.join(" + ") : undefined);
+    return { start, end: Math.max(...ends.map((e) => e.t)), model };
   };
   const rows: Row[] = [];
   const add = (id: string, label: string, s: { start: number; end: number } | undefined, tool: string, model: boolean, count?: string) => {

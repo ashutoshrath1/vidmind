@@ -331,7 +331,7 @@ def track(video: bytes, concept: str = FIGURE) -> dict[int, list[tuple[int, int,
     return TRACKERS[mdl.of(model).kind](model, video, concept)
 
 
-_reading = threading.BoundedSemaphore(mdl.setting("READER_AT_ONCE", 6))
+_reading = threading.BoundedSemaphore(mdl.setting("READER_AT_ONCE", 15))
 
 
 def read_screen(image: bytes) -> str:

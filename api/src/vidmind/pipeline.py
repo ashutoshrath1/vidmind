@@ -189,13 +189,19 @@ def _extras(assemble, job_dir: Path, state: dict, emit: Emit, lock: threading.Lo
     emit("extras", card=state["card"])
 
 
+CARD_LINE_MAX = 70
+
+
 def _card(assemble, job_dir: Path, state: dict, emit: Emit = _quiet) -> None:
     """Muse Image draws a one-page card from the checked result only, so it cannot show an unchecked claim."""
     started = time.monotonic()
     try:
         r = assemble()
-        lines = [a.text for a in r.actions[:5]] or [sc.title for sc in r.scenarios[:5]] or \
-            [t.text for t in r.takeaways[:5]] or [c.notes[0].text for c in r.chapters[:5] if c.notes]
+        # Short lines only: the image model misspelled a long sentence in 2 of 3 runs, which threw the card away.
+        short = lambda xs: [x for x in xs if len(x) <= CARD_LINE_MAX][:5]  # noqa: E731
+        lines = short([a.text for a in r.actions]) or short([sc.title for sc in r.scenarios]) or \
+            short([t.text for t in r.takeaways]) or \
+            short([c.notes[0].text for c in r.chapters if c.notes]) or short([c.title for c in r.chapters])
         if not lines:
             return  # a title-only card would let the image model fill the space with anything
         emit("stage", name="card", state="start", detail="Drawing a summary card", model=mdl.role("image"))
@@ -310,7 +316,7 @@ def _finish_articles(jobs: list, started: float, emit: Emit) -> None:
 
 
 FIRST_IMAGES_RACED = mdl.setting("IMAGES_RACED", 2)  # the first pictures to be drawn are sent twice, the faster copy wins
-IMAGES_AT_ONCE = mdl.setting("IMAGES_AT_ONCE", 6)  # Muse Image "high": one image 9 s alone; 6 at once finished all 13 in 52 s, 3 at once in 76 s
+IMAGES_AT_ONCE = mdl.setting("IMAGES_AT_ONCE", 12)  # Muse Image "low": 7.6-10 s each, and 10 at once took 9.3 s in all ("high": 8-17 s, as good)
 
 
 def _race(draw: Callable[[], bytes], copies: int) -> bytes:
@@ -344,7 +350,7 @@ def _draw_image(i: int, c: Chapter, job_dir: Path, emit: Emit, saved: Callable[[
         body = f"It shows: {c.image_alt or c.title}\nContext: {' '.join([c.summary, *(n.text for n in c.notes[:4])])}"
     prompt = IMAGE_PROMPT.format(type=kind, plan=body)
     (job_dir / "frames").mkdir(exist_ok=True)
-    (job_dir / "frames" / f"ch{i}.webp").write_bytes(_race(lambda: syn.draw_card(prompt, "high"), copies))
+    (job_dir / "frames" / f"ch{i}.webp").write_bytes(_race(lambda: syn.draw_card(prompt), copies))
     c.image_url, c.image_kind = f"frames/ch{i}.webp", "illustration"
     c.image_alt = c.image_alt or f"An illustration of {c.title}."
     emit("image", chapter=i, seconds=_since(started))
@@ -482,12 +488,14 @@ def _read_keyframes(src: Source, job_dir: Path, emit: Emit) -> list[Frame]:
     return frames
 
 
-def _read_screens(frames: list[Frame], job_dir: Path, emit: Emit = _quiet, tracked: Future | None = None) -> None:
+def _read_screens(frames: list[Frame], job_dir: Path, emit: Emit = _quiet, ready: threading.Event | None = None) -> None:
     """Screen text and diagrams for each keyframe, in place. Runs after the notes, which see the keyframe images
     themselves. It feeds the Keyframes tab and the saved frames."""
     started = time.monotonic()
     emit("stage", name="ocr", state="start", detail="Reading on-screen text", frames=[
         {"i": i, "at": f.t, "url": f.url} for i, f in enumerate(frames)])
+    if ready is not None:
+        ready.wait(120)  # the On screen tab shows the keyframes now; reading them waits for the notes
     report = lambda f, secs: emit(  # noqa: E731
         "frame", i=frames.index(f), at=f.t, url=f.url, text=f.ocr_text, conf=round(f.ocr_conf), low_conf=f.low_conf,
         seconds=round(secs, 2), figure=f.figure_url, box=f.figure_box)
@@ -507,14 +515,12 @@ def _read_screens(frames: list[Frame], job_dir: Path, emit: Emit = _quiet, track
                 ok = False
             report(f, time.monotonic() - began)
             return ok
-        with ThreadPoolExecutor(max_workers=mdl.setting("READER_AT_ONCE", 6)) as ex:
+        with ThreadPoolExecutor(max_workers=mdl.setting("READER_AT_ONCE", 15)) as ex:
             by_spark = sum(ex.map(read, frames))
         engine = reader if by_spark == len(frames) else f"{reader} + {engine}"
     else:
         fr.read_text(frames, job_dir, report)
     emit("stage", name="ocr", state="end", seconds=_since(started), model=engine)
-    # After reading the screens, which don't need it: the diagram tracking runs meanwhile from the job's start.
-    _find_figures(tracked, frames, job_dir, emit)
 
 
 def _since(started: float) -> float:
@@ -851,7 +857,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         # recognition, which every note waits on.
         tracked = side.submit(lambda: (notes_out.wait(120), _track_figures(src, emit))[1]) \
             if syn.can_track() else None  # video only
-        screens_f = side.submit(lambda: (notes_out.wait(120), _read_screens(frames_f.result(), job_dir, emit, tracked)))
+        screens_f = side.submit(lambda: _read_screens(frames_f.result(), job_dir, emit, notes_out))
+        # Diagram crops come after the screen text, on their own: the slide explanations never wait for tracking.
+        figures_f = side.submit(lambda: (screens_f.result(), _find_figures(tracked, frames_f.result(), job_dir, emit)))
         side.shutdown(wait=False)
         heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
             if src.captions is None and audio is not None else []
@@ -921,7 +929,8 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             frames[:] = sorted(frames_f.result(), key=lambda f: f.t)
         save_frames()  # now (times and images), and again with the screen text once that finishes
         screens_f.add_done_callback(save_frames)
-        screens_f.add_done_callback(sharpen)
+        figures_f.add_done_callback(save_frames)
+        figures_f.add_done_callback(sharpen)
         _after()
 
     def sharpen(_=None) -> None:
@@ -965,12 +974,12 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             if frames:
                 ex2.submit(slides)
             whole_video(all_segments, frames, ex2)
-        publish()
-        if mdl.available(mdl.role("image")):
-            _extras(assemble, job_dir, state, emit, lock)
+            if mdl.available(mdl.role("image")):
+                ex2.submit(_extras, assemble, job_dir, state, emit, lock)  # needs only the title and takeaways
         # Complete only now: the page keeps fetching while pending, so the card appears without a reload too.
         state["pending"] = False
         publish()
+        emit("complete")  # the page's live stream ends here, not at "done": the work after the notes streams too
 
     threading.Thread(target=after, daemon=True).start()
     return result

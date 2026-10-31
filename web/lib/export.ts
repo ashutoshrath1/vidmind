@@ -52,5 +52,5 @@ export function toMermaid(d: Diagram): string {
   }
   return [d.kind === "architecture" ? "flowchart LR" : "flowchart TD",
     ...d.nodes.map((n) => `  ${id.get(n.id)}["${plain(n.text)}"]`),
-    ...edges.map((e) => `  ${id.get(e.source)} -->${plain(e.label) ? `|${plain(e.label)}|` : ""} ${id.get(e.target)}`)].join("\n");
+    ...edges.map((e) => `  ${id.get(e.source)} -->${plain(e.label) ? `|"${plain(e.label)}"|` : ""} ${id.get(e.target)}`)].join("\n");
 }
