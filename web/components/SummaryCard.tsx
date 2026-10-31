@@ -8,7 +8,7 @@ import type { LearnResult } from "@/lib/api";
 
 const BAND = 240; // the footer band added under the card in the download, at the card's 1920 px width
 
-/** The card as a share image: the Muse Image card, then a band with a QR code to these notes and the title. Drawn in
+/** The card as a share image: the Muse Image card, then a band with the VidMind line and a QR code to these notes. Drawn in
  * the browser; the QR points at this page's own address, so it works wherever VidMind is hosted. */
 async function shareImage(src: string): Promise<string> {
   const card = await createImageBitmap(await (await fetch(src)).blob());
