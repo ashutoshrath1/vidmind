@@ -4,7 +4,7 @@
 VidMind
 
 ## Tagline
-Notes from any video in about 5 seconds, each one checked against the second it came from.
+Any video. Notes with proof: a checked article in seconds, every point linked to the second it came from.
 
 ## Inspiration
 Students and self-learners spend hours scrubbing through lectures and talks to find one point again. AI summaries
@@ -14,12 +14,17 @@ click.
 
 ## What it does
 Paste a YouTube link or upload a video. VidMind writes the notes as a short article. Every point carries a ✓ time
-link: click it and the video plays that second; hover it to see the words that were quoted. Notes the video does
-not support are removed and listed at the end with the reason ("Removed: N claims").
+link: click it and the video plays that second; hover it to see the quoted words, or the exact slide a screen fact
+was checked against. Notes the video does not support are removed and listed at the end with the reason. When a
+run finishes, every ✓ lights up in reading order: the check, made visible.
 
 - **On screen** goes slide by slide: what the notes say, what was said, and the text on the screen.
 - **How it was made** shows this run's numbers: time to the first note, time to all notes, % proven, dropped
-  notes with reasons, every step, and a chart.
+  notes with reasons, every step and model, and a chart of when each ran. A live line narrates the run as it works.
+- **Take it with you:** one click copies a clean Markdown article; the summary card downloads with a QR code to
+  the notes.
+- **Any video, any AI:** YouTube links and any video file (unusual formats are converted). Muse is the default;
+  OpenAI, Claude, free Groq / NVIDIA / OpenRouter, xAI, or fully offline with Ollama are one setting away.
 
 ## How we built it
 Every model call goes to Meta:
@@ -49,6 +54,10 @@ reason.
   2x, 7.4-7.7% at 2.5x and 17-19% at 3x.
 - **Images slow the notes down.** Sending keyframes with every notes call added 0.6 s per call. Notes are now
   text-only, and one separate pass reads the keyframes and adds checked on-screen notes.
+- **A 2-hour video never finished.** YouTube throttles long streamed reads, so pulling the audio took 11+ minutes.
+  Fetching it as parallel 10 MB ranges brought 42 MB down in 1.6 s; the 2-hour talk now has its first note in 13 s.
+- **Every video had exactly 30 frames.** The scene scan kept every Nth change. It now keeps the biggest picture
+  changes, scaled to the video's length, and drops repeated slides by perceptual hash.
 - **Strict checks drop good notes.** Paraphrased quotes failed the check. Snapping near-miss quotes to the
   transcript's words kept them without loosening the rule.
 
@@ -62,7 +71,11 @@ Measured on one 10-minute English talk on an M2 MacBook Air:
 - Keyframe-only scene scan: 0.36-0.48 s instead of 6.22 s. Audio decode in 4 parallel ranges: 0.31 s instead of
   0.81 s.
 - Benchmarked 11 audio methods, 12 keyframe methods and 12+ speech engines before choosing.
-- The bundled sample, a real Muse run of a 4:44 lecture: 18 of 18 notes checked, none dropped.
+- Andrej Karpathy's 2-hour "Let's build GPT" (the bundled example): first note in **13 s**, all **440** checked
+  notes in **1 min 11 s**, 140 sections, each with an article.
+- One-command install and uninstall, tested on fresh macOS, Ubuntu and Windows machines on every change.
+- Fully offline on a 16 GB MacBook Air with Ollama (qwen2.5:3b): first checked section in 7.8 s, nothing leaves the
+  machine.
 
 ## What we learned
 - Showing what was dropped builds more trust than any claim of accuracy.
@@ -72,14 +85,14 @@ Measured on one 10-minute English talk on an M2 MacBook Air:
   made Muse fast enough instead (4.8 s, 3.9% word error).
 
 ## What's next
-- Deploy it with a public link.
+- Deploy it with a public link (the share card's QR code then reaches the notes from any phone).
 - Measure on more videos, languages and machines; today's numbers come from one laptop and one talk.
 - Captions export for deaf and hard-of-hearing viewers, with each line linked to its second.
 - Notes from several videos in one course, checked the same way.
 
 ## Built with
 Muse Spark 1.2, Muse Spark 1.3, Muse Voice Transcribe 1.0, Muse Image 1.0, SAM 3.1, Python, FastAPI, uv,
-Next.js, React, TypeScript, ffmpeg, PyAV, yt-dlp.
+Next.js, React, TypeScript, Tailwind CSS, ffmpeg, PyAV, yt-dlp, Pillow, Playwright, GitHub Actions. MIT licensed.
 
 ---
 
@@ -89,6 +102,6 @@ Next.js, React, TypeScript, ffmpeg, PyAV, yt-dlp.
 |---|---|---|
 | Creativity | Indie | Inspiration (a named user; notes you can check in one click); What it does (✓ time links, removed claims shown) |
 | Technical ambition | Indie | How we built it (five Meta models, two Spark versions per section, streaming checked notes); Challenges (2x speech, original audio track) |
-| Does it work | Indie | Accomplishments (measured times, run counts, sample run 18 of 18); README benchmark table |
+| Does it work | Indie | Accomplishments (measured times, run counts, the 2-hour example); installers tested on 3 OSes in CI; README benchmark table |
 | Execution | Startup | How we built it, "The check" (repair round, dropped notes listed); Challenges (fallback from images to a separate on-screen pass) |
-| Production readiness | Startup | README Known limits (YouTube rate limit falls back to speech recognition; one laptop; not deployed); What's next; tests in README |
+| Production readiness | Startup | One-command install on macOS/Linux/Windows; any AI provider or offline; protected main; README Known limits; What's next; tests in README |

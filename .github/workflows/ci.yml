@@ -1,0 +1,22 @@
+# The checks from AGENTS.md on every pull request and push to main. Models are stubbed: no keys, no cost.
+# (End-to-end tests need the running app and live models; they run locally: see AGENTS.md.)
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg tesseract-ocr
+      - run: cd api && uv sync && uv run pytest -q
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: cd web && npm ci && npx tsc --noEmit -p . && npm run lint && npm test
