@@ -253,24 +253,27 @@ def _articles(chapters: list[Chapter], pool: list[str], emit: Emit = _quiet) -> 
          **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
-def _images(chapters: list[Chapter], job_dir: Path, emit: Emit = _quiet) -> None:
-    """One Muse Image illustration per chapter with an article, drawn without text (image models misspell)."""
-    started = time.monotonic()
-    todo = [(i, c) for i, c in enumerate(chapters) if c.article]
-    emit("stage", name="images", state="start", detail=f"Drawing {len(todo)} illustrations", model=syn.CARD_MODEL)
+IMAGES_AT_ONCE = 6  # Muse Image "high": one image 9 s, 8 at once 22 s; 6 keeps the first ones fast
 
-    def one(i: int, c: Chapter) -> None:
-        prompt = IMAGE_PROMPT.format(idea=c.image_alt or c.hook, text=" ".join([c.hook, *(p.text for p in c.article)]))
-        (job_dir / "frames" / f"ch{i}.webp").write_bytes(syn.draw_card(prompt, "high"))
-        c.image_url = f"frames/ch{i}.webp"
-        c.image_alt = c.image_alt or f"An illustration of {c.title}."
 
-    with ThreadPoolExecutor(max_workers=max(1, len(todo))) as ex:
-        futures = [ex.submit(one, i, c) for i, c in todo]
-    errors = [f.exception() for f in futures if f.exception()]
+def _draw_image(i: int, c: Chapter, job_dir: Path, emit: Emit, saved: Callable[[], None], started: float) -> None:
+    """One Muse Image illustration for a chapter, drawn without text (image models misspell) from its summary and
+    notes. Started the moment the chapter's notes exist, and published the moment it is drawn."""
+    facts = " ".join([c.summary, *(n.text for n in c.notes[:4])])
+    prompt = IMAGE_PROMPT.format(idea=c.image_alt or c.title, text=facts)
+    (job_dir / "frames").mkdir(exist_ok=True)
+    (job_dir / "frames" / f"ch{i}.webp").write_bytes(syn.draw_card(prompt, "high"))
+    c.image_url = f"frames/ch{i}.webp"
+    c.image_alt = c.image_alt or f"An illustration of {c.title}."
+    emit("image", chapter=i, seconds=_since(started))
+    saved()
+
+
+def _finish_images(jobs: list, started: float, emit: Emit) -> None:
+    errors = [f.exception() for f in jobs if f.exception()]
     for e in errors:
         log.warning("illustration failed: %s", e)
-    emit("stage", name="images", state="end", seconds=_since(started), drawn=len(todo) - len(errors), of=len(todo),
+    emit("stage", name="images", state="end", seconds=_since(started), drawn=len(jobs) - len(errors), of=len(jobs),
          model=syn.CARD_MODEL, **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
@@ -638,6 +641,16 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         if clean.chapters:
             emit("note", task=f"s{i}", model=model, note=clean.chapters[0].notes[0].model_dump())
 
+    def publish() -> None:
+        """Each part of the follow-up work is saved as it lands, so the page shows it without waiting for the rest."""
+        with lock:
+            _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
+
+    # Illustrations: each chapter's is submitted the moment its section is written, a few at a time.
+    img_ex = ThreadPoolExecutor(max_workers=IMAGES_AT_ONCE)
+    img_jobs: list = []
+    img_started: list[float] = []
+
     def section(i: int, lo: float, hi: float, segs: list[Segment]) -> None:
         # Publishes inside the task, not in a done-callback: callbacks run after waiters wake, so the card once read
         # an empty result and drew an invented list.
@@ -659,6 +672,11 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             done[i] = part
             _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
             update(None, sections_done=len(done))
+            if part.chapter and os.environ.get("MODEL_API_KEY"):
+                if not img_started:
+                    img_started.append(time.monotonic())
+                    emit("stage", name="images", state="start", detail="Drawing the illustrations", model=syn.CARD_MODEL)
+                img_jobs.append(img_ex.submit(_draw_image, i, part.chapter, job_dir, emit, publish, img_started[0]))
 
     first_queued = threading.Event()
 
@@ -770,22 +788,20 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             log.exception("on-screen notes failed; the notes stand without them")
             emit("stage", name="screen", state="end", seconds=_since(started), error=type(e).__name__)
 
-    def publish() -> None:
-        """Each part of the follow-up work is saved as it lands, so the page shows it without waiting for the rest."""
-        with lock:
-            _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
-
     def after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
         def article_then_images() -> None:
-            if screen:
-                screen.exception()  # on-screen notes first: the article cites notes by index
+            # Right after the notes, not after the on-screen pass: that pass only appends notes to a chapter, so the
+            # numbers the article cites stay valid (the on-screen notes just aren't woven into the prose).
             with lock:
                 chapters = [p.chapter for i, p in sorted(done.items()) if p.chapter]
             _articles(chapters, pool, emit)
-            publish()  # the article shows while the illustrations are drawn
-            if os.environ.get("MODEL_API_KEY"):
-                _images(chapters, job_dir, emit)
+            publish()
+
+        def illustrations() -> None:
+            if img_jobs:
+                wait(img_jobs)
+                _finish_images(img_jobs, img_started[0], emit)
                 publish()
 
         def slides() -> None:
@@ -799,6 +815,8 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         with ThreadPoolExecutor(max_workers=6) as ex2:
             screen = ex2.submit(on_screen) if frames else None
             ex2.submit(article_then_images)
+            if os.environ.get("MODEL_API_KEY"):
+                ex2.submit(illustrations)  # right after the notes, beside the article: the first picture is the long pole
             if frames:
                 ex2.submit(slides)
             whole_video(all_segments, frames, ex2)

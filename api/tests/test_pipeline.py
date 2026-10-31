@@ -366,3 +366,16 @@ def test_article_illustrations_and_slides_follow_the_notes(fixture_clip, tmp_pat
     ends = {d["name"]: d for k, d in events if k == "stage" and d.get("state") == "end"}
     assert "error" in ends["images"] and "error" not in ends["article"] and ends["slides"]["kept"] == 1
     assert len(result.chapters) == 3
+
+
+def test_an_illustration_is_published_by_itself_as_soon_as_it_is_drawn(tmp_path, monkeypatch):
+    from vidmind import pipeline as pl
+
+    chapter = pl.Chapter(title="Circuit breakers", start_seconds=0, notes=[], summary="Stops calls to a failing service.")
+    prompts, saved, events = [], [], []
+    monkeypatch.setattr(pl.syn, "draw_card", lambda prompt, strength="low": prompts.append((prompt, strength)) or b"img")
+    pl._draw_image(2, chapter, tmp_path, lambda kind, **d: events.append(kind), lambda: saved.append(chapter.image_url), 0.0)
+    assert (tmp_path / "frames" / "ch2.webp").read_bytes() == b"img"
+    assert chapter.image_url == "frames/ch2.webp" and chapter.image_alt  # set before the page is told
+    assert saved == ["frames/ch2.webp"] and events == ["image"]
+    assert "Circuit breakers" in prompts[0][0] and "Stops calls" in prompts[0][0] and prompts[0][1] == "high"
