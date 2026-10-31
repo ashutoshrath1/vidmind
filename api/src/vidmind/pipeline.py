@@ -231,25 +231,23 @@ def _clean_article(out: ArticleOutput, n_notes: int) -> ArticleOutput:
     return ArticleOutput(hook=dash(out.hook), paragraphs=paras, picture=dash(out.picture))
 
 
-def _articles(chapters: list[Chapter], pool: list[str], emit: Emit = _quiet) -> None:
-    """Each chapter written as a tutorial section from its checked notes only, all chapters at once."""
-    started = time.monotonic()
-    emit("stage", name="article", state="start", detail=f"Writing {len(chapters)} chapters as an article")
+def _article_one(c: Chapter, pool: list[str], emit: Emit, saved: Callable[[], None]) -> bool:
+    """One chapter written as a tutorial section from its checked notes only. Started when that chapter's notes are
+    checked, published as soon as it is written."""
+    messages = syn.article_messages(c.title, c.summary, c.key_terms, [n.text for n in c.notes])
+    out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, ArticleOutput)[0], "article", emit, "article")
+    out = _clean_article(out, len(c.notes))
+    c.hook, c.article, c.image_alt = out.hook, out.paragraphs, out.picture or c.image_alt
+    saved()
+    return bool(out.paragraphs)
 
-    def one(c: Chapter) -> bool:
-        messages = syn.article_messages(c.title, c.summary, c.key_terms, [n.text for n in c.notes])
-        out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, ArticleOutput)[0], "article", emit, "article")
-        out = _clean_article(out, len(c.notes))
-        c.hook, c.article, c.image_alt = out.hook, out.paragraphs, out.picture
-        return bool(out.paragraphs)
 
-    with ThreadPoolExecutor(max_workers=max(1, len(chapters))) as ex:
-        futures = [ex.submit(one, c) for c in chapters]
-    errors = [f.exception() for f in futures if f.exception()]
+def _finish_articles(jobs: list, started: float, emit: Emit) -> None:
+    errors = [f.exception() for f in jobs if f.exception()]
     for e in errors:
         log.warning("article chapter failed: %s", e)
     emit("stage", name="article", state="end", seconds=_since(started),
-         written=sum(f.result() for f in futures if not f.exception()), of=len(chapters),
+         written=sum(f.result() for f in jobs if not f.exception()), of=len(jobs),
          **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
@@ -672,6 +670,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     img_ex = ThreadPoolExecutor(max_workers=IMAGES_AT_ONCE)
     img_jobs: list = []
     img_started: list[float] = []
+    art_ex = ThreadPoolExecutor(max_workers=16)
+    art_jobs: list = []
+    art_started: list[float] = []
 
     def section(i: int, lo: float, hi: float, segs: list[Segment]) -> None:
         # Publishes inside the task, not in a done-callback: callbacks run after waiters wake, so the card once read
@@ -694,6 +695,11 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             done[i] = part
             _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
             update(None, sections_done=len(done))
+            if part.chapter:  # the article for this chapter starts now, not after every section
+                if not art_started:
+                    art_started.append(time.monotonic())
+                    emit("stage", name="article", state="start", detail="Writing the chapters as an article")
+                art_jobs.append(art_ex.submit(_article_one, part.chapter, pool, emit, publish))
             if part.chapter and os.environ.get("MODEL_API_KEY"):
                 if not img_started:
                     img_started.append(time.monotonic())
@@ -813,13 +819,11 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
 
     def after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
-        def article_then_images() -> None:
-            # Right after the notes, not after the on-screen pass: that pass only appends notes to a chapter, so the
-            # numbers the article cites stay valid (the on-screen notes just aren't woven into the prose).
-            with lock:
-                chapters = [p.chapter for i, p in sorted(done.items()) if p.chapter]
-            _articles(chapters, pool, emit)
-            publish()
+        def articles() -> None:
+            if art_jobs:
+                wait(art_jobs)
+                _finish_articles(art_jobs, art_started[0], emit)
+                publish()
 
         def illustrations() -> None:
             if img_jobs:
@@ -838,7 +842,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         with ThreadPoolExecutor(max_workers=6) as ex2:
             if frames:
                 ex2.submit(on_screen)
-            ex2.submit(article_then_images)
+            ex2.submit(articles)
             if os.environ.get("MODEL_API_KEY"):
                 ex2.submit(illustrations)  # right after the notes, beside the article: the first picture is the long pole
             if frames:
