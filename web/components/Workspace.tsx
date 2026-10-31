@@ -127,7 +127,8 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
               {result?.card_url && !replaying && (
                 <section aria-labelledby="share-card" className="mt-16 font-sans">
                   <h2 id="share-card" className="font-display text-[1.75rem] font-bold tracking-[-0.02em]">Share this summary</h2>
-                  <div className="mt-5 max-w-sm">
+                  {/* The article's own width, like everything above it: no small card stranded on the left. */}
+                  <div className="mt-5">
                     <SummaryCard result={result} base={base} />
                   </div>
                 </section>
