@@ -106,6 +106,23 @@ body {
   font-variant-numeric: lining-nums;
 }
 
+/* Headings break into even lines; prose never leaves one word alone on its last line. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p,
+li,
+figcaption {
+  text-wrap: pretty;
+}
+body {
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased; /* light text on the dark theme reads thinner, as on macOS */
+  text-rendering: optimizeLegibility;
+}
+
 :focus-visible {
   outline: 2px solid var(--scan);
   outline-offset: 2px;
