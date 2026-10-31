@@ -1,40 +1,33 @@
 // Notes as Markdown, to paste into a doc or keep. Relative imports only (runs under `node --test`).
-import type { Diagram, LearnResult } from "./api.ts";
-
-// Rounded first, so 59.6 s reads 1:00, not 0:60.
-const clock = (s: number) => `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
+import { type Diagram, type LearnResult, formatTime as clock } from "./api.ts";
 
 /** Timestamps become links to that second when the video is on YouTube, so the proof stays one click away. */
 export function toMarkdown(r: LearnResult): string {
-  const at = (s: number) => (r.youtube_id ? `[${clock(s)}](https://youtu.be/${r.youtube_id}?t=${Math.floor(s)})` : clock(s));
+  // A clean article: one watch link per section instead of a time after every sentence (the page keeps those).
+  // Rounded like the label beside it, so "Watch from 0:21" opens at 21 s.
+  const link = (s: number) => (r.youtube_id ? `https://youtu.be/${r.youtube_id}${Math.round(s) ? `?t=${Math.round(s)}` : ""}` : null);
   const out = [`# ${r.title}`, ""];
-  if (r.tldr) out.push(`> ${r.tldr}`, "");
+  const source = link(0);
+  out.push(source ? `*Source: [the video on YouTube](${source}), ${clock(r.duration_seconds)} long.*` : `*From a ${clock(r.duration_seconds)} video.*`, "");
+  if (r.tldr) out.push(r.tldr, "");
+  if (r.takeaways?.length) out.push("## Key takeaways", "", ...r.takeaways.map((t) => `- ${t.text}`), "");
+  if (r.diagram && r.diagram.nodes.length > 1) out.push(`## ${r.diagram.title}`, "", "```mermaid", toMermaid(r.diagram), "```", "");
   for (const ch of r.chapters) {
-    out.push(`## ${at(ch.start_seconds)} ${ch.title}`, "");
+    out.push(`## ${ch.title}`, "");
+    const watch = link(ch.start_seconds);
+    if (watch) out.push(`[Watch from ${clock(ch.start_seconds)}](${watch})`, "");
     const lead = ch.hook || ch.summary;
-    if (lead) out.push(lead, "");
+    if (lead) out.push(`**${lead}**`, "");
     const article = ch.article?.filter((p) => p.text) ?? [];
-    if (article.length) {
-      // Each paragraph keeps the moments its notes were checked against.
-      for (const p of article) {
-        const times = p.cites.flatMap((c) => ch.notes[c]?.evidence.map((e) => at(e.start_seconds)) ?? []);
-        out.push(times.length ? `${p.text} (${[...new Set(times)].join(", ")})` : p.text, "");
-      }
-      continue;
-    }
-    for (const n of ch.notes) {
-      out.push(`- ${n.text}${n.uncertain ? " _(uncertain)_" : ""}`);
-      for (const e of n.evidence)
-        out.push(e.kind === "transcript" ? `  - said at ${at(e.start_seconds)}: “${e.quote}”` : `  - on screen at ${at(e.start_seconds)}: ${e.text}`);
-    }
-    out.push("");
+    if (article.length) out.push(...article.flatMap((p) => [p.text, ""]));
+    else out.push(...ch.notes.map((n) => `- ${n.text}`), "");
   }
   if (r.quiz.length) {
-    out.push("## Quiz", "");
-    r.quiz.forEach((q, i) => out.push(`${i + 1}. ${q.question}`, `   - Answer: ${q.answer} (${at(q.evidence_start_seconds)})`));
+    out.push("## Check yourself", "");
+    r.quiz.forEach((q, i) => out.push(`${i + 1}. ${q.question}`, `   *${q.answer}*`));
     out.push("");
   }
-  out.push(`_Made with VidMind. Every note above was checked against the video._`, "");
+  out.push("---", "", "*Written by VidMind from the video. Every point was checked against what was said or shown.*", "");
   return out.join("\n");
 }
 

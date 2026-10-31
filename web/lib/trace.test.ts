@@ -53,28 +53,26 @@ test("estimates from the video before it starts, close to measured runs", async 
   assert.ok(secondsLeft(v, 0)! > 4);
 });
 
-test("exports notes as Markdown with timestamps that link to the moment", async () => {
+test("exports a clean article: one watch link per section, no times after sentences", async () => {
   const { toMarkdown } = await import("./export.ts");
+  const ev = [{ kind: "transcript" as const, start_seconds: 9, quote: "q" }];
   const md = toMarkdown({
-    title: "Retention", tldr: "Week-1 retention matters.", source: "live", duration_seconds: 60, transcriber: "t", model: "m",
-    dropped_notes: 0, youtube_id: "abc",
-    chapters: [{ title: "Targets", start_seconds: 20, summary: "", key_terms: [], cover_url: null, notes: [{
-      text: "The target is 40%.", uncertain: false, uncertain_reason: null,
-      evidence: [{ kind: "frame", start_seconds: 30, text: "Week-1 retention target: 40%", frame_url: "frames/1.jpg" }] }] }],
+    title: "Retention", tldr: "Week-1 retention matters.", source: "live", duration_seconds: 644, transcriber: "t", model: "m",
+    dropped_notes: 0, youtube_id: "abc", takeaways: [{ text: "Aim for 40%.", evidence: ev, uncertain: false, uncertain_reason: null }],
+    chapters: [{ title: "Targets", start_seconds: 20, summary: "s", key_terms: [], cover_url: null, hook: "Lead.",
+      article: [{ text: "Prose with `40%`.", cites: [0] }], notes: [{ text: "N.", uncertain: false, uncertain_reason: null, evidence: ev }] }],
     quiz: [{ question: "Target?", answer: "40%", evidence_start_seconds: 30 }],
   });
-  assert.match(md, /^# Retention/);
-  assert.match(md, /## \[0:20\]\(https:\/\/youtu\.be\/abc\?t=20\) Targets/);
-  assert.match(md, /on screen at \[0:30\]\(https:\/\/youtu\.be\/abc\?t=30\): Week-1 retention target: 40%/);
-  assert.match(md, /1\. Target\?\n {3}- Answer: 40%/);
-  const blog = toMarkdown({
-    title: "R", tldr: "", source: "live", duration_seconds: 60, transcriber: "t", model: "m", dropped_notes: 0, quiz: [],
-    chapters: [{ title: "T", start_seconds: 0, summary: "s", key_terms: [], cover_url: null, hook: "Lead.",
-      article: [{ text: "Prose.", cites: [0, 5] }], notes: [{ text: "N.", uncertain: false, uncertain_reason: null,
-        evidence: [{ kind: "transcript", start_seconds: 9, quote: "q" }] }] }],
-  });
-  assert.match(blog, /Lead\.\n\nProse\. \(0:09\)/);
-  assert.doesNotMatch(blog, /- N\./);
+  assert.match(md, /^# Retention\n\n\*Source: \[the video on YouTube\]\(https:\/\/youtu\.be\/abc\), 10:44 long\.\*/);
+  assert.match(md, /## Key takeaways\n\n- Aim for 40%\./);
+  assert.match(md, /## Targets\n\n\[Watch from 0:20\]\(https:\/\/youtu\.be\/abc\?t=20\)\n\n\*\*Lead\.\*\*\n\nProse with `40%`\.\n/);
+  assert.doesNotMatch(md, /\(0:09\)|- N\.|said at/);
+  assert.match(md, /1\. Target\?\n {3}\*40%\*/);
+  const upload = toMarkdown({ title: "R", tldr: "", source: "live", duration_seconds: 60, transcriber: "t", model: "m", dropped_notes: 0,
+    quiz: [], chapters: [{ title: "T", start_seconds: 0, summary: "", key_terms: [], cover_url: null, notes: [{ text: "N.", uncertain: false, uncertain_reason: null, evidence: ev }] }] });
+  assert.match(upload, /\*From a 1:00 video\.\*/);
+  assert.match(upload, /## T\n\n- N\./);
+  assert.doesNotMatch(upload, /Watch from/);
 });
 
 test("diagrams become Mermaid with safe ids and labels", async () => {
