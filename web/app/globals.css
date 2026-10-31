@@ -218,6 +218,18 @@ body {
   }
 }
 
+/* A confirmation check draws itself in once. */
+.draw-check {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw-check 340ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms forwards;
+}
+@keyframes draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* The finish, seen live: each citation lights up in turn (--d set per citation), then settles back. */
 .prove {
   display: inline-block;
@@ -264,11 +276,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pop,
   .prove,
+  .draw-check,
   .stamp,
   .shake,
   .flash,
   .narrate {
     animation: none;
+  }
+  .draw-check {
+    stroke-dashoffset: 0;
   }
   .stamp {
     transform: rotate(-3deg);

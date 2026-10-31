@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import OnScreenLightbox from "@/components/OnScreenLightbox";
 import { type Slide, explain, isFiller, isQuiet, slidesOf } from "@/components/OnScreenSlides";
 import SlidesGlyph from "@/components/SlidesGlyph";
-import { Button, type Seek } from "@/components/ui";
+import { Button, DoneMark, type Seek } from "@/components/ui";
 import { type LearnResult, formatTime } from "@/lib/api";
 import { screenBlocks, screenText, searchFrames } from "@/lib/screen";
 import type { View } from "@/lib/trace";
@@ -56,7 +56,7 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
         </div>
         {withText.length > 0 && (
           <Button variant="quiet" onClick={() => copy("all", screenText(texts), `Copied the screen text of ${withText.length} screens`)}>
-            {copied?.key === "all" ? "Copied" : "Copy all screen text"}
+            {copied?.key === "all" ? <DoneMark>Copied</DoneMark> : "Copy all screen text"}
           </Button>
         )}
       </div>
@@ -179,7 +179,7 @@ function SlideItem({ s, n, base, seek, onOpen, onCopy, copied }: {
                   <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] leading-relaxed"><code>{b.text}</code></pre>
                   <button onClick={() => onCopy(key, b.text, `Copied the code at ${formatTime(s.start)}`)} aria-label={`Copy code at ${formatTime(s.start)}`}
                     className="hit shrink-0 rounded-full bg-scan-soft px-2.5 py-0.5 text-[13px] font-semibold text-scan-ink hover:bg-scan hover:text-on-scan">
-                    {copied === key ? "Copied" : "Copy"}
+                    {copied === key ? <DoneMark>Copied</DoneMark> : "Copy"}
                   </button>
                 </Row>
               ) : <Row key={i} className="text-graphite">{b.text}</Row>;

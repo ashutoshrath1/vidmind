@@ -104,3 +104,15 @@ export function Counter({ value, format = (n: number) => String(Math.round(n)) }
   }, [value]);
   return <span className="tabular">{format(shown)}</span>;
 }
+
+/** A check that draws itself with a small spring: the answer to "did that work?" right where you clicked. */
+export function DoneMark({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-proof">
+      <svg aria-hidden viewBox="0 0 24 24" className="pop size-4" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+        <path className="draw-check" d="M5 12.5l4.5 4.5L19 7.5" />
+      </svg>
+      {children}
+    </span>
+  );
+}

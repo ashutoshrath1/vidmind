@@ -13,7 +13,7 @@ import { ChapterView, SectionLive } from "@/components/Sections";
 import RunPanel from "@/components/RunPanel";
 import ScreenText from "@/components/ScreenText";
 import Timeline from "@/components/Timeline";
-import { Button, Chip, type Seek } from "@/components/ui";
+import { Button, Chip, DoneMark, type Seek } from "@/components/ui";
 import { type JobStatus, type LearnResult, jobUrl } from "@/lib/api";
 import { toMarkdown } from "@/lib/export";
 import type { View } from "@/lib/trace";
@@ -296,15 +296,15 @@ function Notes({ result, view, base, seek, now, job, replaying, fresh }: NotesPr
 
 /** Take the notes with you, as Markdown. */
 function CopyMd({ result }: { result: LearnResult }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
   async function copy() {
-    await navigator.clipboard.writeText(toMarkdown(result));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await navigator.clipboard.writeText(toMarkdown(result)).then(() => true, () => false);
+    setCopied(ok ? "yes" : "no");
+    setTimeout(() => setCopied(null), 2000);
   }
   return (
     <Button variant="quiet" onClick={copy} aria-live="polite" className="min-h-9 shrink-0 px-3.5 py-1.5 text-sm max-sm:px-3">
-      {copied ? "Copied" : <span>Copy<span className="max-sm:hidden"> as Markdown</span></span>}
+      {copied === "yes" ? <DoneMark>Copied</DoneMark> : copied === "no" ? "Couldn't copy" : <span>Copy<span className="max-sm:hidden"> as Markdown</span></span>}
     </Button>
   );
 }
