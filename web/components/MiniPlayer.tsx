@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Icon from "@/components/Icon";
 import { type Seek, YT_ORIGIN } from "@/components/ui";
 import { formatTime } from "@/lib/api";
 
@@ -86,8 +87,8 @@ function MiniPlayer({ youtubeId, base, title, t, n, from, onClose }: Props) {
           <span className="tabular mr-2 font-medium text-scan-ink">{formatTime(t)}</span>
           {title}
         </p>
-        <button onClick={onClose} aria-label="Close player" className="hit grid size-8 place-items-center rounded-full bg-graphite/12 text-base text-graphite hover:bg-graphite/20 hover:text-ink">
-          ×
+        <button onClick={onClose} aria-label="Close player" className="hit grid size-8 place-items-center rounded-full bg-graphite/12 text-graphite hover:bg-graphite/20 hover:text-ink">
+          <Icon name="close" className="size-4" />
         </button>
       </div>
       {youtubeId ? (

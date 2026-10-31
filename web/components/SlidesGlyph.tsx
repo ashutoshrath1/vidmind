@@ -25,7 +25,7 @@ export type GlyphName = keyof typeof PATHS;
 
 export default function SlidesGlyph({ name, className = "size-4" }: { name: GlyphName; className?: string }) {
   return (
-    <svg aria-hidden viewBox="0 0 24 24" fill={name === "play" ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.8}
+    <svg aria-hidden viewBox="0 0 24 24" fill={name === "play" ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.75}
       strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d={PATHS[name]} />
     </svg>

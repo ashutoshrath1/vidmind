@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/Icon";
 import { Lens } from "@/components/Timeline";
 import { useEffect, useRef, useState } from "react";
 import { Button, Counter } from "@/components/ui";
@@ -56,7 +57,7 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
           {formatSeconds((end && !running ? end.t : now) + lead(view))}
         </p>
         {end && !running && onReplay && (
-          <Button variant="quiet" onClick={onReplay} className="!min-h-9 !px-3 text-sm">↻ Replay</Button>
+          <Button variant="quiet" onClick={onReplay} className="group !min-h-9 !px-3 text-sm"><Icon name="replay" className="size-4 transition-transform duration-500 ease-spring group-hover:-rotate-90 motion-reduce:transition-none" />Replay</Button>
         )}
       </div>
       <Pace view={view} now={now} running={running} />
