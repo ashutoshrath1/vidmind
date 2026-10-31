@@ -106,16 +106,19 @@ body {
   font-variant-numeric: lining-nums;
 }
 
-/* Headings break into even lines; prose never leaves one word alone on its last line. */
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
-p,
-li,
-figcaption {
-  text-wrap: pretty;
+/* Headings break into even lines; prose never leaves one word alone on its last line. In the base layer, so any
+   utility wins: unlayered, the text-wrap shorthand beat Tailwind's truncate and one-line titles wrapped. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p,
+  li,
+  figcaption {
+    text-wrap: pretty;
+  }
 }
 body {
   font-optical-sizing: auto;
@@ -356,11 +359,13 @@ body {
   background: color-mix(in srgb, var(--sheet) 85%, transparent); /* 62% let article text read through the tab bar */
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), inset 0 0 0 1px rgb(255 255 255 / 0.12), 0 8px 32px rgb(0 0 0 / 0.08);
+  /* One material for every floating surface: a hairline highlight on top, then a near and a far shadow for depth. */
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), inset 0 0 0 1px rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06),
+    0 12px 40px rgb(0 0 0 / 0.12);
 }
-:root[data-theme="dark"] .glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 32px rgb(0 0 0 / 0.5); }
+:root[data-theme="dark"] .glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), inset 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 48px rgb(0 0 0 / 0.55); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 32px rgb(0 0 0 / 0.5); }
+  :root:not([data-theme="light"]) .glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), inset 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 48px rgb(0 0 0 / 0.55); }
 }
 @media (prefers-contrast: more) {
   .glass { background: var(--sheet); backdrop-filter: none; box-shadow: 0 0 0 1px var(--ink); }

@@ -364,7 +364,7 @@ export function NotFound() {
 function KeysSheet({ close }: { close: () => void }) {
   const keys: [string, string][] = [["J  K", "Next or previous section"], ["1  2  3", "Notes, On screen, How it was made"], ["C", "Copy as Markdown"], ["?", "Show or hide this list"]];
   return (
-    <div role="dialog" aria-label="Keyboard shortcuts" className="glass fixed right-4 bottom-4 z-50 w-72 rounded-2xl p-4 font-sans text-sm shadow-xl">
+    <div role="dialog" aria-label="Keyboard shortcuts" className="glass fixed right-4 bottom-4 z-50 w-72 rounded-2xl p-4 font-sans text-sm">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-display font-semibold">Keyboard shortcuts</p>
         <button onClick={close} aria-label="Close shortcuts" className="hit rounded-full px-2 text-graphite hover:text-ink">Esc</button>

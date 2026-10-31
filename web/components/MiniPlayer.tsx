@@ -80,7 +80,7 @@ function MiniPlayer({ youtubeId, base, title, t, n, from, onClose }: Props) {
       role="dialog"
       aria-label={`Video player, from ${formatTime(t)}`}
       tabIndex={-1}
-      className="glass fixed right-4 bottom-4 z-40 w-[min(26rem,calc(100vw-2rem))] origin-center overflow-hidden rounded-[22px] p-1.5 shadow-2xl transition-[transform,opacity] duration-600 ease-spring outline-none motion-reduce:transition-none"
+      className="glass fixed right-4 bottom-4 z-40 w-[min(26rem,calc(100vw-2rem))] origin-center overflow-hidden rounded-[22px] p-1.5 transition-[transform,opacity] duration-600 ease-spring outline-none motion-reduce:transition-none"
     >
       <div className="flex items-center gap-2 py-0.5 pr-0.5 pl-2.5">
         <p className="min-w-0 flex-1 truncate text-sm text-graphite">
