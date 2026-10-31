@@ -140,3 +140,10 @@ test("checked notes show under their section as they arrive, before the section 
   assert.deepEqual(v.sections.map((s) => s.notes.length), [0, 1]);
   assert.equal(v.sections[1].done, undefined);
 });
+
+test("times past an hour read h:mm:ss", async () => {
+  const { formatTime } = await import("./api.ts");
+  assert.equal(formatTime(450), "7:30");
+  assert.equal(formatTime(6980), "1:56:20");
+  assert.equal(formatTime(3600), "1:00:00");
+});

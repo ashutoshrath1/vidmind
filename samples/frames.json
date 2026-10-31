@@ -2,141 +2,271 @@
   {
     "t": 1.0,
     "url": "frames/0.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nService\nGitHub\nReact\nAPI\nDepartment\nConfig\nApp\nService\nGateway\nServer\nOrganization\nService\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nchat.openai.com\n(pytorch2)\n+ New chat\nAI's Power Prosperity\nChatGPT\nExamples\nCapabilities\nLimitations\n\"Explain quantum computing in\nsimple terms\" ->\nRemembers what user said\nearlier in the conversation\nMay occasionally generate\nincorrect information\n\"Got any creative ideas for a 10\nyear old's birthday?\" ->\nAllows user to provide follow-\nup corrections\nMay occasionally produce\nharmful instructions or biased\ncontent\n\"How do I make an HTTP\nrequest in Javascript?\" ->\nTrained to decline\ninappropriate requests\nLimited knowledge of world\nand events after 2021\nClear conversations\nDark mode\nOpenAI Discord\nUpdates & FAQ\nLog out\nOUTLINE\nTIMELINE\nChatGPT Jan 9 Version. Free Research Preview. Our goal is to make AI systems more natural and safe to",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/0_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 65.0,
+    "t": 210.0,
     "url": "frames/1.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nRestTemplate\nWebClient\nSpringCloud Open Feign\nEmployee\nService\nDepartment\nService\nOrganization\nService\nDatabases\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nchat.openai.com\nkarpathy/nanoGPT: The simplest, fastest repository fo\nAI's Power Prosperity\nBrowse, share, and discuss ChatGPT exa...\nPlease write a breaking news article abou...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/cjohn...\n(pytorch2)\n+ New chat\nAI Prosperity Embrace\nAI's Power Prosperity\nWrite a small haiku about how important it is that people understand AI, and that they can use it to improve the world and make it more prosperous.\nAI's power to grow\nIgnorance holds us back, learn\nProsperity waits\nClear conversations\nDark mode\nOpenAI Discord\nUpdates & FAQ\nLog out\nRegenerate response\nChatGPT Jan 9 Version. Free Research Preview. Our goal is to make AI systems more natural and safe to\nOUTLINE\nTIMELINE",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/1_fig.jpg",
-    "figure_box": [
-      238,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 81.0,
+    "t": 450.0,
     "url": "frames/2.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Code File Edit Selection View Go Run Terminal Window Help\npublic \u2014 ubuntu:~/nanoGPT \u2014 ssh ubuntu@104.171.200.104 \u2014 160x84\nraw.githubusercontent.com\nPlease write a breaking news article abou...\nhttps://arxiv.org/pdf/1706.03762.pdf https://raw.githubusercontent.com/c...\nSir, what is there?\nMERCUTIO:\nBut you had been! where is the master that?\nMENENIUS:\nDo not not?\nMadam, not your master sir? how now, sir?\nCORIOLANUS:\nHow comes his resolution now?\nROMEO:\nWell, he would be silent to that you have been\nIn the prettiest in the statue of a sweetest mast\nThat she did command to assail!\nBy the king, and make them doo.\nMore than draw the deed of his\nJULIET:\nFrom the man hours which he I\nBefore I must be acquainted, or\nWhich think so this fatal bonis\nAnd I will not, not make her av\nDUKE VINCENTIO:\nI am buried honesty.\nLUCIO:\nYou shall not stand the cause c\nLUCIO:\nThe gods sent me and to see his\nTo live a sender of france me s\nDUKE VINCENTIO:\nWhy, how she was to seen the re\nLUCIO:\nWhy, then, dost what sads you r\nSee, my lord!\nDUKE VINCENTIO:\nNot so, with mine own company t\nDUKE VINCENTIO:\nHeaven sleeps and never deliver\nPray you, madam, the man you hc\nand you may be in no approbatio\nLUCIO:\nNay, sir, my lords, I come; sir\nyou have patience but I am gone\nLUCIO:\nI do well, I tell you.\nPAULINA:\nI say, more than men than seem\nDown. You know not: sir, go we\nLUCIO:\nI know not be a happy day of th\nFor I have brought me to see yo\nEXPLORER\nNANOGPT-LECTURE\ntrain.py\ntrain.py\nnanogpt-lecture\n1\nOUTLINE\nTIMELINE\nLn 1, Col 1 Spaces: 4 UTF-8 LF Python 3.8.5 ('base': conda)",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/2_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 91.67,
+    "t": 690.0,
     "url": "frames/3.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nGitHub\nEmployee\nService\nConfig\nServer\nReact\nApp\nAPI\nGateway\nSpring Cloud Netflix\nEureka Server\nService\nRegistry\nOrganization\nService\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ngithub.com\nAI Understanding Prosperity\nBrowse, share, and discuss C...\nPlease write a breaking news...\nhttps://arxiv.org/pdf/1706.037...\nhttps://raw.githubusercontent...\ngpt-dev.ipynb - Colaboratory\ngoogle/sentencepiece: Unsup...\nopenai/tiktoken\nMANIFEST.in\nUpdate codebase\n2 weeks ago\nMakefile\n[tiktoken] hello world\nlast month\nREADME.md\nREADME.md: minor improvements\nlast month\nperf.svg\nBuild wheels; update codebase\nlast month\npyproject.toml\nUpdate codebase\n2 weeks ago\nsetup.py\nUpdate codebase\n2 weeks ago\nREADME.md\ntiktoken\ntiktoken is a fast BPE tokeniser for use with OpenAI's models.\nimport tiktoken\nenc = tiktoken.get_encoding(\"gpt2\")\nassert enc.decode(enc.encode(\"hello world\")) == \"hello world\"\nThe open source version of tiktoken can be installed from PyPi:\npip install tiktoken\nThe tokeniser API is documented in tiktoken/core.py .\nPerformance\ntiktoken is between 3-6x faster than a comparable open source tokeniser:\n40 MB/s\n30 MB/s\n20 MB/s\ntiktoken\nhuggingface\nUsed by 4\nContributors 3\nhauntsaninja Shantanu\nhenriktorget Henrik Torget\nkhanhvu207 Nguyen-Khanh Vu\nLanguages\nPython 50.4%\nRust 46.1%\nMakefile 3.5%",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/3_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 102.33,
+    "t": 910.0,
     "url": "frames/4.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nGitHub\nEmployee\nService\nConfig\nServer\nReact\nAPI\nApp\nDepartment\nGateway\nService\nService\nRegistry\nOrganization\nSpring Cloud\nService\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discuss ChatGPT examples\nPlease write a breaking news article about a I...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/cjphnson/...\ngpt-dev.ipynb - Colaboratory\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help\nComment\nShare\n+ Code + Text\nRAM\nDisk\nEditing\n[12]\n56, 43, 1, 61, 43, 1, 40, 43, 41, 53, 51, 43, 1, 56, 39, 49, 43, 57,\n10, 1, 44, 53, 56, 1, 58, 46, 43, 1, 45, 53, 42, 57, 1, 49, 52, 53,\n61, 1, 21, 0, 57, 54, 43, 39, 49, 1, 58, 46, 47, 57, 1, 47, 52, 1,\n46, 59, 52, 45, 43, 56, 1, 44, 53, 56, 1, 40, 56, 43, 39, 42, 6, 1,\n52, 53, 58, 1, 47, 52, 1, 58, 46, 47, 56, 57, 58, 1, 44, 53, 56, 1,\n56, 43, 60, 43, 52, 45, 43, 8, 0, 0])\n[14] # Let's now split up the data into train and validation sets\nn = int(0.9*len(data)) # first 90% will be train, rest val\ntrain_data = data[:n]\nval_data = data[n:]\nblock_size =\n0s completed at 1:12 PM",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/4_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 118.33,
+    "t": 1150.0,
     "url": "frames/5.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nSpring Cloud\nConfig Server\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Propensity\nBrowse, share, and discuss ChatGPT examples\nPlease write a breaking news article about a L...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/cjolsonr/...\ngpt-dev.ipynb - Colaboratory\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help Saving...\nComment\nShare\n+ Code + Text\nRAM\nDisk\nEditing\ntorch.manual_seed(1337)\nbatch_size = 4 # how many independent sequences will we process in parallel?\nblock_size = 8 # what is the maximum context length for predictions?\ndef get_batch(split):\n# generate a small batch of data of inputs x and targets y\ndata = train_data if split == 'train' else val_data\nix = torch.randint(len(data) - block_size, (batch_size,))\nx = torch.stack([data[i:i+block_size] for i in ix])\ny = torch.stack([data[i+1:i+block_size+1] for i in ix])\nreturn x, y\nxb, yb = get_batch('train')\nprint('inputs:')\nprint(xb.shape)\nprint(xb)\nprint('targets:')\nprint(yb.shape)\nprint(yb)\nprint('-----')\nfor b in range(batch_size): # batch dimension\nfor t in range(block_size): # time dimension\ncontext = xb[b, :t+1]\ntarget = yb[b,t]\nprint(f\"when input is {context.tolist()} the target: {target}\")\ninputs:\ntorch.Size([4, 8])\ntensor([[24, 43, 58, 5, 57, 1, 46, 43],\n[44, 53, 56, 1, 58, 46, 39, 58],\n[52, 58, 1, 58, 46, 39, 58, 1],\n0s completed at 1:31 PM",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/5_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 182.33,
+    "t": 1390.0,
     "url": "frames/6.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nEmployee\nService\nSpring Cloud\nGateway\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discuss ChatGPT examples\nPlease write a breaking news article about a I...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/cjohnson...\ngpt-dev.ipynb - Colaboratory\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\n[15] tensor([[24, 43, 58, 5, 57, 1, 46, 43],\n[44, 53, 56, 1, 58, 46, 39, 58],\n[52, 58, 1, 58, 46, 39, 58, 1],\n[25, 17, 27, 10, 0, 21, 1, 54]])\nimport torch\nimport torch.nn as nn\nfrom torch.nn import functional as F\ntorch.manual_seed(1337)\nclass BigramLanguageModel(nn.Module):\ndef __init__(self, vocab_size):\nsuper().__init__()\n# each token directly reads off the logits for the next token from a lookup table\nself.token_embedding_table = nn.Embedding(vocab_size, vocab_size)\ndef forward(self, idx, targets):\n# idx and targets are both (B,T) tensor of integers\nlogits = self.token_embedding_table(idx) # (B,T,C)\nreturn logits\nm = BigramLanguageModel(vocab_size)\nout = m(xb, yb)\nprint(out.shape)\ncompleted at 11:18 AM",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/6_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 198.33,
+    "t": 1610.0,
     "url": "frames/7.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nEmployee\nGitHub\nService\nReact\nAPI\nConfig\nApp\nDepartment\nServer\nGateway\nService\nService\nSpring Cloud\nRegistry\nSleuth module\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discuss ChatGPT...\nPlease write a breaking news article...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/jc...\ngpt-dev.ipynb - Colaboratory\nCrossEntropyLoss \u2014 PyTorch master...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\nimport torch\nimport torch.nn as nn\nfrom torch.nn import functional as F\ntorch.manual_seed(1337)\nclass BigramLanguageModel(nn.Module):\ndef __init__(self, vocab_size):\nsuper().__init__()\n# each token directly reads off the logits for the next token from a lookup table\nself.token_embedding_table = nn.Embedding(vocab_size, vocab_size)\ndef forward(self, idx, targets):\n# idx and targets are both (B,T) tensor of integers\nlogits = self.token_embedding_table(idx) # (B,T,C)\nloss = F.cross_entropy(logits, targets)\nreturn logits, loss\nm = BigramLanguageModel(vocab_size)\nlogits, loss = m(xb, yb)\nprint(logits.shape)\nRuntimeError Traceback (most recent call last)\n<ipython-input-36-b4d2268c40bd> in <module>\n21\n22 m = BigramLanguageModel(vocab_size)\n----> 23 logits, loss = m(xb, yb)\n24 print(logits.shape)\n2 frames",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/7_fig.jpg",
-    "figure_box": [
-      20,
-      148,
-      1050,
-      676
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 235.67,
+    "t": 1850.0,
     "url": "frames/8.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discuss ChatGPT...\nPlease write a breaking news article...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/c...\ngpt-dev.ipynb - Colaboratory\nCrossEntropyLoss \u2014 PyTorch master...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\n+ Code + Text\nRAM\nDisk\nEditing\nself.token_embedding_table = nn.Embedding(vocab_size, vocab_size)\ndef forward(self, idx, targets):\n# idx and targets are both (B,T) tensor of integers\nlogits = self.token_embedding_table(idx) # (B,T,C)\nB, T, C = logits.shape\nlogits = logits.view(B*T, C)\ntargets = targets.view(B*T)\nloss = F.cross_entropy(logits, targets)\nreturn logits, loss\ndef generate(self, idx, max_new_tokens):\n# idx is (B, T) array of indices in the current context\nfor _ in range(max_new_tokens):\n# get the predictions\nlogits, loss = self(idx)\n# focus only on the last time step\nlogits = logits[:, -1, :] # becomes (B, C)\n# apply softmax to get probabilities\nprobs = F.softmax(logits, dim=-1) # (B, C)\n# sample from the distribution\nidx_next = torch.multinomial(probs, num_samples=1) # (B, 1)\n# append sampled index to the running sequence\nidx = torch.cat((idx, idx_next), dim=1) # (B, T+1)\nreturn idx\nm = BigramLanguageModel(vocab_size)\nlogits, loss = m(xb, yb)\nprint(logits.shape)\nprint(loss)\n0s completed at 11:51 AM",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/8_fig.jpg",
-    "figure_box": [
-      0,
-      114,
-      1124,
-      698
-    ]
+    "figure_url": null,
+    "figure_box": null
   },
   {
-    "t": 278.33,
+    "t": 2090.0,
     "url": "frames/9.jpg",
-    "ocr_text": "Microservices Architecture using Spring boot and\nSpring Cloud\nReact\nApp\nAPI\nGateway\nCircuit\nbreaker\npattern\nEmployee\nService\nDepartment\nService\nOrganization\nService\nGitHub\nConfig\nServer\nService\nRegistry\nSpring Cloud\nSleuth\nZIPKIN\nDatabases",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discuss ChatGPT...\nPlease write a breaking news article...\nhttps://arxiv.org/pdf/1706.03762.pdf\nhttps://raw.githubusercontent.com/...\ngpt-dev.ipynb - Colaboratory\nCrossEntropyLoss \u2014 PyTorch master...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\nreturn logits, loss\ndef generate(self, idx, max_new_tokens):\n# idx is (B, T) array of indices in the current context\nfor _ in range(max_new_tokens):\n# get the predictions\nlogits, loss = self(idx)\n# focus only on the last time step\nlogits = logits[:, -1, :] # becomes (B, C)\n# apply softmax to get probabilities\nprobs = F.softmax(logits, dim=-1) # (B, C)\n# sample from the distribution\nidx_next = torch.multinomial(probs, num_samples=1) # (B, 1)\n# append sampled index to the running sequence\nidx = torch.cat((idx, idx_next), dim=1) # (B, T+1)\nreturn idx\nm = BigramLanguageModel(vocab_size)\nlogits, loss = m(xb, yb)\nprint(logits.shape)\nprint(loss)\nprint(decode(m.generate(idx = torch.zeros((1, 1), dtype=torch.long), max_new_tokens=100)[0].tolist()))\ntorch.Size([32, 65])\ntensor(4.8786, grad_fn=<NllLossBackward0>)\nSKIcLT;AcELMoTbvZv C?nq-OE33:CJqkOKH-q;:la!oiywkHjgChzbQ?u!3bLIgwevmyFJGUGp\nwnYWmnxKvWwev-tDqXErVKLgJ\n[ ]\n0s completed at 11:56 AM",
     "ocr_conf": 100.0,
     "low_conf": false,
-    "figure_url": "frames/9_fig.jpg",
-    "figure_box": [
-      0,
-      114,
-      1124,
-      698
-    ]
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 2310.0,
+    "url": "frames/10.jpg",
+    "ocr_text": "Code File Edit Selection View Go Run Terminal Window Help\nEXPLORER\nNANOGPT-LECTURE [SSH: 104....\nbigram.py\ninput.txt\nbigram.py X\nbigram.py > ...\nval_data = data[n:]\n35\n36 # data loading\n37 def get_batch(split):\n38 # generate a small batch of data of inputs x and targets y\n39 data = train_data if split == 'train' else val_data\n40 ix = torch.randint(len(data) - block_size, (batch_size,))\n41 x = torch.stack([data[i:i+block_size] for i in ix])\n42 y = torch.stack([data[i+1:i+1+block_size] for i in ix])\n43 x, y = x.to(device), y.to(device)\n44 return x, y\n45\n46 @torch.no_grad()\n47 def estimate_loss():\n48 out = {}\n49 model.eval()\n50 for split in ['train', 'val']:\n51 losses = torch.zeros(eval_iters)\n52 for k in range(eval_iters):\n53 X, Y = get_batch(split)\n54 logits, loss = model(X, Y)\n55 losses[k] = loss.item()\n56 out[split] = losses.mean()\n57 model.train()\n58 return out\n59\n60 # super simple bigram model\n61 class BigramLanguageModel(nn.Module):\n62\n63 def __init__(self, vocab_size):\n64 super().__init__()\n65 # each token directly reads off the logits for the next token from a lookup table\n66 self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)\n67\n68 def forward(self, idx, targets=None):\n69\n70 # idx and targets are both (B,T) tensor of integers\nComment Share\nRAM\nDisk\nEditing\nPROBLEMS OUTPUT DEBUG CONSOLE TERMINAL PORTS\n3 bash +\n(pytorch2) ubuntu:~/nanogpt-lectures $\nOUTLINE\nTIMELINE\nLn 41, Col 10 (180 selected) Spaces: 4 UTF-8 LF Python 3.10.8 ('pytorch2': conda)",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 2550.0,
+    "url": "frames/11.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\n+ Code + Text\nRAM\nDisk\nEditing\n[115] Fiotha her owa\nFouidif toury aris dor yoress ane hit in,\no:\nLETAUns.\nIsat t ust far thas s\nThe mathematical trick in self-attention\n[191] # consider the following toy example:\ntorch.manual_seed(1337)\nB,T,C = 4,8,2 # batch, time, channels\nx = torch.randn(B,T,C)\nx.shape\ntorch.Size([4, 8, 2])\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 2:50 PM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 2790.0,
+    "url": "frames/12.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\nhttps://raw.githubusercont...\ngpt-dev.ipynb - Collaborat...\nmakemore/makemore.py...\nCrossEntropyLoss \u2014 PyTo...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help\nComment Share\nRAM\nDisk\nEditing\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\n+ Code + Text\n[191] # consider the following toy example:\ntorch.manual_seed(1337)\nB,T,C = 4,8,2 # batch, time, channels\nx = torch.randn(B,T,C)\nx.shape\ntorch.Size([4, 8, 2])\n[192] # We want x[b,t] = mean_{i<=t} x[b,i]\nxbow = torch.zeros((B,T,C))\nfor b in range(B):\nfor t in range(T):\nxprev = x[b,:t+1] # (t,C)\nxbow[b,t] = torch.mean(xprev, 0)\ntensor([[[ 0.1808, -0.0700],\n[-0.3596, -0.9152],\n[ 0.6258, 0.0255],\n[ 0.9545, 0.0643],\n[ 0.3612, 1.1679],\n[-1.3499, -0.5102],\n[ 0.2360, -0.2398],\n[-0.9211, 1.5433]],\n[[ 1.3488, -0.1396],\n[ 0.2858, 0.9651],\n[-2.0371, 0.4931],\n[ 1.4870, 0.5910],\n[ 0.1260, -1.5627],\n[-1.1601, -0.3348],\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 2:57 PM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 3010.0,
+    "url": "frames/13.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity Browse, share, and discus... Please write a breaking ne... https://arxiv.org/pdf/1706... https://raw.githubusercont... gpt-dev.ipynb - Collaborat... makemore/makemore.py... CrossEntropyLoss - PyTo...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\n[1., 1., 1.]])\ntorch.manual_seed(42)\na = torch.tril(torch.ones(3, 3))\nb = torch.randint(0,10,(3,2)).float()\nc = a @ b\nprint('a=')\nprint(a)\nprint('---')\nprint('b=')\nprint(b)\nprint('---')\nprint('c=')\nprint(c)\na=\ntensor([[1., 0., 0.],\n[1., 1., 0.],\n[1., 1., 1.]])\n---\nb=\ntensor([[2., 7.],\n[6., 4.],\n[6., 5.]])\n---\nc=\ntensor([[ 2., 7.],\n[ 8, 11.],\n[14., 16.]])\n[ ]\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 3:13 PM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 3250.0,
+    "url": "frames/14.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\nhttps://raw.githubusercontent...\ngpt-dev.ipynb - Colaborat...\nmakemore/makemore.py...\nCrossEntropyLoss \u2014 PyTo...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\nThe mathematical trick in self-attention\n[191] # consider the following toy example:\ntorch.manual_seed(1337)\nB,T,C = 4,8,2 # batch, time, channels\nx = torch.randn(B,T,C)\nx.shape\ntorch.Size([4, 8, 2])\n[192] # We want x[b,t] = mean_{i<=t} x[b,i]\nxbow = torch.zeros((B,T,C))\nfor b in range(B):\nfor t in range(T):\nxprev = x[b,:t+1] # (t,C)\nxbow[b,t] = torch.mean(xprev, 0)\nwei = torch.tril(torch.ones(T,T))\nwei = wei / wei.sum(1, keepdim=True)\nxbow2 = wei @ x # (B, T, T) @ (B, T, C) -----> (B, T, C)\ntorch.allclose(xbow, xbow2)\nTrue\ntorch.tril(torch.ones(3, 3))\ntensor([[1., 0., 0.],\n[1., 1., 0.],\n[1., 1., 1.]])\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 3:28 PM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 3490.0,
+    "url": "frames/15.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\nhttps://raw.githubusercont...\ngpt-dev.ipynb - Colaborat...\nmakemore/makemore.py...\nCrossEntropyLoss - PyTo...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\n+ Code + Text\nRAM\nDisk\nEditing\n[223] xbow2 = wei @ x # (B, T, T) @ (B, T, C) -----> (B, T, C)\ntorch.allclose(xbow, xbow2)\nTrue\n{x}\n[234] tril\ntensor([[1., 0., 0., 0., 0., 0., 0., 0.],\n[1., 1., 0., 0., 0., 0., 0., 0.],\n[1., 1., 1., 0., 0., 0., 0., 0.],\n[1., 1., 1., 1., 0., 0., 0., 0.],\n[1., 1., 1., 1., 1., 0., 0., 0.],\n[1., 1., 1., 1., 1., 1., 0., 0.],\n[1., 1., 1., 1., 1., 1., 1., 0.],\n[1., 1., 1., 1., 1., 1., 1., 1.]])\n# version 3: use Softmax\ntril = torch.tril(torch.ones(T, T))\nwei = torch.zeros((T,T))\nwei = wei.masked_fill(tril == 0, float('-inf'))\nwei = F.softmax(wei, dim=-1)\nxbow3 = wei @ x\ntorch.allclose(xbow, xbow3)\nTrue\n[213] torch.manual_seed(42)\na = torch.tril(torch.ones(3, 3))\na = a / torch.sum(a, 1, keepdim=True)\nb = torch.randint(0,10,(3,2)).float()\nc = a @ b\nprint('a=')\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 3:38 PM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 3710.0,
+    "url": "frames/16.jpg",
+    "ocr_text": "Code File Edit Selection View Go Run Terminal Window Help\nEXPLORER\nNANOGPT-LECTURE [SSH: 104....\nbigram.py\ninput.txt U\nv2.py M\nv2.py M X\nv2.py > BigramLanguageModel > forward\n59 return out\n60\n61 # super simple bigram model\nYou, 1 second ago | 1 author (You)\n62 class BigramLanguageModel(nn.Module):\n63\n64     def __init__(self):\n65         super().__init__()\n66         # each token directly reads off the logits for the next token from a lookup table\n67         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)\n68         self.position_embedding_table = nn.Embedding(block_size, n_embd)\n69         self.lm_head = nn.Linear(n_embd, vocab_size)\n70\n71     def forward(self, idx, targets=None):\n72         B, T = idx.shape\n73\n74         # idx and targets are both (B,T) tensor of integers\n75         tok_emb = self.token_embedding_table(idx) # (B,T,C)\n76         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)\n77         x = tok_emb + pos_emb # (B,T,C)\n78         logits = self.lm_head(x) # (B,T,vocab_size)\n79\n80         if targets is None:\n81             loss = None\n82         else:\n83             B, T, C = logits.shape\n84             logits = logits.view(B*T, C)\n85             targets = targets.view(B*T)\n86             loss = F.cross_entropy(logits, targets)\n87\nComment Share\nRAM\nDisk Editing\nPROBLEMS OUTPUT DEBUG CONSOLE TERMINAL PORTS GITLENS\n(pytorch2) ubuntu:~/nanogpt-lecture$ git checkout v2.py\nUpdated 1 path from the index\n(pytorch2) ubuntu:~/nanogpt-lecture$\nOUTLINE\nTIMELINE\nmaster*\nLn 73, Col 1 Spaces: 4 UTF-8 LF Python 3.10.8 ('pytorch2': conda)",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 3950.0,
+    "url": "frames/17.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\nhttps://raw.githubusercont...\ngpt-dev.ipynb - Colaborat...\nmakemore/makemore.py...\nCrossEntropyLoss \u2014 PyTo...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\n+ Code + Text\nTrue\n# version 4: self-attention!\ntorch.manual_seed(1337)\nB,T,C = 4,8,32 # batch, time, channels\nx = torch.randn(B,T,C)\n# let's see a single Head perform self-attention\nhead_size = 16\nkey = nn.Linear(C, head_size, bias=False)\nquery = nn.Linear(C, head_size, bias=False)\nk = key(x) # (B, T, 16)\nq = query(x) # (B, T, 16)\ntril = torch.tril(torch.ones(T, T))\nwei = torch.zeros((T,T))\nwei = wei.masked_fill(tril == 0, float('-inf'))\nwei = F.softmax(wei, dim=-1)\nout = wei @ x\nout.shape\ntorch.Size([4, 8, 32])\n[44] tril\ntensor([[1., 0., 0., 0., 0., 0., 0., 0.],\n[1., 1., 0., 0., 0., 0., 0., 0.],\n[1., 1., 1., 0., 0., 0., 0., 0.],\n[1., 1., 1., 1., 0., 0., 0., 0.],\n[1., 1., 1., 1., 1., 0., 0., 0.],\n[1., 1., 1., 1., 1., 1., 0., 0.],\n[1., 1., 1., 1., 1., 1., 1., 0.],\nOUTLINE\nTIMELINE\nSaved successfully!\nmaster*\n0s completed at 9:58 AM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 4190.0,
+    "url": "frames/18.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\nhttps://raw.githubusercont...\ngpt-dev.ipynb - Colaborat...\nmakemore/makemore.py...\nCrossEntropyLoss \u2014 PyTo...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nEditing\nRAM\nDisk\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\n+ Code + Text\nx = torch.randn(B,T,C)\n# let's see a single Head perform self-attention\nhead_size = 16\nkey = nn.Linear(C, head_size, bias=False)\nquery = nn.Linear(C, head_size, bias=False)\nk = key(x) # (B, T, 16)\nq = query(x) # (B, T, 16)\nwei = q @ k.transpose(-2, -1) # (B, T, 16) @ (B, 16, T) ---> (B, T, T)\ntril = torch.tril(torch.ones(T, T))\n#wei = torch.zeros(T,T)\nwei = wei.masked_fill(tril == 0, float('-inf'))\nwei = F.softmax(wei, dim=-1)\nout = wei @ x\nout.shape\ntorch.Size([4, 8, 32])\n+ Code + Text\n[54] wei[0]\ntensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],\n[0.1574, 0.8426, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],\n[0.2088, 0.1646, 0.6266, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],\n[0.5792, 0.1187, 0.1889, 0.1131, 0.0000, 0.0000, 0.0000, 0.0000],\n[0.0294, 0.1052, 0.0469, 0.0276, 0.7909, 0.0000, 0.0000, 0.0000],\n[0.0176, 0.2689, 0.0215, 0.0089, 0.6812, 0.0019, 0.0000, 0.0000],\n[0.1691, 0.4066, 0.0438, 0.0416, 0.1048, 0.2012, 0.0329, 0.0000],\n[0.0210, 0.0843, 0.0555,",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 4410.0,
+    "url": "frames/19.jpg",
+    "ocr_text": "Finder File Edit View Go Window Help\ncolab.research.google.com\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\n# version 4: self-attention!\ntorch.manual_seed(1337)\nB,T,C = 4,8,32 # batch, time, channels\nx = torch.randn(B,T,C)\n# let's see a single Head perform self-attention\nhead_size = 16\nkey = nn.Linear(C, head_size, bias=False)\nquery = nn.Linear(C, head_size, bias=False)\nvalue = nn.Linear(C, head_size, bias=False)\nk = key(x) # (B, T, 16)\nq = query(x) # (B, T, 16)\nwei = q @ k.transpose(-2, -1) # (B, T, 16) @ (B, 16, T) ---> (B, T, T)\ntril = torch.tril(torch.ones(T, T))\n#wei = torch.zeros((T,T))\nwei = wei.masked_fill(tril == 0, float('-inf'))\nwei = F.softmax(wei, dim=-1)\nv = value(x)\nout = wei @ v\n#out = wei @ x\nout.shape\ntorch.Size([4, 8, 16])\ntechiedelight.com\n0\n1\n5\n2\n4\n3\nNotes:\nAttention is a communication mechanism. Can be seen as nodes in a directed graph looking at each other and aggregating i\nwith a weighted sum from all nodes that point to them, with data-dependent weights.\nThere is no notion of space. Attention simply acts over a set of vectors. This is why we need to positionally encode tokens.\n0s completed at 10:43 AM\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 4650.0,
+    "url": "frames/20.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nAI Understanding Pro...\nBrowse, share, and di...\nPlease write a break...\nhttps://arxiv.org/pdf/1...\nhttps://raw.githubuse...\ngpt-dev.ipynb - Cola...\nhttps://arxiv.org/pdf/1...\nmakemore/makemore...\nCrossEntropyLoss - ...\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help\nComment Share\nRAM\nDisk\nEditing\n+ Code + Text\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\n\u2022 In an \"encoder\" attention block just delete the single line that does masking with tril, allowing all tokens to communicate. This block\nhere is called a \"decoder\" attention block because it has triangular masking, and is usually used in autoregressive settings, like language\nmodeling.\n\u2022 \"self-attention\" just means that the keys and values are produced from the same source as queries. In \"cross-attention\", the queries still\nget produced from x, but the keys and values come from some other, external source (e.g. an encoder module)\n\u2022 \"Scaled\" attention additional divides wei by 1/sqrt(head_size). This makes it so when input Q,K are unit variance, wei will be unit variance\ntoo and Softmax will stay diffuse and not saturate too much. Illustration below\nk = torch.randn(B,T,head_size)\nq = torch.randn(B,T,head_size)\nwei = q @ k.transpose(-2, -1)** head_size**-0.5\n[149] k.var()\ntensor(1.0449)\n[150] q.var()\ntensor(1.0700)\n[151] wei.var()\ntensor(17.4690)\n[143] torch.softmax(torch.tensor([0.1, -0.2, 0.3, -0.2, 0.5]), dim=-1)\ntensor([0.1925, 0.1426, 0.2351, 0.1426, 0.2872])\nOUTLINE\nTIMELINE\nmaster*\n0s completed at 11:23 AM",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 4890.0,
+    "url": "frames/21.jpg",
+    "ocr_text": "Code\nFile\nEdit\nSelection\nView\nGo\nRun\nTerminal\nWindow\nHelp\nEXPLORER\nNANOGPT-LECTURE [SSH: 104....\nbigram.py\ninput.txt\nU\nv2.py\nM\nbigram.py\nv2.py\nM\nv2.py > ...\nYou, 46 seconds ago | 1 author (You)\n1\nimport torch\n2\nimport torch.nn as nn\n3\nfrom torch.nn import functional as F\n4\n5\n# hyperparameters\n6\nbatch_size = 32 # how many independent sequences will we process in parallel?\n7\nblock_size = 8 # what is the maximum context length for predictions?\n8\nmax_iters = 5000\n9\neval_interval = 500\n10\nlearning_rate = 1e-3\n11\ndevice = 'cuda' if torch.cuda.is_available() else 'cpu'\n12\neval_iters = 200\n13\nn_embd = 32\n14\n15\ntorch.manual_seed(1337)\n16\n17\n18\n# wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt\n19\nwith open('input.txt', 'r', encoding='utf-8') as f:\n20\ntext = f.read()\n21\n22\n# here are all the unique characters that occur in this text\n23\nchars = sorted(list(set(text)))\n24\nvocab_size = len(chars)\n25\n# create a mapping from characters to integers\n26\nstoi = { ch:i for i,ch in enumerate(chars) }\n27\nitos = { i:ch for i,ch in enumerate(chars) }\n28\nencode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers\n29\ndecode = lambda l: ''.join(itos[i] for i in l) # decoder: take a list of integers, output a string\n30\nPROBLEMS\nOUTPUT\nDEBUG CONSOLE\nTERMINAL\nPORTS\nGITLENS: VISUAL FILE HISTORY\nbash\nstep 1500: train loss 2.4775, val loss 2.4829\nstep 2000: train loss 2.4408, val loss 2.4523\nstep 2500: train loss 2.4272, val loss 2.4435\nstep 3000: train loss 2.4136, val loss 2.4327\nstep 3500: train loss 2.3966, val loss 2.4212\nstep 4000: train loss 2.4041, val loss 2.3992\nstep 4500: train loss 2.3980, val loss 2.4084\nWhent iknt,\nOUTLINE\nTIMELINE\nmaster*\n0\n0\n0\nYou, 22 hours ago\nLn 15, Col 1\nSpaces: 4\nUTF-8\nLF\nPython\n3.10.8 ('pytorch2': conda)\nComment\nShare\nRAM\nDisk\nEditing",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 5110.0,
+    "url": "frames/22.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\narxiv.org\nAI Understanding...\nBrowse, share, an...\nPlease write a bre...\nhttps://arxiv.org/\nhttps://raw.github...\ngpt-dev.ipynb - C...\nhttps://arxiv.org/p...\nGELU - PyTorch...\nmakemore/make...\nCrossEntropyLos...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\nand the memory keys and values come from the output of the encoder. This allows every\nposition in the decoder to attend over all positions in the input sequence. This mimics the\ntypical encoder-decoder attention mechanisms in sequence-to-sequence models such as\n[38, 2, 9].\n\u2022 The encoder contains self-attention layers. In a self-attention layer all of the keys, values\nand queries come from the same place, in this case, the output of the previous layer in the\nencoder. Each position in the encoder can attend to all positions in the previous layer of the\nencoder.\n\u2022 Similarly, self-attention layers in the decoder allow each position in the decoder to attend to\nall positions in the decoder up to and including that position. We need to prevent leftward\ninformation flow in the decoder to preserve the auto-regressive property. We implement this\ninside of scaled dot-product attention by masking out (setting to $-\\infty$) all values in the input\nof the softmax which correspond to illegal connections. See Figure 2.\n3.3 Position-wise Feed-Forward Networks\nIn addition to attention sub-layers, each of the layers in our encoder and decoder contains a fully\nconnected feed-forward network, which is applied to each position separately and identically. This\nconsists of two linear transformations with a ReLU activation in between.\n$FFN(x) = max(0, xW_1 + b_1)W_2 + b_2$ (2)\nWhile the linear transformations are the same across different positions, they use different parameters\nfrom layer to layer. Another way of describing this is as two convolutions with kernel size 1.\nThe dimensionality of input and output is $d_{model} = 512$, and the inner-layer has\n$d_{ff} = 2048$.\n3.4 Embeddings and Softmax\nSimilarly to other sequence transduction models, we use learned embeddings to co\ntokens and output tokens to vectors of dimension $d_{model}$. We also use the usual learned\nmation and softmax function to convert the decoder output to predicted next-token p\nour model, we share the same weight matrix between the two embedding layers and\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 5350.0,
+    "url": "frames/23.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ntowardsdatascience.com\nAI Understa...\nBrowse, sha...\nPlease write...\nhttps://arxiv...\nhttps://arxiv...\ngel-devry...\nGELU -- PyT...\nmakemore/...\nCrossEntrop...\nhttps://arxiv...\nhttps://arxiv...\nResidual blo...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\ntruly understand backpropagation and now severe the problem of vanishing\ngradient becomes with increasing the number of layers, then you can clearly\nsee that because of these skip connections, we can propagate larger\ngradients to initial layers, and these layers also could learn as fast as the final\nlayers, giving us the ability to train deeper networks. The image below shows\nhow to arrange the residual block and identity connections for the optimal\ngradient flow. It has been observed that pre-activations with batch\nnormalizations generally give the best results (i.e., the right-most residual\nblock in the image below gives the most promising results).\nSabyasachi Sahoo\n226 Followers\nOverfitting to unseen data | PhD Student Mila,\nIID, Universit\u00e9 Laval | Continual OOD\ngeneralization+detection, medical AI, robotics.\nhttps://sabyasachiis.github.\nFollow\nweight\nBN\nReLU\nweight\nBN\naddition\nReLU\nweight\nBN\nReLU\nweight\naddition\nBN\nReLU\nweight\nBN\nReLU\nweight\nBN\nReLU\naddition\nReLU\nweight\nBN\nReLU\nweight\nBN\naddition\nBN\nReLU\nweight\nBN\nReLU\nweight\naddition\n(a) original\n(b) BN after\naddition\n(c) ReLU before\naddition\n(d) ReLU-only\npre-activation\n(e) full pre-activation\nTypes of Residual Block. (img src)\nMore from Medium\nAlbers U... in Towards Data Sci...\n5 Popular CNN Architectures\nClearly Explained and\nVisualized\nMark Schaefer\n20 Entertaining Uses of\nChatGPT You Never Knew\nWere Possible\nDiego Bonilla\nTop Deep Learning Papers of\n2022\nJ. Rafid Siddi... in\nWhat are Stable D\nModels and Why\nStep Forward for\nThere are even more interpretations of residual blocks and ResNets, other\nthan the ones already discussed above. While training ResNets, we either\ntrain the layers in residual blocks or skip the training for those layers using\nskip connections. So, different parts of networks will be trained at different\nrates for different training data points based on how the error flows\nbackward in the network. This can be thought of as training an ensemble of\ndifferent models on the datase best possible accuracy.\n2.3K\n3\nHelp Status Writers Blo\nText-to-speech\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 5590.0,
+    "url": "frames/24.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\nPyTorch\nGet Started Ecosystem Mobile Blog Tutorials Docs Resources GitHub\n1.13\nSearch Docs\nCommunity [+]\nDeveloper Notes [+]\nLanguage Bindings [+]\nPython API [-]\ntorch\ntorch.nn\ntorch.nn.functional\ntorch.Tensor\nTensor Attributes\nTensor Views\ntorch.amp\ntorch.autograd\ntorch.library\ntorch.cuda\ntorch.backends\ntorch.distributed\ntorch.distributed.algorithms.join\ntorch.distributed.elastic\ntorch.distributed.fsdp\ntorch.distributed.optim\ntorch.distributions\ntorch.fft\ntorch.futures\ntorch.fx\ntorch.hub\ntorch.jit\ntorch.linalg\nOUTLINE\nTIMELINE\nmaster*\nDocs > torch.nn > LayerNorm\nLAYERNORM\nCLASS torch.nn.LayerNorm(normalized_shape, eps=1e-05, elementwise_affine=True, device=None,\ndtype=None) [SOURCE]\nApplies Layer Normalization over a mini-batch of inputs as described in the paper Layer Normalization\ny = x - E[x] / sqrt(Var[x] + epsilon) * gamma + beta\nThe mean and standard-deviation are calculated over the last D dimensions, where D is the dimension of\nnormalized_shape. For example, if normalized_shape is (3, 5) (a 2-dimensional shape), the mean and standard-\ndeviation are computed over the last 2 dimensions of the input (i.e. input.mean((-2, -1))). gamma and beta are learnable\naffine transform parameters of normalized_shape if elementwise_affine is True. The standard-deviation is calculated\nvia the biased estimator, equivalent to torch.var(input, unbiased=False).\nNOTE\nUnlike Batch Normalization and Instance Normalization, which applies scalar scale and bias for each entire\nchannel/plane with the affine option, Layer Normalization applies per-element scale and bias with\nelementwise_affine.\nThis layer uses statistics computed from input data in both training and evaluation modes.\nParameters:\nnormalized_shape (int or list or torch.Size) -\ninput shape from an expected input of size\n[* x normalized_shape[0] x normalized_shape[1] x ... x normalized_shape[-1]]\nIf a single integer is used, it is treated as a singleton list, and this module will normalize over the last\ndimension which is expected to be of that specific size",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 5810.0,
+    "url": "frames/25.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nv2.py\nDeveloper Notes [+]\nLanguage Bindings [+]\nPython API [-]\ntorch\ntorch.nn\ntorch.nn.functional\ntorch.Tensor\nTensor Attributes\nTensor Views\ntorch.amp\ntorch.autograd\ntorch.library\ntorch.cuda\ntorch.backends\ntorch.distributed\ntorch.distributed.algorithms.join\ntorch.distributed.elastic\ntorch.distributed.fsdp\ntorch.distributed.optim\ntorch.distributions\ntorch.fft\ntorch.futures\ntorch.fx\ntorch.hub\ntorch.jit\ntorch.linalg\ntorch.monitor\ntorch.special\ntorch.overrides\ntorch.package\ntorch.profiler\ntorch.nn.init\ntorch.onnx\ntorch.optim\nComplex Numbers\nOUTLINE\nTIMELINE\nmaster*\nDocs > torch.nn > LayerNorm\nLAYERNORM\nCLASS torch.nn.LayerNorm(normalized_shape, eps=1e-05, elementwise_affine=True, device=None,\ndtype=None) [SOURCE]\nApplies Layer Normalization over a mini-batch of inputs as described in the paper Layer Normalization\ny = x - E[x] / sqrt(Var[x] + epsilon) * gamma + beta\nThe mean and standard-deviation are calculated over the last D dimensions, where D is the dimension of\nnormalized_shape. For example, if normalized_shape is (3, 5) (a 2-dimensional shape), the mean and standard-\ndeviation are computed over the last 2 dimensions of the input (i.e. input.mean((-2, -1))). \u03b3 and \u03b2 are learnable\naffine transform parameters of normalized_shape if elementwise_affine is True. The standard-deviation is calculated\nvia the biased estimator, equivalent to torch.var(input, unbiased=False).\nNOTE\nUnlike Batch Normalization and Instance Normalization, which applies scalar scale and bias for each entire\nchannel/plane with the affine option, Layer Normalization applies per-element scale and bias with\nelementwise_affine.\nThis layer uses statistics computed from input data in both training and evaluation modes.\nParameters:\nnormalized_shape (int or list or torch.Size) \u2013\ninput shape from an expected input of size\n[* x normalized_shape[0] x normalized_shape[1] x ... x normalized_shape[-1]]\nIf a single integer is used, it is treated as a singleton list, and this module will normalize over the last\ndimension which is expected to be of that specific size.\neps (float) \u2013 a value added to the denominator for numerical stability. Default: 1e-5\nelementwise_affine (bool) \u2013 a boolean value that when set to",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 6050.0,
+    "url": "frames/26.jpg",
+    "ocr_text": "Code File Edit Selection View Go Run Terminal Window Help\nEXPLORER\nNANOGPT-LECTURE [SSH: 104....\nbigram.py\ninput.txt U\nmore.txt U\nv2.py M\nbigram.py v2.py M X more.txt U\nv2.py > ...\nYou, 15 minutes ago | 1 author (You)\n1 import torch\n2 import torch.nn as nn\n3 from torch.nn import functional as F\n4\n5 # hyperparameters\n6 batch_size = 64 # how many independent sequences will we process in parallel?\n7 block_size = 256 # what is the maximum context length for predictions?\n8 max_iters = 5000\n9 eval_interval = 500\n10 learning_rate = 3e-4\n11 device = 'cuda' if torch.cuda.is_available() else 'cpu'\n12 eval_iters = 200\n13 n_embd = 384\n14 n_head = 6\n15 n_layer = 6\n16 dropout = 0.2\n17\n18\n19 torch.manual_seed(1337)\n20\n21 # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt\n22 with open('input.txt', 'r', encoding='utf-8') as f:\n23 text = f.read()\n24\nPROBLEMS OUTPUT DEBUG CONSOLE TERMINAL PORTS GITLENS: VISUAL FILE HISTORY\nbash\nstep 500: train loss 2.0010, val loss 2.0080\nstep 1000: train loss 1.5949, val loss 1.7786\nstep 1500: train loss 1.4397, val loss 1.6438\nstep 2000: train loss 1.3404, val loss 1.5714\nstep 2500: train loss 1.2786, val loss 1.5331\nstep 3000: train loss 1.2264, val loss 1.5101\nstep 3500: train loss 1.1820, val loss 1.4916\nstep 4000: train loss 1.1464, val loss 1.4904\nstep 4500: train loss 1.1095, val loss 1.4804\nstep 4999: train loss 1.0763, val loss 1.4873\nHad you to do cherish you, have forgot your youngard.'\nKeeper:\nAnd shall this the power of death? You that once is sure,\nAs if you make him dead: madam, as you present,\nOUTLINE\nTIMELINE\nmaster*\n0 \u26a0 0\nYou, yesterday Ln 18, Col 1 Spaces: 4 UTF-8 LF Python 3.10.8 ('pytorch2': conda)",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 6290.0,
+    "url": "frames/27.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ncolab.research.google.com\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nmore.txt\nv2.py\ngpt-dev.ipynb\nFile Edit View Insert Runtime Tools Help All changes saved\nComment\nShare\n+ Code + Text\nReconnect\nEditing\n[ ] x[:,0].mean(), x[:,0].std() # mean,std of one feature across all batch inputs\n(tensor(0.1469), tensor(0.8803))\n{x}\n[ ] x[0,:].mean(), x[0,:].std() # mean,std of a single input from the batch, of its features\n(tensor(-9.5367e-09), tensor(1.0000))\n# French to English translation example:\n# <--------- ENCODE ----------><---------- DECODE ---------->\n# les r\u00e9seaux de neurones sont g\u00e9niaux! <START> neural networks are awesome!<END>\narxiv.org\nOutput\nProbabilities\nSoftmax\nLinear\nAdd & Norm\nFeed\nForward\nAdd & Norm\nMulti-Head\nAttention\nNx\nAdd & Norm\nFeed\nForward\nAdd & Norm\nMulti-Head\nAttention\nNx\nAdd & Norm\nMasked\nMulti-Head\nAttention\nPositional\nEncoding\nInput\nEmbedding\nOutput\nEmbedding\nPositional\nEncoding\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 6510.0,
+    "url": "frames/28.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\ngithub.com\nAI Understanding...\nBrowse, share, an...\nPlease write a bre...\nhttps://arxiv.org/p...\nhttps://awx.github...\ngpt-dev.ipynb - C...\nhttps://www.cs.to...\nkarpathy/nanoGP...\nnanoGPT/train.py...\nnanoGPT/model.p...\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nmore.txt\nv2.py\n107 assert config.block_size is not None\n108 self.config = config\n109\n110 self.transformer = nn.ModuleDict(dict(\n111 wte = nn.Embedding(config.vocab_size, config.n_embd),\n112 wpe = nn.Embedding(config.block_size, config.n_embd),\n113 drop = nn.Dropout(config.dropout),\n114 h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),\n115 ln_f = nn.LayerNorm(config.n_embd),\n116 ))\n117 self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)\n118 # with weight tying when using torch.compile() some warnings get generated:\n119 # \"UserWarning: functional_call was passed multiple values for tied weights.\n120 # This behavior is deprecated and will be an error in future versions\"\n121 # not 100% sure what this is, so far seems to be harmless. TODO investigate\n122 self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying\n123\n124 # report number of parameters\n125 n_params = sum(p.numel() for p in self.parameters())\n126 print(\"number of parameters: %.2fM\" % (n_params/1e6,))\n127\n128 def forward(self, idx, targets=None):\n129 device = idx.device\n130 b, t = idx.size()\n131 assert t <= self.config.block_size, f\"Cannot forward sequence of length {t}, block size is only {self.config.block_size}\"\n132 pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t)\n133\n134 # forward the GPT model itself\n135 tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)\n136 pos_emb = self.transformer.wpe(pos) # position embeddings of shape (1, t, n_embd)\n137 x = self.transformer.drop(tok_emb + pos_emb)\n138 for block in self.transformer.h:\n139 x = block(x)\n140 x = self.transformer.ln_f(x)\n141\n142 if targets is not None:\n143 # if we are given some desired targets also calculate the loss\n144 logits = self.lm_head(x)\n145 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
+  },
+  {
+    "t": 6750.0,
+    "url": "frames/29.jpg",
+    "ocr_text": "Safari File Edit View History Bookmarks Develop Window Help\nEXPLORER\nNANOGPT-LECTU\nbigram.py\ninput.txt\nmore.txt\nv2.py\nAI Understanding Prosperity\nBrowse, share, and discus...\nPlease write a breaking ne...\nhttps://arxiv.org/pdf/1706...\ngpt-dev.ipynb - Colaborat...\nhttps://arxiv.org/abs/2005...\nChatGPT: Optimizing Lan...\nkarpathy/nanoGPT: The si...\nChatGPT is a sibling model to InstructGPT, which is trained to\nfollow an instruction in a prompt and provide a detailed\nresponse.\nTRY CHATGPT \u2197\nNovember 30, 2022\n13 minute read\nWe are excited to introduce ChatGPT to get users' feedback and learn about its\nstrengths and weaknesses. During the research preview, usage of ChatGPT is free.\nTry it now at chat.openai.com.\nSamples\nIn the following sample, ChatGPT asks the clarifying questions to debug code.\nSample 1 of 4 Previous Next\nUser\nthis code is not working like i expect \u2014 how do i fix it?\nOUTLINE\nTIMELINE\nmaster*",
+    "ocr_conf": 100.0,
+    "low_conf": false,
+    "figure_url": null,
+    "figure_box": null
   }
 ]

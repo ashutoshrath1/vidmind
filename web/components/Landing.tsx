@@ -20,8 +20,8 @@ export const STATS: [string, string][] = [
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string; image: string; w: number; h: number; wide?: boolean }[] = [
-  { icon: "check", title: "Notes with proof", text: "Every point links to the second it was said or shown.", image: "notes", w: 1200, h: 933, wide: true },
-  { icon: "diagram", title: "The diagram it explains", text: "Drawn from what the video says and shows.", image: "diagram", w: 1200, h: 406 },
+  { icon: "check", title: "Notes with proof", text: "Every point links to the second it was said or shown.", image: "notes", w: 1200, h: 997, wide: true },
+  { icon: "diagram", title: "The diagram it explains", text: "Drawn from what the video says and shows.", image: "diagram", w: 1200, h: 1175 },
 ];
 
 /** A feature: one line of type over a real capture of the app. */

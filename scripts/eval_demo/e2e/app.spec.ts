@@ -41,10 +41,12 @@ test.describe("result page", () => {
     await expect(page.getByRole("heading", { name: "Key takeaways" })).toBeVisible({ timeout: 15_000 });
   });
 
-  test("checked notes, under 11 s, one screen tall, no Lecture chip", async ({ page }) => {
+  test("a 2-hour talk checked in under 90 s, one screen tall, no Lecture chip", async ({ page }) => {
     await page.getByRole("tab", { name: "How it was made" }).click(); // the finished run's stats live there
-    const total = await page.getByText(/^\d+(\.\d)? s$/).first().innerText();
-    expect(parseFloat(total)).toBeLessThan(11);
+    // The example is Karpathy's 2-hour "Let's build GPT": all notes in 1 min 11 s.
+    const total = await page.getByText(/^(\d+ min )?\d+(\.\d)? s$/).first().innerText();
+    const [, min, sec] = total.match(/^(?:(\d+) min )?([\d.]+) s$/)!;
+    expect(Number(min ?? 0) * 60 + Number(sec)).toBeLessThan(90);
     await expect(page.getByText("Lecture", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(900); // one page scroll, no inner columns
     expect(await noSideScroll(page)).toBe(true);
@@ -90,7 +92,7 @@ test.describe("result page", () => {
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("Muse Spark 1.2");
     await expect(panel).toContainText("Muse Voice Transcribe");
-    await expect(panel).toContainText("SAM 3.1");
+    await expect(panel).toContainText("Transcribed 1:56:20"); // hours shown as hours
     await expect(page.getByRole("region", { name: "Every note was checked before you saw it" })).toContainText("notes kept");
   });
 
@@ -176,13 +178,13 @@ test("screen text: search a slide word, see it marked, click plays that moment; 
   await page.goto("/jobs/sample");
   await page.getByRole("tab", { name: /Keyframes|On screen/ }).click({ timeout: 15_000 });
   const vault = page.getByRole("region", { name: "On screen" });
-  await vault.getByLabel("Search what was on screen").fill("eureka"); // on the slide at 1:32, and said around it
+  await vault.getByLabel("Search what was on screen").fill("juliet"); // the Shakespeare text on screen at 7:30
   await expect(vault.getByText(/^[12] of \d+ screens match$/)).toBeVisible();
-  await expect(vault.locator("mark").first()).toHaveText(/^eureka$/i);
-  await vault.getByRole("button", { name: "Play from 1:32" }).first().click();
+  await expect(vault.locator("mark").first()).toHaveText(/^juliet$/i);
+  await vault.getByRole("button", { name: "Play from 7:30" }).first().click();
   // The player opens on demand, so wait for its frame before reading what it was sent.
   await expect.poll(async () => (await page.frame({ url: /youtube-nocookie/ })?.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got)) ?? [])
-    .toContainEqual({ event: "command", func: "seekTo", args: [91.67, true] });
+    .toContainEqual({ event: "command", func: "seekTo", args: [450, true] });
   await vault.getByLabel("Search what was on screen").fill("kafka");
   await expect(vault.getByText("Nothing on screen matches “kafka”.")).toBeVisible();
   await expect(vault.getByRole("button", { name: "Copy all screen text" })).toBeVisible();
@@ -201,13 +203,13 @@ test("library: the sample is listed after visiting it, search filters it, and th
   await page.goto("/jobs/sample");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("vidmind-recent") ?? ""), { timeout: 15_000 }).toContain('"sample"');
   await page.goto("/library");
-  const row = page.getByRole("listitem").filter({ hasText: "Microservices Architecture" });
-  await expect(row.getByRole("link", { name: /Microservices Architecture/ })).toBeVisible();
+  const row = page.getByRole("listitem").filter({ hasText: "Build GPT" });
+  await expect(row.getByRole("link", { name: /Build GPT/ })).toBeVisible();
   await page.getByLabel("Search by title").fill("kafka");
   await expect(page.getByText("No titles match “kafka”.")).toBeVisible();
   await page.getByLabel("Search by title").fill("");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await noSideScroll(page)).toBe(true);
-  await row.getByRole("link", { name: /Microservices Architecture/ }).click();
+  await row.getByRole("link", { name: /Build GPT/ }).click();
   await expect(page).toHaveURL("/jobs/sample");
 });

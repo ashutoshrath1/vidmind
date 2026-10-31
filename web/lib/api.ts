@@ -94,5 +94,6 @@ export function formatSeconds(s: number) {
 
 export function formatTime(seconds: number) {
   const s = Math.max(0, Math.round(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const ss = String(s % 60).padStart(2, "0");
+  return s < 3600 ? `${Math.floor(s / 60)}:${ss}` : `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${ss}`;
 }
