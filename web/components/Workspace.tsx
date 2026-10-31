@@ -195,7 +195,9 @@ function ShellTitle({ title }: { title: string }) {
 /** One quiet line under the title, like a blog byline: length, how many notes were checked, the channel. */
 function ArticleMeta({ result, channel }: { result: LearnResult | null; channel?: string | null }) {
   if (!result) return null;
-  const notes = result.chapters.reduce((n, c) => n + c.notes.length, 0);
+  // The same count as the run card and the line at the end (notes added later from the slides are checked too, but
+  // a second number here read as a contradiction).
+  const notes = result.notes_checked ?? result.chapters.reduce((n, c) => n + c.notes.length, 0);
   const unsure = result.chapters.reduce((n, c) => n + c.notes.filter((x) => x.uncertain).length, 0);
   const parts = [
     result.duration_seconds ? `${Math.max(1, Math.round(result.duration_seconds / 60))} min video` : null,
