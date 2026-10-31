@@ -343,6 +343,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
             {meta && <Chip>{formatTime(meta.duration)} long</Chip>}
             {meta?.height ? <Chip>{meta.height}p</Chip> : null}
             {!meta && !unread && !error && <Chip tone="scan">Reading the file…</Chip>}
+            {unread && !error && <Chip>Unusual format: it will be converted to MP4 for playback</Chip>}
           </p>
           {plan && !error && (
             <>

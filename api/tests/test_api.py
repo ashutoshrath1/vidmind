@@ -17,9 +17,11 @@ def isolated_data(tmp_path, monkeypatch):
     monkeypatch.setattr(jobs, "DATA_DIR", tmp_path / "jobs")
 
 
-def test_rejects_wrong_extension():
-    r = client.post("/jobs", files={"file": ("notes.txt", b"hello", "text/plain")})
-    assert r.status_code == 400
+def test_rejects_a_file_that_is_not_a_video_whatever_its_name():
+    for name in ("notes.txt", "fake.mp4", "noextension"):
+        r = client.post("/jobs", files={"file": (name, b"hello", "application/octet-stream")})
+        assert r.status_code == 400 and "Try MP4" in r.json()["detail"]
+    assert not list(jobs.DATA_DIR.iterdir())  # nothing left behind
 
 
 def test_rejects_non_video_and_cleans_up(tmp_path):

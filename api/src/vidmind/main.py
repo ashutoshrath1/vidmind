@@ -29,9 +29,9 @@ from .schema import LearnResult
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
-PLAYABLE_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}  # Chrome, Safari and Firefox play these as uploaded
-# ffmpeg reads these too (each tested through probe, audio and keyframes); the player gets an .mp4 copy of them.
-ALLOWED_EXT = PLAYABLE_EXT | {".avi", ".wmv", ".flv", ".3gp", ".mpg", ".mpeg", ".ts", ".mts", ".m2ts"}
+# Any file ffmpeg can read is accepted, whatever its name says; these play in browsers as uploaded, the rest get an
+# .mp4 copy for the player (_playable_copy).
+PLAYABLE_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
 WEB_ORIGINS = os.environ.get("VIDMIND_WEB_ORIGIN", "http://localhost:3000").split(",")
 
 
@@ -82,8 +82,8 @@ def health():
 @app.post("/jobs", status_code=201)
 async def create_job(file: UploadFile):
     ext = Path(file.filename or "").suffix.lower()
-    if ext not in ALLOWED_EXT:
-        raise HTTPException(400, f"Unsupported file type. Use one of: {', '.join(sorted(ALLOWED_EXT))}")
+    if not re.fullmatch(r"\.[a-z0-9]{1,6}", ext):
+        ext = ".video"  # no or odd extension: ffprobe reads the content, not the name
 
     job_id, d = jobs.create()
     try:
@@ -98,7 +98,7 @@ async def create_job(file: UploadFile):
         try:
             duration, _ = await run_in_threadpool(probe, d / f"video{ext}")
         except ValueError as e:
-            raise HTTPException(400, str(e)) from None
+            raise HTTPException(400, f"{e}. Try MP4, MOV, WebM or MKV.") from None
         if duration > MAX_DURATION_S:
             raise HTTPException(400, f"Video is {duration / 3600:.1f} h; the limit is {MAX_DURATION_S // 3600} hours")
         key = f"{PIPELINE_VERSION}:sha256:{digest.hexdigest()}"

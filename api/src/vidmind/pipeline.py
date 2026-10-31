@@ -83,9 +83,9 @@ def probe(video: Path) -> tuple[float, set[str]]:
         kinds = {s["codec_type"] for s in info.get("streams", [])}
         duration = float(info["format"]["duration"])
     except (json.JSONDecodeError, KeyError, ValueError):
-        raise ValueError("Could not read this file as a video") from None
+        raise ValueError("This file isn't a video VidMind can read") from None
     if "video" not in kinds:
-        raise ValueError("File has no video stream")
+        raise ValueError("This file has sound but no picture")
     return duration, kinds
 
 
