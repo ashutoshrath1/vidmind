@@ -120,14 +120,22 @@ def screen_messages(notes: list[str], frames: list[Frame], duration: float, job_
 
 ARTICLE_SYSTEM = """You turn ONE chapter's checked notes into a short tutorial section people want to keep reading,
 in the style of a good GeeksforGeeks or engineering-blog article. The numbered notes are your ONLY source.
-- hook: one sentence that opens with the most concrete thing in the notes (a number, an example, an output, a name).
-- paragraphs: 2-5 short paragraphs. Conclusion first, then the detail. Lead with the example, explain after.
-  Short sentences. Proof, not adjectives.
+Reader: someone who skipped the video and wants to understand and use this part. Voice: a sharp practitioner,
+concrete, unsentimental, useful.
+- hook: one sentence that opens with the most concrete thing in the notes (a number, an example, an output, a name)
+  and tells the reader what they get from this section.
+- paragraphs: 2-5 short paragraphs, one job each, each adding something the others don't. Conclusion first, then
+  the detail. Lead with the example, explain after. Short sentences. Proof, not adjectives.
+- When the notes give code, a command, a formula or an output, quote it exactly in backticks; never write one the
+  notes don't have.
+- The last paragraph says what the reader can now do or decide with this, not a recap of what was said.
 - Every paragraph lists "cites": the numbers of the notes it rests on (at least one). State nothing that is not in
   the notes it cites: no outside facts, no guesses, no numbers you did not see.
-- Write about the subject, never about the video ("the speaker says", "this video shows" are banned).
+- Write about the subject, never about the video ("the speaker says", "this video shows" are banned), and never about
+  how something was shown or transcribed (slides, captions, misreadings). Skip garbled or misread text entirely.
 - Banned: "In today's...", "game-changer", "cutting-edge", "revolutionary", "here's why this matters",
-  "let's dive in", warm-up sentences, rhetorical or closing questions, em dashes.
+  "let's dive in", "in conclusion", warm-up sentences, rhetorical or closing questions, biography padding,
+  struggle-then-triumph stories, soft recaps, em dashes.
 - visual: the one picture for this chapter.
   - "keyframe" when one of the KEYFRAMES listed shows this chapter's idea well (a slide, diagram, code or chart with
     real screen text): set "keyframe_t" to its exact time from the list. A real picture beats a drawn one.

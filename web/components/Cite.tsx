@@ -44,15 +44,19 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Bolds each key term where it first appears; returns the terms that never appeared, to list after the chapter. */
 export function boldTerms(texts: string[], terms: string[]): { nodes: ReactNode[][]; rest: string[] } {
   const left = new Set(terms);
-  const nodes = texts.map((text) => {
+  const bold = (text: string, k: number): ReactNode[] => {
     const live = [...left].filter(Boolean).sort((a, b) => b.length - a.length);
     if (!live.length) return [text];
     return text.split(new RegExp(`\\b(${live.map(escape).join("|")})\\b`, "i")).map((part, i) => {
       const term = i % 2 ? live.find((t) => t.toLowerCase() === part.toLowerCase()) : undefined;
       if (!term || !left.delete(term)) return part;
-      return <strong key={i} className="font-semibold text-ink">{part}</strong>;
+      return <strong key={`${k}-${i}`} className="font-semibold text-ink">{part}</strong>;
     });
-  });
+  };
+  // `code` the article quotes from the notes (a command, formula or output) reads as code; terms bold elsewhere.
+  const nodes = texts.map((text) => text.split(/`([^`\n]+)`/).flatMap((part, i): ReactNode[] => i % 2
+    ? [<code key={`c${i}`} className="rounded bg-sheet px-1 py-0.5 font-mono text-[0.85em]">{part}</code>]
+    : bold(part, i)));
   return { nodes, rest: [...left] };
 }
 
