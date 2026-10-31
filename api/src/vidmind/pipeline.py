@@ -811,7 +811,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 _show_keyframe(c, f)
                 shown.append((c, f))
                 emit("image", chapter=i, visual="keyframe", at=f.t)
-            elif kind == "illustration":
+            # The keyframe is the stand-in; a chapter with a free slot also gets its illustration, which replaces it
+            # the moment it is drawn.
+            if kind == "illustration" or (kind == "keyframe" and ok):
                 if not img_started:
                     img_started.append(time.monotonic())
                     emit("stage", name="images", state="start", detail="Drawing the illustrations", model=mdl.role("image"))
@@ -867,8 +869,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 first_queued.set()  # local speech recognition never queues pieces: don't hold the others back
         return [Segment(round(s.start + lo, 2), round(s.end + lo, 2), s.text) for s in local], engine, _since(started)
 
-    def whole_video(all_segments: list[Segment], frames: list[Frame], ex: ThreadPoolExecutor) -> None:
-        """Title and summary, then takeaways and diagram."""
+    def overview(all_segments: list[Segment], frames: list[Frame]) -> None:
         try:
             messages = syn.overview_messages(all_segments, frames)
             state["overview"] = hedged(_model_order(pool, len(sections)), lambda m: syn.ask(messages, m, Overview)[0],
@@ -876,7 +877,19 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             emit("overview", title=state["overview"].title, tldr=state["overview"].tldr)
         except Exception:
             log.exception("overview failed; falling back to the first chapter title")
-        ex.submit(_visual, all_segments, frames, job_dir, duration, pool, state, emit).exception()  # logs its own failure
+
+    def whole_video() -> None:
+        """Title and summary beside takeaways and diagram, from the whole transcript: started when the last section's
+        transcript is in, beside the notes, not after them (they need no note)."""
+        segs = list(src.captions) if src.captions is not None else \
+            [s for f in heard if not f.exception() for s in f.result()[0]]
+        try:
+            frames = sorted(frames_f.result(timeout=3), key=lambda f: f.t)  # on-screen text when it is already there
+        except Exception:
+            frames = []  # a slow scan never holds the title back
+        with ThreadPoolExecutor(max_workers=2) as two:
+            two.submit(overview, segs, frames)
+            two.submit(_visual, segs, frames, job_dir, duration, pool, state, emit)  # logs its own failure
 
     all_segments: list[Segment] = []
     # Muse ASR runs ~8 s per audio minute, so sections go out together (5 x 60 s: 10 s, vs 40 s for one 300 s
@@ -904,6 +917,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
             if src.captions is None and audio is not None else []
         heard_by: dict[int, list[Segment]] = {}
+        whole_ex = ThreadPoolExecutor(max_workers=1)
+        whole_f = whole_ex.submit(whole_video)
+        whole_ex.shutdown(wait=False)
 
         def hear_then_write(i: int, lo: float, hi: float) -> None:
             """Each section waits only for its own transcript, so a slow one never holds back the next."""
@@ -976,9 +992,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     def sharpen(_=None) -> None:
         """Keyframe visuals switch to their diagram crop once diagram tracking has found one."""
         with lock:
-            changed = [c for c, f in shown if f.figure_url and c.image_url != f.figure_url]
-            for c, f in shown:
-                c.image_url = f.figure_url or c.image_url
+            # Only chapters still showing their keyframe: a drawn illustration stays.
+            changed = [c for c, f in shown if c.image_kind == "keyframe" and f.figure_url and c.image_url != f.figure_url]
+            for c in changed:
+                c.image_url = next(f.figure_url for k, f in shown if k is c)
         if changed:
             publish()
 
@@ -1013,7 +1030,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 ex2.submit(illustrations)  # right after the notes, beside the article: the first picture is the long pole
             if frames:
                 ex2.submit(slides)
-            whole_video(all_segments, frames, ex2)
+            whole_f.exception()  # started beside the notes; usually done by now
             if mdl.available(mdl.role("image")):
                 ex2.submit(_extras, assemble, job_dir, state, emit, lock)  # needs only the title and takeaways
         # Complete only now: the page keeps fetching while pending, so the card appears without a reload too.
