@@ -145,3 +145,12 @@ test("times past an hour read h:mm:ss", async () => {
   assert.equal(formatTime(6980), "1:56:20");
   assert.equal(formatTime(3600), "1:00:00");
 });
+
+test("the live line speaks plainly and skips model noise", async () => {
+  const { narration } = await import("./trace.ts");
+  assert.equal(narration({ t: 0, kind: "source", duration: 600, streaming: true, transcript: "speech", caption_lines: 0, models: ["m"] }), "Listening to the audio");
+  assert.equal(narration({ t: 1, kind: "section", task: "s2", ok: true, model: "m", title: "Docker Compose", notes: 4, rejected: 0 }), "Section 3: “Docker Compose”, 4 checked notes");
+  assert.equal(narration({ t: 1, kind: "check", task: "s0", model: "m", round: 1, notes: 1, problems: [], kept: 1 }), "Checking 1 quote in section 1 against the transcript");
+  assert.equal(narration({ t: 1, kind: "model", task: "s0", model: "m", state: "start", reason: "hedge" }), null);
+  assert.equal(narration({ t: 2, kind: "done" }), "All notes checked");
+});

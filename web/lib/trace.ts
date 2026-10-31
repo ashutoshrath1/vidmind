@@ -1,6 +1,6 @@
 // The job's trace (api: jobs.tracer / pipeline emit) streamed as server-sent events, folded into what the page shows.
 // Relative .ts imports only: `node --test lib/*.test.ts` runs this file without the Next toolchain.
-import type { Note } from "./api.ts";
+import { type Note, formatTime } from "./api.ts";
 import { estimate } from "./estimate.ts";
 
 export type Rejected = { text: string; reasons: string[] };
@@ -296,4 +296,38 @@ export function lanesOf(events: TraceEvent[], now: number): Lane[] {
   for (const s of open.values()) if (LANE_OF_STAGE[s.name]) put(LANE_OF_STAGE[s.name], { start: s.t, end: now, label: STAGE_LABEL[s.name], model: s.model, state: "running", detail: s.detail });
   for (const [key, s] of tries) put(LANE_OF_TASK[s.task] ?? "Notes", { start: s.t, end: now, label: taskName(key.split("|")[0]), model: s.model, state: "running" });
   return LANE_ORDER.filter((n) => lanes.has(n)).map((name) => ({ name, bars: lanes.get(name)! }));
+}
+
+const section = (task: string) => `Section ${Number(task.slice(1)) + 1}`;
+const STARTS: Record<string, string> = {
+  scenes: "Looking for slide changes", ocr: "Reading the slides", screen: "Adding what's only on screen",
+  article: "Writing the article", images: "Drawing the illustrations", slides: "Explaining each slide", card: "Drawing a summary card",
+};
+
+/** The live line: the moments a person cares about, in plain words. Model races, spare copies and single frames
+ * stay in the event log on How it was made. */
+export function narration(e: TraceEvent): string | null {
+  switch (e.kind) {
+    case "source_ready":
+      return `Found “${e.title ?? "the video"}”, ${formatTime(e.duration ?? 0)} long`;
+    case "source":
+      return e.transcript === "subtitles" ? "Using the video's own captions" : e.transcript === "speech" ? "Listening to the audio" : null;
+    case "plan":
+      return `Split into ${e.sections.length} sections, written at once`;
+    case "stage":
+      if (e.state !== "start") return null;
+      if (e.name === "transcribe") return e.detail ?? null;
+      if (e.name === "frames") return e.detail ?? "Capturing keyframes";
+      return STARTS[e.name] ?? null;
+    case "check":
+      return /^s\d+$/.test(e.task) ? `Checking ${e.notes} quote${e.notes === 1 ? "" : "s"} in ${section(e.task).toLowerCase()} against the transcript` : null;
+    case "section":
+      return e.ok ? `${section(e.task)}: “${e.title}”, ${e.notes} checked note${e.notes === 1 ? "" : "s"}` : `${section(e.task)} couldn't be written`;
+    case "overview":
+      return `Titled “${e.title}”`;
+    case "done":
+      return "All notes checked";
+    default:
+      return null;
+  }
 }

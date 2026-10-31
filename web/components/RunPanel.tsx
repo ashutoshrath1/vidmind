@@ -1,10 +1,10 @@
 "use client";
 
-import { Lens, sentence } from "@/components/Timeline";
-import { useState } from "react";
+import { Lens } from "@/components/Timeline";
+import { useEffect, useRef, useState } from "react";
 import { Button, Counter } from "@/components/ui";
 import { formatSeconds, formatTime, modelName } from "@/lib/api";
-import { type View, secondsLeft } from "@/lib/trace";
+import { type View, narration, secondsLeft } from "@/lib/trace";
 
 type State = "waiting" | "working" | "done" | "skipped";
 type Step = { name: string; state: State; detail: string; progress?: [number, number]; fact?: string };
@@ -18,12 +18,27 @@ type Props = {
   onReplay?: () => void;
 };
 
+/** Each line stays up long enough to read; when it changes, the newest one shows. */
+function useHeld(text: string | null, ms = 900): string | null {
+  const [shown, setShown] = useState(text);
+  const since = useRef(0);
+  useEffect(() => {
+    if (text === shown) return;
+    const t = setTimeout(() => {
+      setShown(text);
+      since.current = Date.now();
+    }, Math.max(0, since.current + ms - Date.now()));
+    return () => clearTimeout(t);
+  }, [text, shown, ms]);
+  return shown;
+}
+
 /** The run, front and centre: what is happening right now in one line, and every step with its count and time. */
 export default function RunPanel({ view, now, running, replaying, celebrate, onReplay }: Props) {
   const steps = describe(view, now);
   const left = running ? secondsLeft(view, now) : undefined;
-  const lastIndex = view.events.findLastIndex((e) => sentence(e));
-  const latest = lastIndex >= 0 ? sentence(view.events[lastIndex]) : null;
+  const lastIndex = view.events.findLastIndex((e) => narration(e));
+  const latest = useHeld(lastIndex >= 0 ? narration(view.events[lastIndex]) : null);
   const end = view.end;
 
   return (
@@ -31,7 +46,7 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           {end && !running ? <Finish view={view} celebrate={celebrate} small /> : (
-            <p key={lastIndex} title={latest ?? undefined} className="narrate truncate font-display text-base font-semibold" aria-live="off">
+            <p key={latest ?? ""} title={latest ?? undefined} className="narrate truncate font-display text-base font-semibold" aria-live="off">
               <span className="mr-2 text-[13px] font-semibold tracking-wide text-scan-ink uppercase">{replaying ? "Replay" : "Now"}</span>
               {latest ?? "Opening the video"}
             </p>
