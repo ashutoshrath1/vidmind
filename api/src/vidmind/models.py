@@ -1,5 +1,6 @@
 """Which model does which job, and where it is reached. All of it comes from environment variables; the defaults are
-Meta Muse. A model is written "provider:model". A provider is a built-in (muse, groq, nvidia, apple) or any
+Meta Muse. A model is written "provider:model". A provider is a built-in (muse, openai, anthropic, openrouter, groq,
+nvidia, xai, ollama, apple) or any
 OpenAI-compatible server added with PROVIDER_<NAME>_BASE_URL and PROVIDER_<NAME>_API_KEY. See README "Use other models"."""
 
 import os
@@ -34,6 +35,15 @@ BUILTIN = {
                      max_in_flight=24, hedge_s=0.0, spread=False, exclusive=True),
     # Apple's on-device model: `fm serve --port 1976` (macOS 26+). Free and private, but its notes failed grounding.
     "apple": Provider("apple", "http://localhost:1976/v1", max_in_flight=1, local=True),
+    "openai": Provider("openai", "https://api.openai.com/v1", "OPENAI_API_KEY"),
+    # Anthropic's OpenAI-compatible endpoint; reasoning_effort is not sent (effort="").
+    "anthropic": Provider("anthropic", "https://api.anthropic.com/v1/", "ANTHROPIC_API_KEY", effort=""),
+    # One key for hundreds of models, several free (ids ending ":free").
+    "openrouter": Provider("openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", effort=""),
+    "xai": Provider("xai", "https://api.x.ai/v1", "XAI_API_KEY", effort=""),  # Grok
+    # Ollama on this machine: no key, nothing leaves it. Two requests at once keep a laptop responsive.
+    "ollama": Provider("ollama", os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"), max_in_flight=2,
+                       effort="", hedge_s=120.0, spread=False, local=True),
 }
 
 # Role -> (variable, default). An empty variable turns the role off.

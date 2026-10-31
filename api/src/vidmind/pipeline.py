@@ -1023,7 +1023,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             publish()
 
         with ThreadPoolExecutor(max_workers=6) as ex2:
-            if frames:
+            if frames and any(mdl.is_vision(m) for m in pool):  # it sends keyframe images: text-only models refuse them
                 ex2.submit(on_screen)
             ex2.submit(articles)
             if mdl.available(mdl.role("image")):
