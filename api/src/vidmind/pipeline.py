@@ -11,6 +11,7 @@ The media is a `Source`: a local file, or stream URLs that ffmpeg reads with ran
 import json
 import logging
 import os
+import re
 import subprocess
 import threading
 import time
@@ -19,6 +20,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import httpx
 import numpy as np
 
 from . import frames as fr
@@ -106,19 +108,72 @@ def _embedded_captions(video: Path) -> list[Segment] | None:
 AUDIO_RANGES = 4
 
 
+# Past this length each section fetches only its own slice of the audio: a throttled 2-hour stream took 11+ minutes to
+# pull whole, and every note waited for it.
+LONG_AUDIO_S = 1200
+SLICE_TIMEOUT_S = 90  # one section's slice; a stalled request is retried once, then that section fails alone
+_slicing = threading.BoundedSemaphore(8)  # slices fetched at once from one stream
+
+
+def load_slice(src: Path | str, headers: str, lo: float, hi: float) -> np.ndarray:
+    with _slicing:
+        for attempt in range(2):
+            try:
+                raw = _pull_audio(src, headers, "-ss", f"{lo:.3f}", "-t", f"{hi - lo:.3f}", timeout=SLICE_TIMEOUT_S)
+                return np.frombuffer(raw, np.int16).astype(np.float32) / 32768
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                if attempt:
+                    raise
+                log.warning("audio slice %.0f-%.0f s failed; retrying", lo, hi)
+    raise AssertionError("unreachable")
+
+
+def _pull_audio(src: Path | str, headers: str, *span: str, timeout: float | None = None) -> bytes:
+    return subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", *span, *fr.ff_input(src, headers),
+         "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
+        capture_output=True, check=True, timeout=timeout,
+    ).stdout
+
+
+CHUNK_BYTES = 10_000_000  # YouTube serves a request this size at full speed and throttles longer ones
+
+
+def download_audio(url: str, headers: str, out: Path) -> bool:
+    """A YouTube audio stream (its URL says its size, clen=) fetched as parallel 10 MB ranges: a 2-hour talk's 42 MB in
+    1.6 s, where ffmpeg reading the stream took 11+ minutes. False when the URL has no size; ffmpeg reads it then."""
+    m = re.search(r"[?&]clen=(\d+)", url)
+    if not m:
+        return False
+    size = int(m.group(1))
+    hdrs = dict(line.split(":", 1) for line in headers.split("\r\n") if ":" in line)
+    hdrs = {k.strip(): v.strip() for k, v in hdrs.items()}
+
+    def get(a: int) -> bytes:
+        for attempt in range(3):
+            try:
+                r = httpx.get(f"{url}&range={a}-{min(size, a + CHUNK_BYTES) - 1}", headers=hdrs, timeout=30)
+                r.raise_for_status()
+                return r.content
+            except httpx.HTTPError:
+                if attempt == 2:
+                    raise
+        raise AssertionError("unreachable")
+
+    with ThreadPoolExecutor(16) as ex:
+        out.write_bytes(b"".join(ex.map(get, range(0, size, CHUNK_BYTES))))
+    return True
+
+
 def load_audio(src: Path | str, headers: str = "", duration: float = 0) -> np.ndarray:
-    def pull(*span: str) -> bytes:
-        return subprocess.run(
-            ["ffmpeg", "-hide_banner", "-loglevel", "error", *span, *fr.ff_input(src, headers),
-             "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
-            capture_output=True, check=True,
-        ).stdout
+    pull = lambda *span: _pull_audio(src, headers, *span)  # noqa: E731
 
     if duration > 120:
         # 4 ranges at once: 595 s of YouTube audio in 0.63 s vs 1.52 s as one request; from a local file 0.31 s vs 0.81 s.
-        span = duration / AUDIO_RANGES
-        with ThreadPoolExecutor(AUDIO_RANGES) as ex:
-            raw = b"".join(ex.map(lambda i: pull("-ss", f"{i * span:.3f}", "-t", f"{span:.3f}"), range(AUDIO_RANGES)))
+        n = max(AUDIO_RANGES, min(16, round(duration / 600)))  # a 2-hour talk decodes in 12 ranges
+        span = duration / n
+        with ThreadPoolExecutor(n) as ex:
+            raw = b"".join(ex.map(lambda i: pull("-ss", f"{i * span:.3f}", "-t", f"{span:.3f}"), range(n)))
     else:
         raw = pull()
     return np.frombuffer(raw, np.int16).astype(np.float32) / 32768
@@ -680,17 +735,28 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
 
     # Subtitles make speech recognition unnecessary, so the audio is not even fetched.
     audio = None
-    if src.audio and src.captions is None:
+    update("transcribing")  # not "queued" while the audio is fetched
+    # Slices only for long streams that can't be downloaded in ranges (YouTube's can: see download_audio).
+    sliced = bool(src.audio) and src.captions is None and duration > LONG_AUDIO_S and \
+        not (isinstance(src.audio, str) and "clen=" in src.audio)
+    if src.audio and src.captions is None and not sliced:
         started = time.monotonic()
         emit("stage", name="audio", state="start", detail="Pulling the audio track into memory (16 kHz mono)")
+        local = job_dir / "audio.download"
+        try:
+            fetched = isinstance(src.audio, str) and download_audio(src.audio, src.headers or "", local)
+        except httpx.HTTPError as e:
+            log.warning("ranged audio download failed (%s); ffmpeg reads the stream", e)
+            fetched = False
         for attempt in range(2):  # YouTube's audio stream occasionally refuses a request (ffmpeg exit 8)
             try:
-                audio = load_audio(src.audio, src.headers, duration)
+                audio = load_audio(local, "", duration) if fetched else load_audio(src.audio, src.headers, duration)
                 break
             except subprocess.CalledProcessError:
                 if attempt:
                     raise
                 log.warning("audio fetch failed; retrying")
+        local.unlink(missing_ok=True)  # the samples are in memory; the file is not kept
         emit("stage", name="audio", state="end", seconds=_since(started), samples=len(audio))
     sections = plan_sections(audio, duration, src.captions)
     emit("plan", sections=sections)
@@ -821,7 +887,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         if i:
             first_queued.wait(5)
         try:
-            local, engine = transcribe(audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)], first_queued if i == 0 else None)
+            clip = audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)] if audio is not None else \
+                load_slice(src.audio, src.headers, lo, hi)
+            local, engine = transcribe(clip, first_queued if i == 0 else None)
         finally:
             if i == 0:
                 first_queued.set()  # local speech recognition never queues pieces: don't hold the others back
@@ -862,7 +930,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         figures_f = side.submit(lambda: (screens_f.result(), _find_figures(tracked, frames_f.result(), job_dir, emit)))
         side.shutdown(wait=False)
         heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
-            if src.captions is None and audio is not None else []
+            if src.captions is None and (audio is not None or sliced) else []
         heard_by: dict[int, list[Segment]] = {}
 
         def hear_then_write(i: int, lo: float, hi: float) -> None:

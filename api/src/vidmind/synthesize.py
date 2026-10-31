@@ -35,7 +35,7 @@ Return ONLY one JSON object with exactly this shape, notes first (values are pla
 {"notes": [{"text": "One factual note.", "uncertain": false, "uncertain_reason": null,
    "evidence": [{"kind": "transcript", "start_seconds": 12.3, "quote": "exact words from that segment"},
                 {"kind": "frame", "start_seconds": 30.0, "text": "what the frame shows"}]}],
- "title": "Section title", "summary": "1-2 sentence summary of the section", "key_terms": ["term", "term"]}"""
+ "title": "3-7 word name of what this part is about", "summary": "1-2 sentence summary of the section", "key_terms": ["term", "term"]}"""
 
 OVERVIEW_SYSTEM = """You read a video's transcript and on-screen text and return ONLY this JSON:
 {"title": "Short descriptive title of the video", "tldr": "2-3 sentence summary of what the viewer learns",

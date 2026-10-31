@@ -507,3 +507,26 @@ def test_a_raced_request_returns_the_faster_copy_and_survives_one_failure(monkey
 
     assert pl._race(one_fails, 2) == b"ok"
     assert pl._race(lambda: b"single", 1) == b"single"  # one copy: no extra requests
+
+
+def test_a_long_video_fetches_each_sections_audio_on_its_own(fixture_clip, monkeypatch):
+    import subprocess
+
+    from vidmind import pipeline as pl
+
+    video, _ = fixture_clip
+    clip = pl.load_slice(video, "", 10.0, 15.0)
+    assert abs(len(clip) - 5 * pl.SAMPLE_RATE) < pl.SAMPLE_RATE // 10
+    calls = []
+
+    def stalled(*a, **k):
+        calls.append(k["timeout"])
+        raise subprocess.TimeoutExpired("ffmpeg", k["timeout"])
+
+    monkeypatch.setattr(pl, "_pull_audio", stalled)
+    try:
+        pl.load_slice(video, "", 0.0, 5.0)
+        raise AssertionError("a stalled slice must fail")
+    except subprocess.TimeoutExpired:
+        pass
+    assert calls == [pl.SLICE_TIMEOUT_S] * 2  # retried once, then that section fails alone
