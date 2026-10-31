@@ -24,7 +24,7 @@ import numpy as np
 from . import frames as fr
 from . import models as mdl
 from . import synthesize as syn
-from .schema import (FRAME_WINDOW_S, ArticleOutput, Chapter, Frame, LearnOutput, LearnResult, Note, Overview,
+from .schema import (FRAME_WINDOW_S, ArticleOutput, Visual, Chapter, Frame, LearnOutput, LearnResult, Note, Overview,
                      Paragraph, QuizItem, Rejected, SectionOutput, Segment, Slide, SlidesOutput, VisualOutput, _words,
                      ground, ground_notes, snap_quote)
 from .transcribe import SAMPLE_RATE, hosted_speech, parse_vtt, quietest, transcribe
@@ -230,15 +230,74 @@ def _clean_article(out: ArticleOutput, n_notes: int) -> ArticleOutput:
     return ArticleOutput(hook=dash(out.hook), paragraphs=paras, picture=dash(out.picture))
 
 
-def _article_one(c: Chapter, pool: list[str], emit: Emit, saved: Callable[[], None]) -> bool:
+def _article_one(c: Chapter, pool: list[str], emit: Emit, saved: Callable[[], None],
+                 keyframes: list[Frame] | None = None, job_dir: Path | None = None, on_visual: Callable[[Visual], None] = lambda v: None) -> bool:
     """One chapter written as a tutorial section from its checked notes only. Started when that chapter's notes are
-    checked, published as soon as it is written."""
-    messages = syn.article_messages(c.title, c.summary, c.key_terms, [n.text for n in c.notes])
-    out = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, ArticleOutput)[0], "article", emit, "article")
-    out = _clean_article(out, len(c.notes))
-    c.hook, c.article, c.image_alt = out.hook, out.paragraphs, out.picture or c.image_alt
+    checked, published as soon as it is written. The same call plans the chapter's picture (on_visual)."""
+    messages = syn.article_messages(c.title, c.summary, c.key_terms, [n.text for n in c.notes], _read_now(keyframes, job_dir))
+    raw = hedged(_model_order(pool, 0), lambda m: syn.ask(messages, m, ArticleOutput)[0], "article", emit, "article")
+    out = _clean_article(raw, len(c.notes))
+    c.hook, c.article, c.image_alt = out.hook, out.paragraphs, raw.picture.replace("—", ", ").strip() or c.image_alt
+    on_visual(raw.visual)  # the picture is planned even if no paragraph survived the check
     saved()
     return bool(out.paragraphs)
+
+
+def _read_now(keyframes: list[Frame] | None, job_dir: Path | None) -> list[Frame] | None:
+    """Copies of the chapter's keyframes with their screen text, so the writer can tell a slide from a talking head.
+    The full screen reading runs only after the notes; Apple Vision reads a frame in ~0.1 s, so it is read here."""
+    if not keyframes or job_dir is None or fr.ocr_engine() != "Apple Vision OCR":
+        return keyframes
+    out = []
+    for f in keyframes:
+        text = f.ocr_text
+        if not text:
+            try:
+                text = fr.ocr(job_dir / f.url)[0]
+            except Exception:
+                text = ""
+        out.append(Frame(t=f.t, url=f.url, ocr_text=text))
+    return out
+
+
+ILLUSTRATION_SHARE = mdl.setting("ILLUSTRATION_SHARE", 0.5)  # drawn pictures for at most this share of chapters
+ILLUSTRATION_TYPES = {"infographic", "flowchart", "comparison", "framework", "timeline", "scene"}
+
+
+def _illustration_cap(n_chapters: int) -> int:
+    return max(1, round(ILLUSTRATION_SHARE * n_chapters))
+
+
+def _may_illustrate(n_notes: int, counts_before: list[int], used: int, cap: int, left: int) -> bool:
+    """Chapters are planned as their notes land, so importance is judged on the way: a slot goes to a chapter with at
+    least the median note count so far, or to any chapter once the chapters left (this one included) cannot use up
+    the slots otherwise."""
+    if used >= cap:
+        return False
+    if left <= cap - used:
+        return True
+    counts = sorted([*counts_before, n_notes])
+    return n_notes >= counts[len(counts) // 2]  # the upper median: a tie with a richer chapter loses
+
+
+def _plan_visual(v: Visual, keyframes: list[Frame] | None, may_illustrate: bool) -> tuple[str, Frame | None]:
+    """The writer's plan, checked: a keyframe only at one of the chapter's real keyframe times it was given, an
+    illustration only with a prompt and a free slot. Otherwise the next best: an illustration, then none."""
+    kind = v.kind.strip().lower()
+    if kind == "keyframe":
+        f = next((f for f in keyframes or [] if v.keyframe_t is not None and abs(f.t - v.keyframe_t) < 0.05), None)
+        if f:
+            return "keyframe", f
+        kind = "illustration"
+    if kind == "illustration" and v.prompt.strip() and may_illustrate:
+        return "illustration", None
+    return "none", None
+
+
+def _show_keyframe(c: Chapter, f: Frame) -> None:
+    """A real picture from the video as the chapter's visual: no image call. The diagram crop when there is one."""
+    c.image_url, c.image_kind, c.image_seconds = f.figure_url or f.url, "keyframe", f.t
+    c.image_alt = c.image_alt or f"The video at {f.t:.0f} s."
 
 
 def _finish_articles(jobs: list, started: float, emit: Emit) -> None:
@@ -275,14 +334,18 @@ def _race(draw: Callable[[], bytes], copies: int) -> bytes:
 
 
 def _draw_image(i: int, c: Chapter, job_dir: Path, emit: Emit, saved: Callable[[], None], started: float,
-                copies: int = 1) -> None:
-    """One Muse Image illustration for a chapter, drawn without text (image models misspell) from its summary and
-    notes. Started the moment the chapter's notes exist, and published the moment it is drawn."""
-    facts = " ".join([c.summary, *(n.text for n in c.notes[:4])])
-    prompt = IMAGE_PROMPT.format(idea=c.image_alt or c.title, text=facts)
+                copies: int = 1, plan: Visual | None = None) -> None:
+    """One illustration for a chapter, drawn without text (image models misspell) from the writer's structured
+    prompt (else its summary and notes). Started when the article call plans it, published the moment it is drawn."""
+    if plan and plan.prompt.strip():
+        kind, body = (plan.type if plan.type in ILLUSTRATION_TYPES else "explanatory"), plan.prompt.strip()
+    else:
+        kind = "explanatory"
+        body = f"It shows: {c.image_alt or c.title}\nContext: {' '.join([c.summary, *(n.text for n in c.notes[:4])])}"
+    prompt = IMAGE_PROMPT.format(type=kind, plan=body)
     (job_dir / "frames").mkdir(exist_ok=True)
     (job_dir / "frames" / f"ch{i}.webp").write_bytes(_race(lambda: syn.draw_card(prompt, "high"), copies))
-    c.image_url = f"frames/ch{i}.webp"
+    c.image_url, c.image_kind = f"frames/ch{i}.webp", "illustration"
     c.image_alt = c.image_alt or f"An illustration of {c.title}."
     emit("image", chapter=i, seconds=_since(started))
     saved()
@@ -315,10 +378,18 @@ def _slides(frames: list[Frame], segments: list[Segment], pool: list[str], state
         emit("stage", name="slides", state="end", seconds=_since(started), error=f"{type(e).__name__}: {str(e)[:120]}")
 
 
-IMAGE_PROMPT = """A clean editorial explanatory illustration in a flat, minimal Apple-like style: light off-white
-background, soft muted colors with one warm accent, simple shapes, generous space. It shows: {idea}
-Context: {text}
-Absolutely no text, letters, numbers, labels, captions or logos anywhere in the image."""
+# Built the way the baoyu-article-illustrator skill builds prompts: type, then layout and zones in the article's own
+# terms, relationships and semantic colors (written by the article call), then composition and the no-text rules.
+IMAGE_PROMPT = """A {type} illustration for a technical article, in a clean flat editorial style: thin even lines,
+simple geometric shapes and icons, soft muted colors with one warm accent, on a plain light off-white background.
+{plan}
+Clean composition with generous white space. Simple or no background. Main elements centered or positioned by
+content needs.
+Absolutely no text anywhere in the image: no words, letters, numbers, labels, captions or logos. Ideas are shown with
+shapes, icons and arrows only.
+Color values and color names are rendering guidance only: do not display color names, hex codes or palette labels as
+visible text in the image.
+Aspect ratio 16:9, low to medium complexity."""
 
 
 FIGURE_FPS = 0.25  # SAM looks every 4 s: slides and diagrams stay up longer; ~$0.03 and ~15 s for 10 minutes
@@ -675,10 +746,31 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         with lock:
             _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
 
-    # Illustrations: each chapter's is submitted the moment its section is written, a few at a time.
+    # Illustrations: each chapter's is submitted the moment its article call plans one, a few at a time.
     img_ex = ThreadPoolExecutor(max_workers=IMAGES_AT_ONCE)
     img_jobs: list = []
     img_started: list[float] = []
+    cap = _illustration_cap(len(sections))
+    planned: list[int] = []  # note counts of the chapters planned so far
+    shown: list[tuple[Chapter, Frame]] = []  # keyframe visuals, sharpened to their diagram crop once it exists
+
+    def visual(i: int, c: Chapter, keyframes: list[Frame] | None, v: Visual) -> None:
+        """The article call's picture plan, checked and acted on: a keyframe at once, or an illustration started."""
+        with lock:
+            drawing = mdl.available(mdl.role("image"))
+            ok = drawing and _may_illustrate(len(c.notes), planned, len(img_jobs), cap, len(sections) - len(planned))
+            planned.append(len(c.notes))
+            kind, f = _plan_visual(v, keyframes, ok)
+            if kind == "keyframe":
+                _show_keyframe(c, f)
+                shown.append((c, f))
+                emit("image", chapter=i, visual="keyframe", at=f.t)
+            elif kind == "illustration":
+                if not img_started:
+                    img_started.append(time.monotonic())
+                    emit("stage", name="images", state="start", detail="Drawing the illustrations", model=mdl.role("image"))
+                img_jobs.append(img_ex.submit(_draw_image, i, c, job_dir, emit, publish, img_started[0],
+                                              2 if len(img_jobs) < FIRST_IMAGES_RACED else 1, v))
     art_ex = ThreadPoolExecutor(max_workers=16)
     art_jobs: list = []
     art_started: list[float] = []
@@ -708,13 +800,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 if not art_started:
                     art_started.append(time.monotonic())
                     emit("stage", name="article", state="start", detail="Writing the chapters as an article")
-                art_jobs.append(art_ex.submit(_article_one, part.chapter, pool, emit, publish))
-            if part.chapter and mdl.available(mdl.role("image")):
-                if not img_started:
-                    img_started.append(time.monotonic())
-                    emit("stage", name="images", state="start", detail="Drawing the illustrations", model=mdl.role("image"))
-                img_jobs.append(img_ex.submit(_draw_image, i, part.chapter, job_dir, emit, publish, img_started[0],
-                                              2 if len(img_jobs) < FIRST_IMAGES_RACED else 1))
+                # The chapter's keyframes if they are captured by now; else the plan can only be a drawing or none.
+                kf = [x for x in frames_f.result() if lo <= x.t < hi] if frames_f.done() and not frames_f.exception() else None
+                art_jobs.append(art_ex.submit(_article_one, part.chapter, pool, emit, publish, kf, job_dir,
+                                              lambda v, i=i, c=part.chapter, kf=kf: visual(i, c, kf, v)))
 
     first_queued = threading.Event()
 
@@ -832,7 +921,17 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             frames[:] = sorted(frames_f.result(), key=lambda f: f.t)
         save_frames()  # now (times and images), and again with the screen text once that finishes
         screens_f.add_done_callback(save_frames)
+        screens_f.add_done_callback(sharpen)
         _after()
+
+    def sharpen(_=None) -> None:
+        """Keyframe visuals switch to their diagram crop once diagram tracking has found one."""
+        with lock:
+            changed = [c for c, f in shown if f.figure_url and c.image_url != f.figure_url]
+            for c, f in shown:
+                c.image_url = f.figure_url or c.image_url
+        if changed:
+            publish()
 
     def _after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
@@ -843,6 +942,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                 publish()
 
         def illustrations() -> None:
+            wait(art_jobs)  # illustrations are started by the article calls
             if img_jobs:
                 wait(img_jobs)
                 _finish_images(img_jobs, img_started[0], emit)

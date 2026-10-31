@@ -16,8 +16,10 @@ export type Chapter = {
   cover_url: string | null;
   hook?: string; // the article's opening line for this chapter
   article?: { text: string; cites: number[] }[]; // prose written from the checked notes; cites = note indices
-  image_url?: string | null; // illustration drawn by the image model, relative to the job
+  image_url?: string | null; // an illustration drawn by the image model, or a real keyframe; relative to the job
   image_alt?: string;
+  image_kind?: "keyframe" | "illustration" | null;
+  image_seconds?: number | null; // keyframe visuals: where in the video it is from
 };
 // A keyframe explained, matched to view.frames by time.
 export type Slide = { t: number; title: string; explanation: string };

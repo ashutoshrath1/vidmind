@@ -151,7 +151,21 @@ export function ChapterView({ chapter: ch, seek, base, pending, fresh }: Chapter
     <section id={id} aria-labelledby={`${id}-h`} className={`arrive scroll-mt-40 ${fresh ? "flash rounded-lg" : ""}`}>
       <h2 id={`${id}-h`} className="font-display text-[1.5rem] leading-[1.2] font-bold tracking-[-0.02em] text-balance sm:text-[1.75rem]">{ch.title}</h2>
       {lead && <p className={`mt-4 ${ch.hook ? "font-semibold" : ""}`}>{nodes[0]}</p>}
-      {ch.image_url && (
+      {ch.image_url && ch.image_kind === "keyframe" ? (
+        // A real frame from the video: natural size, no frame or backdrop, captioned with where it is from.
+        <figure className="mt-7">
+          {/* eslint-disable-next-line @next/next/no-img-element -- served by the API per job, not a static asset */}
+          <img src={`${base}/${ch.image_url}`} alt={ch.image_alt ?? ""} width={1280} height={720} loading="lazy" decoding="async"
+            className="mx-auto h-auto max-h-[32rem] w-auto max-w-full rounded-xl" />
+          {ch.image_seconds != null && (
+            <figcaption className="mt-2 text-center font-sans text-sm text-graphite">
+              <button type="button" onClick={() => seek(ch.image_seconds!)} className="tabular underline-offset-2 hover:underline">
+                From the video at {formatTime(ch.image_seconds)}
+              </button>
+            </figcaption>
+          )}
+        </figure>
+      ) : ch.image_url && (
         // eslint-disable-next-line @next/next/no-img-element -- served by the API per job, not a static asset
         <img src={`${base}/${ch.image_url}`} alt={ch.image_alt ?? ""} width={1280} height={720} loading="lazy" decoding="async"
           className="mt-7 aspect-video w-full rounded-2xl bg-sheet object-cover" />

@@ -68,8 +68,10 @@ class Chapter(BaseModel):
     cover_url: str | None = None  # set by the server: the section's most text-rich keyframe
     hook: str = ""  # the article's opening line for this chapter
     article: list[Paragraph] = []  # the chapter as readable prose, after the notes are checked
-    image_url: str | None = None  # an illustration drawn by Muse Image from the article, no text in it
+    image_url: str | None = None  # an illustration drawn by the image model (no text in it), or a real keyframe
     image_alt: str = ""
+    image_kind: Literal["keyframe", "illustration"] | None = None
+    image_seconds: float | None = None  # keyframe visuals: where in the video it is from
 
 
 class Slide(BaseModel):
@@ -79,11 +81,21 @@ class Slide(BaseModel):
     explanation: str = ""
 
 
+class Visual(BaseModel):
+    """The writer's plan for the chapter's picture. Plain strings: a bad value falls back in code instead of costing a
+    retry of the whole article call."""
+    kind: str = "none"  # keyframe | illustration | none
+    type: str = ""  # illustration only: infographic | flowchart | comparison | framework | timeline | scene
+    prompt: str = ""  # illustration only: the structured prompt (layout and zones first)
+    keyframe_t: float | None = None  # keyframe only: one of the chapter's keyframe times from the input
+
+
 class ArticleOutput(BaseModel):
     """The article writer's reply for one chapter; paragraphs are checked against the notes before use."""
     hook: str = ""
     paragraphs: list[Paragraph] = []
-    picture: str = ""  # one sentence: the illustration to draw, also its alt text
+    picture: str = ""  # one sentence describing the chosen visual: its alt text
+    visual: Visual = Visual()
 
 
 class SlidesOutput(BaseModel):

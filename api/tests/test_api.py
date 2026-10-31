@@ -163,3 +163,43 @@ def test_frames_serves_only_pipeline_file_names():
         assert client.get(f"/jobs/sample/frames/{ok}").status_code == 200, ok
     for bad in ("../result.json", "x.png", "ch0.webp.jpg", "0.jpeg", "result.json"):
         assert client.get(f"/jobs/sample/frames/{bad}").status_code == 404, bad
+
+
+def test_link_check_skips_the_youtube_page_and_falls_back_when_that_is_not_enough(monkeypatch):
+    fmt = {"height": 720, "vcodec": "avc1", "acodec": "none", "protocol": "https", "url": "https://v/136"}
+    streamable = {"extractor_key": "Youtube", "id": "abc", "title": "T", "duration": 600, "formats": [fmt]}
+    calls, answers = [], []
+
+    class FakeYDL:
+        def __init__(self, opts):
+            self.fast = "extractor_args" in opts
+            calls.append("fast" if self.fast else "full")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            pass
+
+        def extract_info(self, url, download):
+            answer = answers.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+    monkeypatch.setattr(fetch.yt_dlp, "YoutubeDL", FakeYDL)
+    monkeypatch.setattr(fetch, "_visitor", {"id": "vid", "at": 9e12})
+    monkeypatch.setattr(fetch, "_channel", lambda url: "Chan")
+    yt = "https://www.youtube.com/watch?v=abcdefghijk"
+
+    answers[:] = [streamable]
+    assert fetch._extract(yt)["channel"] == "Chan" and calls == ["fast"]
+    # Embedding off (no stream plan): the full extraction decides, as before (download path).
+    calls.clear(); answers[:] = [{**streamable, "playable_in_embed": False}, {"title": "full"}]
+    assert fetch._extract(yt) == {"title": "full"} and calls == ["fast", "full"]
+    # A bot check drops the visitor id so the next link fetches a fresh one.
+    calls.clear(); answers[:] = [fetch.DownloadError("Sign in to confirm you're not a bot"), {"title": "full"}]
+    assert fetch._extract(yt) == {"title": "full"} and fetch._visitor["id"] is None
+    # Other sites, or no visitor id: straight to the full extraction.
+    calls.clear(); answers[:] = [{"title": "vimeo"}]
+    assert fetch._extract("https://vimeo.com/1") == {"title": "vimeo"} and calls == ["full"]

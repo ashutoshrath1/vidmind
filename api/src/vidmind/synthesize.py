@@ -128,13 +128,31 @@ in the style of a good GeeksforGeeks or engineering-blog article. The numbered n
 - Write about the subject, never about the video ("the speaker says", "this video shows" are banned).
 - Banned: "In today's...", "game-changer", "cutting-edge", "revolutionary", "here's why this matters",
   "let's dive in", warm-up sentences, rhetorical or closing questions, em dashes.
-- picture: one sentence describing a simple explanatory illustration of this chapter's main idea, with no text in it.
-Return ONLY: {"hook": "...", "paragraphs": [{"text": "...", "cites": [0, 2]}], "picture": "..."}"""
+- visual: the one picture for this chapter.
+  - "keyframe" when one of the KEYFRAMES listed shows this chapter's idea well (a slide, diagram, code or chart with
+    real screen text): set "keyframe_t" to its exact time from the list. A real picture beats a drawn one.
+    Never pick a talking head, title card or blank screen. With no KEYFRAMES listed, keyframe is not allowed.
+  - "illustration" when the chapter has a process, comparison, structure, timeline or numbers that a drawing would
+    explain better than words. Set "type" (infographic, flowchart, comparison, framework, timeline or scene) and
+    "prompt": a structured image prompt written like this, using this chapter's actual terms and numbers:
+      Layout: <composition and flow direction, e.g. three zones left to right>
+      ZONES: Zone 1: <what it shows, as concrete objects and icons> / Zone 2: ... / Zone 3: ...
+      RELATIONSHIPS: <how the zones connect: arrows, grouping, sizes that encode amounts>
+      COLORS: <semantic colors, e.g. green = efficient, red = failure, one accent for the key idea>
+    Things are shown as objects, icons and shapes, never as words: no text, labels or numbers in the picture.
+  - "none" when neither helps (a short or abstract chapter).
+- picture: one sentence describing the chosen visual for a reader who cannot see it (its alt text).
+Return ONLY: {"hook": "...", "paragraphs": [{"text": "...", "cites": [0, 2]}], "picture": "...",
+ "visual": {"kind": "keyframe|illustration|none", "type": "...", "prompt": "...", "keyframe_t": 12.0}}"""
 
 
-def article_messages(title: str, summary: str, key_terms: list[str], notes: list[str]) -> list[dict]:
+def article_messages(title: str, summary: str, key_terms: list[str], notes: list[str],
+                     keyframes: list[Frame] | None = None) -> list[dict]:
+    """keyframes: the chapter's keyframes, or None when they are not captured yet (then only illustration or none)."""
     numbered = "\n".join(f"[{i}] {n}" for i, n in enumerate(notes))
-    text = f"CHAPTER: {title}\nSUMMARY: {summary}\nKEY TERMS: {', '.join(key_terms)}\n\nNOTES\n{numbered}"
+    frames = "\n".join(f"[{f.t:g}s] {f.ocr_text.replace(chr(10), ' | ') or '(screen text not read)'}" for f in keyframes or [])
+    text = (f"CHAPTER: {title}\nSUMMARY: {summary}\nKEY TERMS: {', '.join(key_terms)}\n\nNOTES\n{numbered}"
+            f"\n\nKEYFRAMES\n{frames or '(none)'}")
     return [{"role": "system", "content": ARTICLE_SYSTEM}, {"role": "user", "content": text}]
 
 

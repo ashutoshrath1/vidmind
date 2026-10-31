@@ -368,8 +368,11 @@ def test_article_illustrations_and_slides_follow_the_notes(fixture_clip, tmp_pat
     def fake_ask(messages, model, cls, on_text=None):
         if cls is ArticleOutput:
             release.wait(5)  # holds the after-phase open so `pending` can be seen
+            shown = re.findall(r"^\[([\d.]+)s\]", messages[1]["content"].split("KEYFRAMES")[1], re.M)
+            visual = {"kind": "keyframe", "keyframe_t": float(shown[0])} if shown else \
+                {"kind": "illustration", "type": "infographic", "prompt": "Layout: one rising bar"}
             return ArticleOutput.model_validate({"hook": "Activation is 40%.", "picture": "A rising bar.", "paragraphs": [
-                {"text": "Cited.", "cites": [0]}, {"text": "Invented.", "cites": [3]}]}), "{}"
+                {"text": "Cited.", "cites": [0]}, {"text": "Invented.", "cites": [3]}], "visual": visual}), "{}"
         if cls is SlidesOutput:
             t = float(re.findall(r"\[frame ([\d.]+)s\]", messages[1]["content"])[0])
             return SlidesOutput.model_validate({"slides": [
@@ -394,7 +397,8 @@ def test_article_illustrations_and_slides_follow_the_notes(fixture_clip, tmp_pat
     assert not later["pending"]
     for c in later["chapters"]:
         assert c["hook"] == "Activation is 40%." and [p["text"] for p in c["article"]] == ["Cited."]
-        assert c["notes"] and c["image_url"] is None  # the image failed; notes and article stand
+        assert c["notes"]  # the image failed; notes and article stand
+        assert c["image_url"] is None or (c["image_kind"] == "keyframe" and c["image_url"].startswith("frames/"))
     assert [s["t"] for s in later["slides"]] == [1.0] and later["slides"][0]["title"] == "Real slide"
     ends = {d["name"]: d for k, d in events if k == "stage" and d.get("state") == "end"}
     assert "error" in ends["images"] and "error" not in ends["article"] and ends["slides"]["kept"] == 1
@@ -412,6 +416,61 @@ def test_an_illustration_is_published_by_itself_as_soon_as_it_is_drawn(tmp_path,
     assert chapter.image_url == "frames/ch2.webp" and chapter.image_alt  # set before the page is told
     assert saved == ["frames/ch2.webp"] and events == ["image"]
     assert "Circuit breakers" in prompts[0][0] and "Stops calls" in prompts[0][0] and prompts[0][1] == "high"
+    assert chapter.image_kind == "illustration"
+    from vidmind.schema import Visual
+    pl._draw_image(3, chapter, tmp_path, lambda *a, **k: None, lambda: None, 0.0,
+                   plan=Visual(kind="illustration", type="flowchart", prompt="Layout: three zones left to right"))
+    assert prompts[1][0].startswith("A flowchart illustration") and "three zones" in prompts[1][0]
+    assert "rendering guidance only" in prompts[1][0] and "no text" in prompts[1][0]
+
+
+def test_a_keyframe_plan_must_name_a_real_chapter_keyframe():
+    from vidmind import pipeline as pl
+    from vidmind.schema import Visual
+    frames = [pl.Frame(t=12.0, url="frames/0.jpg"), pl.Frame(t=40.0, url="frames/1.jpg", figure_url="frames/1_fig.jpg")]
+    kf = lambda t, **k: Visual(kind="keyframe", keyframe_t=t, **k)  # noqa: E731
+    assert pl._plan_visual(kf(40.0), frames, True) == ("keyframe", frames[1])
+    assert pl._plan_visual(kf(41.0, prompt="Layout: two zones"), frames, True) == ("illustration", None)  # not a keyframe
+    assert pl._plan_visual(kf(41.0), frames, True) == ("none", None)  # and no prompt to draw instead
+    assert pl._plan_visual(kf(12.0), None, True) == ("none", None)  # frames not captured yet: no keyframe possible
+    assert pl._plan_visual(Visual(kind="illustration", prompt="Layout: x"), frames, False) == ("none", None)  # no slot
+    c = pl.Chapter(title="T", start_seconds=0, notes=[])
+    pl._show_keyframe(c, frames[1])
+    assert (c.image_url, c.image_kind, c.image_seconds) == ("frames/1_fig.jpg", "keyframe", 40.0) and c.image_alt
+
+
+def test_illustrations_go_to_at_most_the_share_of_chapters_with_the_most_notes(monkeypatch):
+    from vidmind import pipeline as pl
+    monkeypatch.setattr(pl, "ILLUSTRATION_SHARE", 0.5)
+    assert pl._illustration_cap(13) == 6 and pl._illustration_cap(1) == 1 and pl._illustration_cap(0) == 1
+    counts, used, cap, total = [], 0, pl._illustration_cap(6), 6
+    for n in [5, 2, 6, 1, 4, 3]:  # every chapter asks for a drawing
+        if pl._may_illustrate(n, counts, used, cap, total - len(counts)):
+            used += 1
+        counts.append(n)
+    assert used == cap == 3
+    assert pl._may_illustrate(2, [5], 0, 3, 5) is False  # below the median so far, slots can still go to richer ones
+    assert pl._may_illustrate(1, [5, 6], 1, 3, 2) is True  # the chapters left can only just use the slots
+
+
+def test_a_keyframe_visual_needs_no_image_call(tmp_path, monkeypatch):
+    from vidmind import pipeline as pl
+    from vidmind.schema import ArticleOutput
+    c = pl.Chapter(title="Queues", start_seconds=0, notes=[pl.Note(text="A queue buffers work.", evidence=[])])
+    frames = [pl.Frame(t=5.0, url="frames/0.jpg")]
+    monkeypatch.setattr(pl.syn, "ask", lambda *a, **k: (ArticleOutput.model_validate({
+        "hook": "h", "picture": "A slide of a queue.", "paragraphs": [{"text": "p", "cites": [0]}],
+        "visual": {"kind": "keyframe", "keyframe_t": 5.0}}), "{}"))
+    monkeypatch.setattr(pl.syn, "draw_card", lambda *a: (_ for _ in ()).throw(AssertionError("no image call")))
+    sent = []
+    monkeypatch.setattr(pl.syn, "article_messages", lambda *a: sent.append(a[-1]) or [])
+    plans = []
+    pl._article_one(c, ["m"], lambda *a, **k: None, lambda: None, frames, tmp_path,
+                    lambda v: plans.append(pl._plan_visual(v, frames, True)))
+    kind, f = plans[0]
+    pl._show_keyframe(c, f)
+    assert kind == "keyframe" and c.image_url == "frames/0.jpg" and c.image_alt == "A slide of a queue."
+    assert [x.t for x in sent[0]] == [5.0]  # the writer saw the chapter's keyframe times
 
 
 def test_a_raced_request_returns_the_faster_copy_and_survives_one_failure(monkeypatch):

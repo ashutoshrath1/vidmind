@@ -10,6 +10,7 @@ import logging
 import re
 import os
 import shutil
+import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -35,6 +36,7 @@ async def lifespan(_: FastAPI):
     jobs.sweep()
     jobs.start_workers()
     jobs.start_cleanup()
+    threading.Thread(target=fetch.visitor_id, daemon=True).start()  # so the first link skips this 0.2 s fetch
     yield
 
 
@@ -150,7 +152,7 @@ def get_job(job_id: str):
 async def job_events(job_id: str, request: Request):
     """Server-sent events until the job ends: the job status whenever it changes (default event), and each new line
     of the job's trace as a `trace` event (every step, from extracted text to the model race). The page listens
-    instead of polling, so each step shows up within a quarter second.
+    instead of polling, so each step shows up within a tenth of a second.
     Each trace event's id is its end offset in trace.jsonl; a reconnecting browser sends it back as Last-Event-ID,
     so the stream resumes there instead of replaying every step."""
     d = _dir(job_id)
@@ -178,7 +180,7 @@ async def job_events(job_id: str, request: Request):
                 yield f"data: {json.dumps({**status, 'server_time': time.time()})}\n\n"
             if status.get("status") in (jobs.DONE, jobs.FAILED):
                 return
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.1)
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 

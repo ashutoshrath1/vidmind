@@ -7,13 +7,16 @@ plays the video in YouTube's own player. Other sites (or videos with embedding d
 """
 
 import ipaddress
+import json
 import socket
+import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
 import yt_dlp
+from yt_dlp.extractor.youtube import YoutubeIE
 from yt_dlp.utils import DownloadError
 
 from .pipeline import MAX_BYTES, MAX_DURATION_S, Source
@@ -27,6 +30,52 @@ FORMAT = "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/bv*[heig
 
 def _opts(**extra) -> dict:
     return {"quiet": True, "no_warnings": True, "noplaylist": True, "socket_timeout": 30, **extra}
+
+
+# YouTube without its 1.5 MB watch page (0.85 s, streamed slowly by YouTube): the player API alone, given the
+# anonymous visitor id the page would have set. Skipping the page without that id gets "confirm you're not a bot".
+# HLS manifests are skipped too: the streams we use are plain https. Same formats, subtitles and embed flag;
+# median link check 1.34 s -> 0.35 s (Oct 31). Anything incomplete falls back to the full extraction.
+FAST_YOUTUBE = {"skip": ["hls"], "player_skip": ["webpage", "configs", "initial_data"]}
+_visitor: dict = {"id": None, "at": 0.0}
+
+
+def visitor_id() -> str | None:
+    """YouTube's anonymous visitor id (what a first visit sets), kept for an hour; None when it can't be had."""
+    if not _visitor["id"] or time.time() - _visitor["at"] > 3600:
+        try:
+            r = httpx.get("https://www.youtube.com/sw.js_data", timeout=3,
+                          headers={"User-Agent": yt_dlp.utils.networking.std_headers["User-Agent"]})
+            _visitor.update(id=json.loads(r.raise_for_status().text.removeprefix(")]}'"))[0][2][0][0][13],
+                            at=time.time())
+        except (httpx.HTTPError, ValueError, LookupError, TypeError):
+            return None
+    return _visitor["id"]
+
+
+def _channel(url: str) -> str | None:
+    """The channel name, which the fast path lacks (it comes with the watch page); oEmbed answers in ~0.15 s."""
+    try:
+        return httpx.get("https://www.youtube.com/oembed", params={"url": url, "format": "json"},
+                         timeout=2).raise_for_status().json().get("author_name")
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+def _extract(url: str) -> dict:
+    if YoutubeIE.suitable(url) and (vid := visitor_id()):
+        with ThreadPoolExecutor(1) as ex:
+            channel = ex.submit(_channel, url)
+            try:
+                with yt_dlp.YoutubeDL(_opts(extractor_args={"youtube": {**FAST_YOUTUBE, "visitor_data": [vid]}})) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                if stream_plan(info) and info.get("title"):  # streamable: else the full path decides (download, errors)
+                    return {**info, "channel": channel.result()}
+            except DownloadError as e:
+                if "not a bot" in str(e):
+                    _visitor["id"] = None  # a stale id: fetch a fresh one next time
+    with yt_dlp.YoutubeDL(_opts()) as ydl:
+        return ydl.extract_info(url, download=False)
 
 
 def check_url(url: str) -> dict:
@@ -47,8 +96,7 @@ def check_url(url: str) -> dict:
         raise ValueError("Links to private or local network addresses are not allowed")
 
     try:
-        with yt_dlp.YoutubeDL(_opts()) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = _extract(url)
     except DownloadError as e:
         msg = str(e).removeprefix("ERROR: ")
         if "DRM" in msg:
