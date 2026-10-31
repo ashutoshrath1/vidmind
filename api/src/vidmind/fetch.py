@@ -6,11 +6,8 @@ scene changes and seeks into the 720p stream for keyframes; creator subtitles re
 plays the video in YouTube's own player. Other sites (or videos with embedding disabled) are downloaded.
 """
 
-import ipaddress
 import json
-import os
 import re
-import socket
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
@@ -24,32 +21,7 @@ from yt_dlp.utils import DownloadError
 from .pipeline import MAX_BYTES, MAX_DURATION_S, Source
 from .transcribe import parse_json3, parse_vtt
 
-# Paid / DRM-protected platforms: getting the video out would mean bypassing their protection.
-BLOCKED_DOMAINS = ("udemy.com", "netflix.com", "primevideo.com", "disneyplus.com", "hotstar.com",
-                   "hulu.com", "max.com", "coursera.org", "linkedin.com", "skillshare.com", "masterclass.com")
 FORMAT = "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b"
-
-
-# Private links (Zoom and Teams recordings, private Vimeo, Google Drive) open with the login of a browser on this
-# machine: VIDMIND_BROWSER_COOKIES=chrome (or firefox, safari, edge, brave). For running VidMind on your own computer
-# only; a hosted server must never read a browser's cookies. YouTube's fast path never uses them.
-BROWSER_COOKIES = os.environ.get("VIDMIND_BROWSER_COOKIES", "").strip().lower()
-LOGIN_HINTS = ("sign in", "log in", "login", "private", "authenticat", "cookies", "members-only", "401", "403")
-
-
-def _with_login(opts: dict) -> dict:
-    return {**opts, "cookiesfrombrowser": (BROWSER_COOKIES,)} if BROWSER_COOKIES else opts
-
-
-def needs_login_message(msg: str) -> str | None:
-    """A plain message for a link that needs an account, or None."""
-    if not any(h in msg.lower() for h in LOGIN_HINTS):
-        return None
-    if BROWSER_COOKIES:
-        return (f"This video needs a login that {BROWSER_COOKIES.title()} doesn't have. Open the link in "
-                f"{BROWSER_COOKIES.title()} and sign in, then try again, or download the recording and upload it.")
-    return ("This video needs a login. Download the recording (Teams, Zoom and Meet all offer MP4) and upload it, "
-            "or set VIDMIND_BROWSER_COOKIES=chrome when running VidMind on your own computer.")
 
 
 def _plain(msg: str) -> str:
@@ -104,7 +76,7 @@ def _extract(url: str) -> dict:
             except DownloadError as e:
                 if "not a bot" in str(e):
                     _visitor["id"] = None  # a stale id: fetch a fresh one next time
-    with yt_dlp.YoutubeDL(_with_login(_opts())) as ydl:
+    with yt_dlp.YoutubeDL(_opts()) as ydl:
         return ydl.extract_info(url, download=False)
 
 
@@ -114,16 +86,9 @@ def check_url(url: str) -> dict:
     host = (parsed.hostname or "").lower()
     if parsed.scheme not in ("http", "https") or not host:
         raise ValueError("Enter a full http(s) link")
-    if any(host == d or host.endswith("." + d) for d in BLOCKED_DOMAINS):
-        raise ValueError(f"{host} content is paid or copy-protected, so VidMind can't import it. "
-                         "Upload a video you own instead.")
-    # shortcut: checks the first hop only, not redirects; enough to stop casual SSRF on a demo server.
-    try:
-        addrs = {ai[4][0] for ai in socket.getaddrinfo(host, None)}
-    except socket.gaierror:
-        raise ValueError(f"Could not find {host}") from None
-    if not all(ipaddress.ip_address(a.split("%")[0]).is_global for a in addrs):
-        raise ValueError("Links to private or local network addresses are not allowed")
+    # YouTube only (any other video is uploaded as a file): no private-network or paid-site link can get through.
+    if not YoutubeIE.suitable(url):
+        raise ValueError("Only YouTube links are supported. Download any other video and add it as a file.")
 
     try:
         info = _extract(url)
@@ -131,7 +96,7 @@ def check_url(url: str) -> dict:
         msg = str(e).removeprefix("ERROR: ")
         if "DRM" in msg:
             raise ValueError("This video is DRM-protected, so VidMind can't import it") from None
-        raise ValueError(needs_login_message(msg) or f"Could not open this link ({_plain(msg)[:200]})") from None
+        raise ValueError(f"Could not open this link ({_plain(msg)[:200]})") from None
     if info.get("_type") == "playlist":
         raise ValueError("That link is a playlist or channel. Paste a link to a single video")
     if info.get("is_live"):
@@ -230,18 +195,18 @@ def _first_captions(url: str, auto: bool, copies: int = 2) -> list | None:
 
 
 def download(url: str, job_dir: Path) -> Path:
-    opts = _with_login(_opts(
+    opts = _opts(
         format=FORMAT,
         merge_output_format="mp4",
         outtmpl=str(job_dir / "video.%(ext)s"),
         max_filesize=MAX_BYTES,
-    ))
+    )
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
     except DownloadError as e:
         msg = str(e).removeprefix("ERROR: ")
-        raise RuntimeError(needs_login_message(msg) or f"Download failed ({_plain(msg)[:200]})") from None
+        raise RuntimeError(f"Download failed ({_plain(msg)[:200]})") from None
     videos = [p for p in job_dir.glob("video.*") if p.suffix not in (".part", ".ytdl")]
     if not videos:
         raise RuntimeError("Download produced no video (it may be over the 2 GB limit)")

@@ -108,34 +108,6 @@ def _embedded_captions(video: Path) -> list[Segment] | None:
 AUDIO_RANGES = 4
 
 
-# Past this length each section fetches only its own slice of the audio: a throttled 2-hour stream took 11+ minutes to
-# pull whole, and every note waited for it.
-LONG_AUDIO_S = 1200
-SLICE_TIMEOUT_S = 90  # one section's slice; a stalled request is retried once, then that section fails alone
-_slicing = threading.BoundedSemaphore(8)  # slices fetched at once from one stream
-
-
-def load_slice(src: Path | str, headers: str, lo: float, hi: float) -> np.ndarray:
-    with _slicing:
-        for attempt in range(2):
-            try:
-                raw = _pull_audio(src, headers, "-ss", f"{lo:.3f}", "-t", f"{hi - lo:.3f}", timeout=SLICE_TIMEOUT_S)
-                return np.frombuffer(raw, np.int16).astype(np.float32) / 32768
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                if attempt:
-                    raise
-                log.warning("audio slice %.0f-%.0f s failed; retrying", lo, hi)
-    raise AssertionError("unreachable")
-
-
-def _pull_audio(src: Path | str, headers: str, *span: str, timeout: float | None = None) -> bytes:
-    return subprocess.run(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", *span, *fr.ff_input(src, headers),
-         "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
-        capture_output=True, check=True, timeout=timeout,
-    ).stdout
-
-
 CHUNK_BYTES = 10_000_000  # YouTube serves a request this size at full speed and throttles longer ones
 
 
@@ -166,7 +138,12 @@ def download_audio(url: str, headers: str, out: Path) -> bool:
 
 
 def load_audio(src: Path | str, headers: str = "", duration: float = 0) -> np.ndarray:
-    pull = lambda *span: _pull_audio(src, headers, *span)  # noqa: E731
+    def pull(*span: str) -> bytes:
+        return subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", *span, *fr.ff_input(src, headers),
+             "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"],
+            capture_output=True, check=True,
+        ).stdout
 
     if duration > 120:
         # 4 ranges at once: 595 s of YouTube audio in 0.63 s vs 1.52 s as one request; from a local file 0.31 s vs 0.81 s.
@@ -736,10 +713,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     # Subtitles make speech recognition unnecessary, so the audio is not even fetched.
     audio = None
     update("transcribing")  # not "queued" while the audio is fetched
-    # Slices only for long streams that can't be downloaded in ranges (YouTube's can: see download_audio).
-    sliced = bool(src.audio) and src.captions is None and duration > LONG_AUDIO_S and \
-        not (isinstance(src.audio, str) and "clen=" in src.audio)
-    if src.audio and src.captions is None and not sliced:
+    if src.audio and src.captions is None:
         started = time.monotonic()
         emit("stage", name="audio", state="start", detail="Pulling the audio track into memory (16 kHz mono)")
         local = job_dir / "audio.download"
@@ -887,9 +861,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         if i:
             first_queued.wait(5)
         try:
-            clip = audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)] if audio is not None else \
-                load_slice(src.audio, src.headers, lo, hi)
-            local, engine = transcribe(clip, first_queued if i == 0 else None)
+            local, engine = transcribe(audio[int(lo * SAMPLE_RATE) : int(hi * SAMPLE_RATE)], first_queued if i == 0 else None)
         finally:
             if i == 0:
                 first_queued.set()  # local speech recognition never queues pieces: don't hold the others back
@@ -930,7 +902,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         figures_f = side.submit(lambda: (screens_f.result(), _find_figures(tracked, frames_f.result(), job_dir, emit)))
         side.shutdown(wait=False)
         heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
-            if src.captions is None and (audio is not None or sliced) else []
+            if src.captions is None and audio is not None else []
         heard_by: dict[int, list[Segment]] = {}
 
         def hear_then_write(i: int, lo: float, hi: float) -> None:

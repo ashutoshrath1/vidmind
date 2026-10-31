@@ -126,15 +126,10 @@ Open http://localhost:3000, or the precomputed sample at `/jobs/sample`: a real 
 
 ### What it can read
 
-- **Files:** any video ffmpeg can read. MP4, MOV, WebM and MKV play as uploaded; anything else (AVI, WMV, camera
-  .mts...) is converted to MP4 for the player in the background. Meeting recordings from Teams, Zoom and Meet are MP4.
-- **Links:** YouTube and the 1,000+ sites [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports.
-- **Private links** (Zoom or Teams recordings, private Vimeo, Google Drive): set `VIDMIND_BROWSER_COOKIES=chrome` (or
-  firefox, safari, edge, brave) and the link opens with that browser's login. Only on your own computer: a hosted
-  server must never read a browser's cookies. Vimeo now asks for a login even for public videos. Teams and SharePoint
-  links often fail even signed in; upload the recording instead.
-- **Never:** paid or DRM-protected courses and streaming (Udemy, Coursera, LinkedIn Learning, Netflix...). Getting
-  their video out would mean bypassing copy protection.
+- **YouTube links.** Any other site's video (Teams, Zoom or Meet recordings, for example) is downloaded and added as a
+  file.
+- **Video files:** anything ffmpeg can read. MP4, MOV, WebM and MKV play as uploaded; anything else (AVI, WMV, camera
+  .mts...) is converted to MP4 for the player in the background.
 
 ## Tests
 

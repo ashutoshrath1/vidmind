@@ -79,9 +79,9 @@ def test_frame_names_are_restricted():
     ("body", "fragment"),
     [
         ({"url": "https://www.youtube.com/watch?v=x"}, "Confirm you own"),
-        ({"url": "https://www.udemy.com/course/x/learn/lecture/1", "rights_confirmed": True}, "copy-protected"),
-        ({"url": "http://localhost:8000/jobs", "rights_confirmed": True}, "private or local"),
-        ({"url": "http://169.254.169.254/latest/meta-data", "rights_confirmed": True}, "private or local"),
+        ({"url": "https://www.udemy.com/course/x/learn/lecture/1", "rights_confirmed": True}, "Only YouTube"),
+        ({"url": "http://localhost:8000/jobs", "rights_confirmed": True}, "Only YouTube"),
+        ({"url": "http://169.254.169.254/latest/meta-data", "rights_confirmed": True}, "Only YouTube"),
         ({"url": "file:///etc/passwd", "rights_confirmed": True}, "http(s) link"),
     ],
 )
@@ -244,17 +244,4 @@ def test_link_check_skips_the_youtube_page_and_falls_back_when_that_is_not_enoug
     # A bot check drops the visitor id so the next link fetches a fresh one.
     calls.clear(); answers[:] = [fetch.DownloadError("Sign in to confirm you're not a bot"), {"title": "full"}]
     assert fetch._extract(yt) == {"title": "full"} and fetch._visitor["id"] is None
-    # Other sites, or no visitor id: straight to the full extraction.
-    calls.clear(); answers[:] = [{"title": "vimeo"}]
-    assert fetch._extract("https://vimeo.com/1") == {"title": "vimeo"} and calls == ["full"]
 
-
-def test_a_link_that_needs_a_login_says_how_to_get_it_in(monkeypatch):
-    msg = fetch.needs_login_message("[vimeo] 123: This video is private. Use --cookies-from-browser")
-    assert "needs a login" in msg and "upload" in msg and "VIDMIND_BROWSER_COOKIES" in msg
-    assert fetch.needs_login_message("[generic] Unsupported URL: https://example.com") is None
-    monkeypatch.setattr(fetch, "BROWSER_COOKIES", "chrome")
-    assert fetch._with_login({"quiet": True})["cookiesfrombrowser"] == ("chrome",)
-    assert "Chrome doesn't have" in fetch.needs_login_message("Sign in to confirm")
-    monkeypatch.setattr(fetch, "BROWSER_COOKIES", "")
-    assert "cookiesfrombrowser" not in fetch._with_login({})

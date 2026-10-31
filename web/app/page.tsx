@@ -315,7 +315,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
                   setError(null);
                 }}
                 disabled={busy}
-                placeholder="Paste a video link…"
+                placeholder="Paste a YouTube link…"
                 className="order-first min-h-11 min-w-0 basis-full bg-transparent px-2 text-lg placeholder:text-graphite focus:outline-none sm:order-none sm:basis-auto sm:flex-1"
               />
             </>
@@ -392,7 +392,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       )}
       {!file && !link && (
         <p className="text-center text-sm text-balance text-graphite">
-          Up to {MAX_MINUTES / 60} hours or {sizeLabel(MAX_UPLOAD_MB * 2 ** 20)}. Files or links from YouTube and 1,000+ video sites. Deleted after 24 hours.{" "}
+          Up to {MAX_MINUTES / 60} hours or {sizeLabel(MAX_UPLOAD_MB * 2 ** 20)}. Video files or YouTube links. Deleted after 24 hours.{" "}
           <Link href="/jobs/sample" className="hit text-scan-ink hover:underline">Or open the sample</Link>.
         </p>
       )}
