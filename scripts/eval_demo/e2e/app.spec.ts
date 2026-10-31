@@ -98,10 +98,10 @@ test.describe("result page", () => {
 
   test("replay takes about 5 s", async ({ page }) => {
     await page.getByRole("tab", { name: "How it was made" }).click();
-    await page.getByRole("button", { name: "↻ Replay" }).click();
+    await page.getByRole("button", { name: "Replay", exact: true }).click();
     const started = Date.now();
-    await expect(page.getByRole("button", { name: "↻ Replay" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "↻ Replay" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Replay", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible({ timeout: 10_000 });
     expect((Date.now() - started) / 1000).toBeGreaterThan(3.5);
   });
 });
