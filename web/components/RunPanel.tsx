@@ -94,6 +94,7 @@ function Finish({ view, celebrate, small = false }: { view: View; celebrate: boo
         <span className="sr-only">Checked: </span>
         {done.length} section{done.length === 1 ? "" : "s"} written,{" "}
         <Counter value={kept} /> notes verified
+        {view.end?.t ? <> in {formatSeconds(view.end.t)}</> : null}
         {removed > 0 && (
           <>
             , <span className="text-strike"><Counter value={removed} /> removed</span>

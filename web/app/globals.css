@@ -218,6 +218,19 @@ body {
   }
 }
 
+/* The finish, seen live: each citation lights up in turn (--d set per citation), then settles back. */
+.prove {
+  display: inline-block;
+  animation: prove 650ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0ms) both;
+}
+@keyframes prove {
+  35% {
+    color: var(--proof);
+    transform: scale(1.4);
+    text-shadow: 0 0 10px var(--proof-soft);
+  }
+}
+
 /* The finish: verified ticks bursting outwards from the stamp. --dx/--dy set per tick. */
 .burst {
   animation: burst 900ms cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
@@ -250,6 +263,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .pop,
+  .prove,
   .stamp,
   .shake,
   .flash,

@@ -36,6 +36,21 @@ type Tab = "notes" | "frames" | "trace";
 export default function Workspace({ jobId, at, job, result, view, now, error, replaying, celebrate, onReplay }: Props) {
   const router = useRouter();
   const [picked, setTab] = useState<Tab | null>(null);
+  // The finish, seen live: every checked citation lights up once, in reading order, so "every note is checked" is
+  // something you watch happen. About 1.5 s in all however many notes there are; off under reduced motion (CSS).
+  const swept = useRef(false);
+  useEffect(() => {
+    if (!celebrate || job?.status !== "done" || swept.current) return;
+    swept.current = true;
+    const t = setTimeout(() => {
+      const ticks = [...document.querySelectorAll<HTMLElement>("article .cite")];
+      ticks.forEach((el, i) => {
+        el.style.setProperty("--d", `${Math.round((1500 * i) / Math.max(1, ticks.length))}ms`);
+        el.classList.add("prove");
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [celebrate, job?.status]);
   const tabs: [Tab, string, number | null][] = [
     ["notes", "Notes", null],
     ["frames", "On screen", view.frames.length || null],
