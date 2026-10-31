@@ -49,30 +49,31 @@ export default function Home() {
     <div className="flex min-h-dvh w-full flex-col">
       <HomeNav current="/" />
       <main className={`flex-1 overflow-x-clip ${launching ? "launch-out" : ""}`}>
-        <section className="mx-auto max-w-5xl px-4 pt-16 pb-14 text-center sm:px-6 sm:pt-24">
-          <h1 className="font-display text-[2.75rem] leading-[1.05] font-bold tracking-[-0.03em] text-balance sm:text-7xl lg:text-[5.5rem]">
+        <section className="mx-auto max-w-5xl px-4 pt-8 pb-6 text-center sm:px-6 sm:pt-8">
+          <h1 className="font-display text-[2.75rem] leading-[1.05] font-bold tracking-[-0.03em] text-balance sm:text-6xl lg:text-[4rem]">
             Any video.<br /><span className="text-graphite">Notes with proof.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-[40ch] text-lg leading-relaxed text-graphite sm:text-xl">
+          <p className="mx-auto mt-4 max-w-[46ch] text-lg leading-relaxed text-graphite sm:text-xl">
             VidMind watches, listens and reads every slide with {MODEL_BRAND}. Each point links to the second it came from.
           </p>
-          <div id="start" className="mx-auto mt-10 max-w-2xl text-left">
+          <div id="start" className="mx-auto mt-7 max-w-2xl text-left">
             <Composer onDone={go} />
             <RecentNotes />
           </div>
         </section>
 
-        <section aria-labelledby="numbers" className="mx-auto max-w-5xl px-4 py-24 sm:px-6 sm:py-32">
+        {/* Hero, numbers, links and footer share one laptop screen (1440x900): nothing below the fold. */}
+        <section aria-labelledby="numbers" className="mx-auto max-w-5xl px-4 pt-0 pb-4 sm:px-6">
           <h2 id="numbers" className="sr-only">Measured on real runs</h2>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-12 lg:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
             {STATS.map(([n, what], i) => (
               <Reveal key={what} delay={i * 60}>
-                <dt className="tabular font-display text-5xl font-bold tracking-[-0.03em] sm:text-6xl">{n}</dt>
-                <dd className="mt-2 max-w-[22ch] text-graphite">{what}</dd>
+                <dt className="tabular font-display text-4xl font-bold tracking-[-0.03em]">{n}</dt>
+                <dd className="mt-1 max-w-[24ch] text-[15px] text-graphite">{what}</dd>
               </Reveal>
             ))}
           </dl>
-          <p className="mt-16 flex flex-wrap justify-center gap-x-8 gap-y-3 text-lg">
+          <p className="mt-5 flex flex-wrap justify-center gap-x-8 gap-y-3 text-lg">
             <Link href="/about" className="hit inline-flex items-center gap-1 text-scan-ink hover:underline">See how it works <Icon name="arrow" className="size-4" /></Link>
             <Link href="/jobs/sample" className="hit inline-flex items-center gap-1 text-scan-ink hover:underline">Open the example <Icon name="arrow" className="size-4" /></Link>
           </p>
@@ -93,7 +94,7 @@ function RecentNotes() {
   const list = useMemo(() => parseRecent(raw).filter((r) => r.id !== "sample").slice(0, 3), [raw]);
   if (!list.length) return null;
   return (
-    <nav aria-label="Your recent notes" className="mt-6 flex flex-wrap items-center justify-center gap-2">
+    <nav aria-label="Your recent notes" className="mt-4 flex flex-wrap items-center justify-center gap-2">
       <span className="text-sm text-graphite">Your notes</span>
       {list.map((r) => (
         <Link key={r.id} href={`/jobs/${r.id}`} title={r.title}

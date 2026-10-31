@@ -26,7 +26,7 @@ export function HomeNav({ current }: { current?: string }) {
 
 export function HomeFooter() {
   return (
-    <footer className="mx-auto w-full max-w-5xl border-t border-rule px-4 py-6 text-xs text-graphite sm:px-6">
+    <footer className="mx-auto w-full max-w-5xl border-t border-rule px-4 py-5 text-xs text-graphite sm:px-6">
       <div className="flex flex-wrap justify-between gap-x-6 gap-y-2">
         <p>The video, transcript and screen text go to the AI model provider.</p>
         <p>Built for the Meta AI Developer Hackathon, 2026 by Ashutosh Rath</p>
