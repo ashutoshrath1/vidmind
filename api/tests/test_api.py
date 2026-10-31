@@ -200,8 +200,11 @@ def test_events_resume_after_last_event_id():
 
 
 def test_frames_serves_only_pipeline_file_names():
-    for ok in ("0.jpg", "0_fig.jpg", "ch0.webp", "card.webp"):
+    from vidmind.main import FRAME_NAME
+
+    for ok in ("0.jpg", "ch0.webp"):  # files the sample has
         assert client.get(f"/jobs/sample/frames/{ok}").status_code == 200, ok
+    assert all(FRAME_NAME.fullmatch(n) for n in ("0_fig.jpg", "at12.jpg", "card.webp"))
     for bad in ("../result.json", "x.png", "ch0.webp.jpg", "0.jpeg", "result.json"):
         assert client.get(f"/jobs/sample/frames/{bad}").status_code == 404, bad
 
@@ -244,3 +247,14 @@ def test_link_check_skips_the_youtube_page_and_falls_back_when_that_is_not_enoug
     # Other sites, or no visitor id: straight to the full extraction.
     calls.clear(); answers[:] = [{"title": "vimeo"}]
     assert fetch._extract("https://vimeo.com/1") == {"title": "vimeo"} and calls == ["full"]
+
+
+def test_a_link_that_needs_a_login_says_how_to_get_it_in(monkeypatch):
+    msg = fetch.needs_login_message("[vimeo] 123: This video is private. Use --cookies-from-browser")
+    assert "needs a login" in msg and "upload" in msg and "VIDMIND_BROWSER_COOKIES" in msg
+    assert fetch.needs_login_message("[generic] Unsupported URL: https://example.com") is None
+    monkeypatch.setattr(fetch, "BROWSER_COOKIES", "chrome")
+    assert fetch._with_login({"quiet": True})["cookiesfrombrowser"] == ("chrome",)
+    assert "Chrome doesn't have" in fetch.needs_login_message("Sign in to confirm")
+    monkeypatch.setattr(fetch, "BROWSER_COOKIES", "")
+    assert "cookiesfrombrowser" not in fetch._with_login({})
