@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FrameBase } from "@/components/Cite";
 import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
 import { useMiniPlayer } from "@/components/MiniPlayer";
@@ -77,6 +78,7 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
   );
 
   return (
+    <FrameBase.Provider value={base}>
     <div className="page-enter flex-1">
       {/* The scroll edge: content softens as it slides under the floating bar, instead of a hard line. */}
       <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-lightbox from-55% to-transparent print:hidden" />
@@ -166,6 +168,7 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
       </div>
       {player.player}
     </div>
+    </FrameBase.Provider>
   );
 }
 
