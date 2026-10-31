@@ -7,13 +7,12 @@ import os
 import re
 import threading
 from collections.abc import Callable
-from functools import lru_cache
 from pathlib import Path
 
 import openai
-from openai import OpenAI
 from pydantic import BaseModel
 
+from . import models as mdl
 from .schema import Frame, Segment
 
 log = logging.getLogger(__name__)
@@ -65,67 +64,6 @@ Return ONLY: {{"takeaways": [{{"text": "One sentence.", "evidence": [...]}}], "q
    "edges": [{{"source": "a", "target": "b", "label": ""}}]}}}}"""
 
 MODE_SYSTEM = {"visual": VISUAL_SYSTEM}
-
-
-PROVIDERS = {
-    # ~10x faster than NVIDIA's free tier; free plan: 30 requests and 8K tokens a minute per model.
-    "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
-    "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
-    # Muse Spark 1.3 (vision) leads the pool; checked against the live API Oct 26.
-    "muse": ("https://api.meta.ai/v1", "MODEL_API_KEY"),
-    # Apple's on-device model: `fm serve --port 1976` (macOS 26+). Free and private, but on a real lecture section
-    # 0 of its 4 notes survived grounding (invented timestamps, paraphrased quotes), so it is not in the default pool.
-    "apple": ("http://localhost:1976/v1", None),
-}
-# Requests in flight per provider, so parallel sections and jobs queue here instead of tripping rate limits.
-MAX_IN_FLIGHT = {"groq": 6, "nvidia": 8, "muse": 24, "apple": 1, "": 8}  # Muse: 3,000 requests a minute
-_slots = {p: threading.BoundedSemaphore(n) for p, n in MAX_IN_FLIGHT.items()}
-
-
-def provider(model: str) -> str:
-    prefix, sep, _ = model.partition(":")
-    return prefix if sep and prefix in PROVIDERS else ""
-
-
-def _name(model: str) -> str:
-    return model.split(":", 1)[1] if provider(model) else model
-
-
-def _key(prov: str) -> str | None:
-    if not prov:
-        return os.environ.get("LLM_API_KEY") or os.environ.get("MODEL_API_KEY")
-    var = PROVIDERS[prov][1]
-    return os.environ.get(var) if var else "local"
-
-
-@lru_cache  # one client per provider, so its HTTP connections are reused across sections and jobs
-def _client(prov: str) -> OpenAI:
-    base_url = PROVIDERS[prov][0] if prov else os.environ.get("LLM_BASE_URL", "https://api.meta.ai/v1")
-    key = _key(prov)
-    if not key:
-        raise RuntimeError(f"No API key for {prov or base_url}. Set it in .env and restart the API.")
-    # Replies are streamed, so this bounds the wait for the first token and between chunks, not the whole reply.
-    # Hedging covers slow models; this only frees a hung connection's slot.
-    return OpenAI(base_url=base_url, api_key=key, timeout=60, max_retries=1)
-
-
-def _env_list(name: str, default: str) -> list[str]:
-    return [m.strip() for m in os.environ.get(name, default).split(",") if m.strip()]
-
-
-def models() -> list[str]:
-    """The pool sections are spread across, in priority order; models whose provider has no key are skipped."""
-    pool = [m for m in _env_list("LLM_MODELS", "muse-spark-1.2") if _key(provider(m))]
-    # With a Muse key, Muse only: its own older version is the backup, never another provider's model.
-    if any(provider(m) == "muse" for m in pool):
-        pool = [m for m in pool if provider(m) == "muse"]
-    if not pool:
-        raise RuntimeError("No notes model has an API key. Set GROQ_API_KEY or NVIDIA_API_KEY in .env.")
-    return pool
-
-
-def is_vision(model: str) -> bool:
-    return model in _env_list("LLM_VISION_MODELS", "muse-spark-1.2")
 
 
 def _fmt_segments(segments: list[Segment]) -> str:
@@ -248,23 +186,22 @@ def complete(messages: list[dict], model: str, on_text: Callable[[str], None] | 
 
 
 def _complete(messages: list[dict], model: str, on_text: Callable[[str], None] | None = None) -> str:
-    prov = provider(model)
-    client = _client(prov)
+    prov = mdl.of(model)
+    client = mdl.client(prov.name)
     # A section's JSON is ~1-2K tokens; the cap stops a degenerate stream (NVIDIA's gpt-oss-20b once sent whitespace
     # for 218 s) from holding a section hostage.
     max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
     # Reasoning models think before answering; at default effort Muse Glimmer took 5+ min per video, "low" ~1.5.
-    # Muse Spark at "minimal": same grounded notes as "low" on the sample, 30% faster, 20% cheaper (Oct 26 bench).
-    effort = "minimal" if prov == "muse" else os.environ.get("LLM_REASONING_EFFORT", "low")
+    effort = mdl.reasoning_effort(prov)
     # Servers differ in which options they accept; step down until one works. Parsing + ground() enforce the contract.
     variants = [{"response_format": {"type": "json_object"}}, {}]
     if effort:
         variants.insert(0, {"response_format": {"type": "json_object"}, "reasoning_effort": effort})
     for i, extra in enumerate(variants):
         try:
-            with _slots[prov]:
+            with mdl.slot(prov):
                 stream = client.chat.completions.create(
-                    model=_name(model), messages=messages, temperature=0.2, max_tokens=max_tokens, stream=True, **extra
+                    model=mdl.bare(model), messages=messages, temperature=0.2, max_tokens=max_tokens, stream=True, **extra
                 )
                 parts, finish = [], None
                 for chunk in stream:
@@ -343,18 +280,16 @@ def repair_messages(messages: list[dict], raw: str, problems: list[str]) -> list
     ]
 
 
-SAM_MODEL = "sam-3.1"
-CARD_MODEL = "muse-image-1.0"
-
-
 FIGURE = "diagram"  # SAM concept; on slide videos "screen" and "slide" matched nothing, "diagram" finds the figures
+_BOX = re.compile(r"<\|box;x1=(\d+);y1=(\d+);x2=(\d+);y2=(\d+);w=(\d+);h=(\d+)")
 
 
-def track(video: bytes, concept: str = FIGURE) -> dict[int, list[tuple[int, int, int, int, int, int]]]:
-    """SAM 3.1 on a video: per frame index, every box for the concept as (x1, y1, x2, y2, width, height)."""
+def _track_muse(model: str, video: bytes, concept: str) -> dict[int, list[tuple[int, int, int, int, int, int]]]:
+    """Muse's SAM 3.1 over the Responses API: a video in, one line of boxes per frame out."""
     b64 = base64.b64encode(video).decode()
-    with _slots["muse"]:
-        resp = _client("muse").responses.create(model=SAM_MODEL, input=[{"type": "message", "role": "user", "content": [
+    prov = mdl.of(model)
+    with mdl.slot(prov):
+        resp = mdl.client(prov.name).responses.create(model=mdl.bare(model), input=[{"type": "message", "role": "user", "content": [
             {"type": "input_text", "text": concept},
             {"type": "input_video", "video_url": f"data:video/mp4;base64,{b64}"}]}])
     out: dict[int, list] = {}
@@ -364,18 +299,32 @@ def track(video: bytes, concept: str = FIGURE) -> dict[int, list[tuple[int, int,
     return out
 
 
-_BOX = re.compile(r"<\|box;x1=(\d+);y1=(\d+);x2=(\d+);y2=(\d+);w=(\d+);h=(\d+)")
+TRACKERS = {"muse": _track_muse}  # provider kind -> segmentation adapter; add one here for another provider
 
 
-READER = "muse:muse-spark-1.3"
-_reading = threading.BoundedSemaphore(6)
+def can_track() -> bool:
+    model = mdl.role("segment")
+    return mdl.available(model) and mdl.of(model).kind in TRACKERS
+
+
+def track(video: bytes, concept: str = FIGURE) -> dict[int, list[tuple[int, int, int, int, int, int]]]:
+    """The segmentation model on a video: per frame index, every box for the concept as (x1, y1, x2, y2, width, height)."""
+    model = mdl.role("segment")
+    return TRACKERS[mdl.of(model).kind](model, video, concept)
+
+
+_reading = threading.BoundedSemaphore(mdl.setting("READER_AT_ONCE", 6))
 
 
 def read_screen(image: bytes) -> str:
-    """Spark reads the text on a keyframe (slides, code, UI labels, diagram labels), top to bottom."""
+    """The reader model copies the text on a keyframe (slides, code, UI labels, diagram labels), top to bottom."""
     b64 = base64.b64encode(image).decode()
+    model = mdl.role("reader")
+    prov = mdl.of(model)
+    effort = mdl.reasoning_effort(prov)
     with _reading:  # its own small lane: screen reading isn't on the notes' critical path, so it never crowds them
-        r = _client("muse").chat.completions.create(model=_name(READER), reasoning_effort="minimal", max_tokens=1500,
+        r = mdl.client(prov.name).chat.completions.create(
+            model=mdl.bare(model), max_tokens=1500, **({"reasoning_effort": effort} if effort else {}),
             messages=[{"role": "user", "content": [
                 {"type": "text", "text": "Copy every piece of text visible in this image, top to bottom, one line per "
                                          "line of text. Return only that text, or nothing if there is none."},
@@ -384,12 +333,17 @@ def read_screen(image: bytes) -> str:
 
 
 def draw_card(prompt: str, strength: str = "low") -> bytes:
-    """Muse Image: one rendered summary card ($0.01). Its web and image search are off: with them on it added
-    features the video never showed ("drag-and-drop", "collaborate") and renamed the product.
-    A strength the API rejects falls back to "low"."""
+    """One picture from the image model. `strength` is a quality hint that only the Muse adapter uses: it sets
+    reasoning_strength and switches Muse's web and image search off (with them on it added features the video never
+    showed and renamed the product). A strength the API rejects falls back to "low"."""
+    model = mdl.role("image")
+    prov = mdl.of(model)
+    if prov.kind != "muse":
+        resp = mdl.client(prov.name).images.generate(model=mdl.bare(model), prompt=prompt, n=1, response_format="b64_json")
+        return base64.b64decode(resp.data[0].b64_json)
     for s in dict.fromkeys([strength, "low"]):
         try:
-            resp = _client("muse").images.generate(model=CARD_MODEL, prompt=prompt, n=1, extra_body={
+            resp = mdl.client(prov.name).images.generate(model=mdl.bare(model), prompt=prompt, n=1, extra_body={
                 "reasoning_strength": s,
                 "tool_enablement": {"enable_image_search": False, "enable_web_search": False, "enable_shell": False}})
             return base64.b64decode(resp.data[0].b64_json)

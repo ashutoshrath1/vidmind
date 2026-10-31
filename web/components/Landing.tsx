@@ -6,6 +6,7 @@ import Icon, { type IconName } from "@/components/Icon";
 import Reveal from "@/components/Reveal";
 import { RunChart } from "@/components/Timeline";
 import { formatSeconds } from "@/lib/api";
+import { MODEL_API, MODEL_BRAND, MODEL_CARDS, MODEL_FAMILY } from "@/lib/site";
 import type { TraceEvent } from "@/lib/trace";
 
 // Every number on this page was measured on a real run (see docs and the e2e tests); none is a placeholder.
@@ -15,7 +16,7 @@ export const STATS: [string, string][] = [
   ["4.5 s", "a 10-minute YouTube talk to checked notes"],
   ["100%", "of notes backed by the video, in the sample"],
   [`${MINUTES_SAVED_PER_HOUR} min`, "saved per hour of video"],
-  ["4", "Meta models on every video"],
+  ["4", `${MODEL_FAMILY} on every video`],
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string; image: string; w: number; h: number; wide?: boolean }[] = [
@@ -80,13 +81,6 @@ function RunReplay() {
   );
 }
 
-const MODELS: { icon: IconName; name: string; does: string }[] = [
-  { icon: "spark", name: "Muse Spark", does: "Watches and hears each section, writes the notes, the diagram and the takeaways, and judges the web check" },
-  { icon: "listen", name: "Muse Voice Transcribe", does: "Turns the speech into timed text, in 6-second pieces at once, so every quote can be checked" },
-  { icon: "frame", name: "SAM 3.1", does: "Tracks the diagrams through the video, cropping them for the notes model" },
-  { icon: "image", name: "Muse Image", does: "Draws a summary card, whose text is read back and must match the notes" },
-];
-
 const MEASURED: [string, string][] = [
   ["4.5 s", "A 10-minute YouTube talk, start to checked notes (4 runs: 4.2-5.1 s; was 16.9 s)"],
   ["19 / 19", "Notes on the sample that passed the evidence check against the transcript and keyframes"],
@@ -94,7 +88,7 @@ const MEASURED: [string, string][] = [
 ];
 
 const FAQ: [string, string][] = [
-  ["What happens to my video?", "It's processed on this server and deleted after 24 hours. The video, its transcript and screen text go to Meta's Model API to write the notes."],
+  ["What happens to my video?", `It's processed on this server and deleted after 24 hours. The video, its transcript and screen text go to ${MODEL_API} to write the notes.`],
   ["How is a note “proven”?", "Every quote must match the transcript within seconds of when it was said, and every on-screen citation must match a real frame. Notes that fail are fixed once or thrown out, and the page shows what was thrown out and why."],
   ["What can it read?", "Uploads up to 12 hours and 2 GB (MP4, MOV, WebM, MKV), or YouTube, Vimeo and direct links. Paid and copy-protected courses aren't supported."],
 ];
@@ -162,9 +156,9 @@ export default function Landing() {
       </section>
 
       <section aria-labelledby="models-title" className={SECTION}>
-        <Reveal className="text-center"><h2 id="models-title" className={H2}>Built on Meta&apos;s models.</h2></Reveal>
+        <Reveal className="text-center"><h2 id="models-title" className={H2}>Built on {MODEL_BRAND}.</h2></Reveal>
         <ul className="mt-14 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-          {MODELS.map((m, i) => (
+          {MODEL_CARDS.map((m, i) => (
             <li key={m.name}>
               <Reveal delay={i * 60}>
                 <Icon name={m.icon} className="size-7 text-scan-ink" />

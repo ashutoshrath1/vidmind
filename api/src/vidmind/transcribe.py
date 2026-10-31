@@ -1,4 +1,4 @@
-"""Timestamped speech: subtitles when the video has them, else Muse Voice Transcribe (keyed) or local ASR."""
+"""Timestamped speech: subtitles when the video has them, else the SPEECH_MODEL (if its provider is keyed) or local ASR."""
 
 import html
 import io
@@ -16,24 +16,26 @@ from functools import lru_cache
 import httpx
 import numpy as np
 
+from . import models as mdl
 from .schema import Segment
 
 log = logging.getLogger(__name__)
-MUSE_ASR_URL = "https://api.meta.ai/v1/asr/transcribe"
-MUSE_ASR_MODEL = "muse-voice-transcribe-1.0"
 SAMPLE_RATE = 16000  # mono float32 in [-1, 1]; what faster-whisper expects and Muse accepts as 16-bit WAV
 _local = threading.Lock()  # one local ASR run at a time: jobs run in parallel, the model and the CPU/GPU are shared
 
 
 def transcribe(audio: np.ndarray, queued: threading.Event | None = None) -> tuple[list[Segment], str]:
     """Timestamps are relative to the start of `audio`. Returns (segments, transcriber name).
-    Order: Muse (if keyed) → Parakeet (if ASR_ENGINE=parakeet) → local faster-whisper, each falling through on error."""
-    # Muse is ~8 s per audio minute; pipeline.run sends sections in parallel (5 x 60 s: 10 s).
-    if os.environ.get("MODEL_API_KEY"):
+    Order: SPEECH_MODEL (if its provider is keyed) → Parakeet (if ASR_ENGINE=parakeet) → local faster-whisper,
+    each falling through on error."""
+    model = hosted_speech()
+    if model:
         try:
-            return muse_asr_fast(audio, queued=queued), MUSE_ASR_MODEL
+            if mdl.of(model).kind == "muse":
+                return muse_asr_fast(audio, queued=queued), model
+            return openai_asr(audio, model), model
         except Exception:
-            log.exception("Muse transcription failed; falling back to local ASR")
+            log.exception("%s transcription failed; falling back to local ASR", model)
     with _local:
         if os.environ.get("ASR_ENGINE") == "parakeet":
             try:
@@ -42,6 +44,12 @@ def transcribe(audio: np.ndarray, queued: threading.Event | None = None) -> tupl
                 log.exception("Parakeet transcription failed; falling back to faster-whisper")
         size = os.environ.get("WHISPER_MODEL", "base")
         return whisper_local(audio, size), f"faster-whisper-{size}"
+
+
+def hosted_speech() -> str:
+    """The configured speech model when its provider is keyed, else "" (local ASR)."""
+    model = mdl.role("speech")
+    return model if mdl.available(model) else ""
 
 
 _TIME = re.compile(r"(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)")
@@ -113,10 +121,10 @@ def _wav_bytes(audio: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-MAX_STREAMS = 256  # Muse ASR concurrent streams
-HEDGE_S = 4.0  # re-send only real stragglers: at full load (198 pieces) p50 is 2.4 s, max 4.0 s; Muse is throughput-
+MAX_STREAMS = mdl.setting("ASR_MAX_STREAMS", 256)  # Muse ASR concurrent streams
+HEDGE_S = mdl.setting("ASR_HEDGE_S", 4.0)  # re-send only real stragglers: at full load (198 pieces) p50 is 2.4 s, max 4.0 s; Muse is throughput-
 # bound, so re-sending at 2.6 s doubled the work and took the transcript from ~4 s to 10.3 s
-CHUNK_S = 3.0  # Muse times whole turns only, so short pieces also time quotes finely. On warm connections, 10 minutes
+CHUNK_S = mdl.setting("ASR_CHUNK_S", 3.0)  # Muse times whole turns only, so short pieces also time quotes finely. On warm connections, 10 minutes
 # of speech took 2.71 s as 3 s pieces vs 2.88 s at 4 s, 3.55 s at 2 s and 4.10 s at 6 s (Oct 29).
 
 
@@ -132,7 +140,7 @@ def quietest(audio: np.ndarray, t: float, span_s: float, window_s: float = 0.1) 
     return lo / SAMPLE_RATE + (int(energy.argmin()) + 0.5) * window_s
 
 
-ASR_SPEED = 2.0  # Muse is throughput-bound: 10 minutes at 2x took 3.14 s vs 5.77 s, word error 4.9% vs 5.1%
+ASR_SPEED = mdl.setting("ASR_SPEED", 2.0)  # Muse is throughput-bound: 10 minutes at 2x took 3.14 s vs 5.77 s, word error 4.9% vs 5.1%
 
 
 def faster(audio: np.ndarray, speed: float = ASR_SPEED) -> np.ndarray:
@@ -200,13 +208,16 @@ def muse_asr(audio: np.ndarray) -> list[Segment]:
     # Hinglish: a bias, not a lock; the model code-switches and still detects other languages.
     # DIARIZATION also cuts a turn at each speaker change: on a 4-speaker meeting 7 turns vs ENDPOINTING's 2 (one
     # 22 s turn put every quote at its start); lectures get the same turns. Same speed and price.
-    request = {"mode": "DIARIZATION", "model": MUSE_ASR_MODEL, "audioEncoding": "WAV",
+    model = mdl.role("speech")
+    prov = mdl.of(model)
+    request = {"mode": "DIARIZATION", "model": mdl.bare(model), "audioEncoding": "WAV",
                "languageBias": ["English", "Hindi"]}
-    headers = {"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}"}
+    headers = {"Authorization": f"Bearer {mdl.key(prov)}"}
+    url = f"{prov.base_url}/asr/transcribe"
     body = _wav_bytes(audio)
     for attempt in range(4):
         resp = _http.post(
-            MUSE_ASR_URL,
+            url,
             headers=headers,
             files={
                 "request": (None, json.dumps(request), "application/json"),
@@ -225,6 +236,20 @@ def muse_asr(audio: np.ndarray) -> list[Segment]:
     if not segments and body.get("transcript"):
         segments = [Segment(0, body.get("audioDurationMs", 0) / 1000, body["transcript"])]
     return segments
+
+
+def openai_asr(audio: np.ndarray, model: str) -> list[Segment]:
+    """Any OpenAI-compatible /audio/transcriptions endpoint (`openai:whisper-1`, Groq, a local server) that returns
+    verbose_json segments. One request per call, at normal speed: the 2x and 3 s pieces are tuned for Muse."""
+    prov = mdl.of(model)
+    resp = _http.post(f"{prov.base_url}/audio/transcriptions", headers={"Authorization": f"Bearer {mdl.key(prov)}"},
+                      data={"model": mdl.bare(model), "response_format": "verbose_json"},
+                      files={"file": ("audio.wav", _wav_bytes(audio), "audio/wav")})
+    resp.raise_for_status()
+    body = resp.json()
+    segments = [Segment(round(s["start"], 2), round(s["end"], 2), s["text"].strip()) for s in body.get("segments", [])
+                if s["text"].strip()]
+    return segments or ([Segment(0, round(len(audio) / SAMPLE_RATE, 2), body["text"].strip())] if body.get("text", "").strip() else [])
 
 
 @lru_cache(maxsize=1)

@@ -80,6 +80,36 @@ What we benchmarked: 11 audio methods, 12 keyframe methods, 12+ speech engines. 
 (3.9% word error). Groq Whisper turbo took 1.1 s but is not a Meta model, so it is not used. Local whisper.cpp,
 mlx-whisper, faster-whisper, Parakeet and Moonshine took 6.4-110 s.
 
+## Use other models
+
+VidMind is shown with Meta Muse, and every model is a setting. Nothing is hardcoded to Muse except the defaults:
+set the variables below in `.env` (see `.env.example`). A model is written `provider:model`.
+
+| Variable | Role | Default | Must support |
+|---|---|---|---|
+| `LLM_MODELS` | Notes, article, takeaways, answers | `muse:muse-spark-1.2,muse:muse-spark-1.3` | Chat completions, streaming, JSON replies |
+| `LLM_VISION_MODELS` | Which of those also get keyframe images | `muse:muse-spark-1.3` | Image input in chat |
+| `READER_MODEL` | Reads text on keyframes | `muse:muse-spark-1.3` | Image input in chat. Empty or unkeyed: local OCR |
+| `IMAGE_MODEL` | Chapter illustrations, summary card | `muse:muse-image-1.0` | `images.generate` returning base64. Empty or unkeyed: no illustrations or card |
+| `SEGMENT_MODEL` | Finds diagrams for enlarged crops | `muse:sam-3.1` | Only the Muse adapter exists. Empty or unkeyed: no crops |
+| `SPEECH_MODEL` | Speech recognition when a video has no captions | `muse:muse-voice-transcribe-1.0` | Muse ASR, or `/audio/transcriptions` with `verbose_json` segments (e.g. `openai:whisper-1`). Else local `ASR_ENGINE` |
+
+Built-in providers: `muse` (`MODEL_API_KEY`), `groq`, `nvidia`, `apple`. To add one, no code change:
+
+```bash
+PROVIDER_TOGETHER_BASE_URL=https://api.together.xyz/v1
+PROVIDER_TOGETHER_API_KEY=...
+LLM_MODELS=together:meta-llama/Llama-3.3-70B-Instruct-Turbo
+```
+
+Per-provider traits (`PROVIDER_<NAME>_EFFORT`, `_MAX_IN_FLIGHT`, `_HEDGE_S`, `_KIND`) and the speed settings tuned for
+Muse (`ASR_SPEED`, `ASR_CHUNK_S`, `IMAGES_AT_ONCE`, ...) are in `.env.example`. Another provider's image, speech or
+segmentation request shape is one small adapter in `synthesize.py` / `transcribe.py`, chosen by the provider's kind.
+
+What is tested: the full configuration path with a fake provider (no Muse URL or model is used; unkeyed roles are
+skipped), and the OpenAI-style speech request against a stub. What has run live: Muse for every role, plus Groq and
+NVIDIA for notes. Other providers are untested; their output still goes through the same evidence checks.
+
 ## Run it locally
 
 Requirements: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20+, ffmpeg.

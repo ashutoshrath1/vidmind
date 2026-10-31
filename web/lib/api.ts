@@ -16,7 +16,7 @@ export type Chapter = {
   cover_url: string | null;
   hook?: string; // the article's opening line for this chapter
   article?: { text: string; cites: number[] }[]; // prose written from the checked notes; cites = note indices
-  image_url?: string | null; // illustration drawn by Muse Image, relative to the job
+  image_url?: string | null; // illustration drawn by the image model, relative to the job
   image_alt?: string;
 };
 // A keyframe explained, matched to view.frames by time.
@@ -75,8 +75,12 @@ export type JobStatus = {
 
 export const jobUrl = (id: string) => `${API_URL}/jobs/${id}`;
 
-/** "groq:openai/gpt-oss-120b" → "gpt-oss-120b"; the host goes in a separate label. */
-export const modelName = (id: string) => id.split(":").pop()!.split("/").pop()!;
+const CASED: Record<string, string> = { gpt: "GPT", sam: "SAM", oss: "OSS", ocr: "OCR", llm: "LLM", ai: "AI" };
+/** "groq:openai/gpt-oss-120b" → "GPT-OSS 120b", "muse:muse-spark-1.3" → "Muse Spark 1.3"; the host goes in a separate label. */
+export const modelName = (id: string) =>
+  id.split(":").pop()!.split("/").pop()!.split("-").filter(Boolean)
+    .map((w) => CASED[w.toLowerCase()] ?? (/^\d/.test(w) ? w : w[0].toUpperCase() + w.slice(1))).join(" ")
+    .replace(/\bGPT (?=\d)/g, "GPT-").replace(/\bGPT-OSS\b|\bGPT OSS\b/g, "GPT-OSS");
 export const modelHost = (id: string) => (id.includes(":") ? id.split(":")[0] : "");
 
 /** Elapsed or remaining seconds, e.g. "4.2 s" or "1 min 05 s". */

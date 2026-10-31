@@ -3,6 +3,7 @@ import openai
 import pytest
 from PIL import Image
 
+from vidmind import models as mdl
 from vidmind import synthesize as syn
 from vidmind.schema import Frame, Segment
 
@@ -35,17 +36,17 @@ def test_model_pool_and_vision_flags(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "k")
     monkeypatch.setenv("LLM_MODELS", " a/fast , b/vl ,")
     monkeypatch.setenv("LLM_VISION_MODELS", "b/vl")
-    assert syn.models() == ["a/fast", "b/vl"]
-    assert syn.is_vision("b/vl") and not syn.is_vision("a/fast")
+    assert mdl.notes() == ["a/fast", "b/vl"]
+    assert mdl.is_vision("b/vl") and not mdl.is_vision("a/fast")
 
 
 def test_models_without_a_provider_key_are_skipped(monkeypatch):
     monkeypatch.setenv("LLM_MODELS", "groq:openai/gpt-oss-120b,nvidia:x/y,apple:system")
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.setenv("NVIDIA_API_KEY", "k")
-    assert syn.models() == ["nvidia:x/y", "apple:system"]  # Apple's local server needs no key
-    assert syn.provider("groq:openai/gpt-oss-120b") == "groq" and syn._name("groq:openai/gpt-oss-120b") == "openai/gpt-oss-120b"
-    assert syn.provider("openai/gpt-oss-20b") == ""  # bare ids keep their slash and use LLM_BASE_URL
+    assert mdl.notes() == ["nvidia:x/y", "apple:system"]  # Apple's local server needs no key
+    assert mdl.provider("groq:openai/gpt-oss-120b") == "groq" and mdl.bare("groq:openai/gpt-oss-120b") == "openai/gpt-oss-120b"
+    assert mdl.provider("openai/gpt-oss-20b") == ""  # bare ids keep their slash and use LLM_BASE_URL
 
 
 def test_server_error_with_images_retries_text_only(twelve_frames, monkeypatch):

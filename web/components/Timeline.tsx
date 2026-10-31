@@ -74,7 +74,7 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
       <Trust stats={s} />
       <section aria-labelledby="timeline-title" className={CARD}>
         <h2 id="timeline-title" className="font-display text-xl font-semibold tracking-tight">When each step ran</h2>
-        <p className="mt-1 text-[15px] text-graphite">One bar per step, with the Meta model or open-source tool that did it.</p>
+        <p className="mt-1 text-[15px] text-graphite">One bar per step, with the AI model or open-source tool that did it.</p>
         <div className="mt-8"><MadeChart view={view} lead={s.lead} /></div>
       </section>
       <details className="group overflow-hidden rounded-[20px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
@@ -116,7 +116,7 @@ const PHASE_OF_LANE: Record<string, Phase> = { Source: "Listen", Transcript: "Li
 
 type Card = { name: Phase; icon: GlyphName; line: string; seconds?: number; models: string[]; warn?: string };
 const spanOf = (xs: [number, number][]) => (xs.length ? Math.max(...xs.map((x) => x[1])) - Math.min(...xs.map((x) => x[0])) : undefined);
-const MUSE_IMAGE_JOBS: Record<string, string> = { article: "the article", images: "its illustrations", slides: "slide explanations", card: "a summary card" };
+const MODEL_JOBS: Record<string, string> = { article: "the article", images: "its illustrations", slides: "slide explanations", card: "a summary card" };
 
 /** The run as four cards, left to right: Listen, Watch, Write, Check. Every number and model comes from the trace. */
 function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof runStats> }) {
@@ -131,7 +131,7 @@ function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof run
   const subs = view.source?.transcript === "subtitles" || tr.some((e) => /subtitle/.test(e.engine));
   const listen: Card = {
     name: "Listen", icon: "wave",
-    line: subs ? "Used the video's own captions: no speech recognition needed"
+    line: subs ? "Used the video's own captions, so nothing needed transcribing"
       : tr.length ? `Transcribed ${view.source ? formatTime(view.source.duration) : "the speech"} in ${plural(tr.length, "part")} at once` : "Listening…",
     seconds: spanOf(spans([...stage("audio"), ...tr])),
     models: subs ? ["Captions"] : uniq(tr.map((e) => e.engine)),
@@ -148,14 +148,14 @@ function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof run
   };
 
   const tries = ofKind(ev, "model");
-  const extras = stages.filter((e) => e.state === "end" && MUSE_IMAGE_JOBS[e.name]);
+  const extras = stages.filter((e) => e.state === "end" && MODEL_JOBS[e.name]);
   const vis = ofKind(ev, "visual")[0];
   const wrote = [
     s.sections && `${plural(s.sections, "section")} in parallel`,
     view.overview.result && "title and summary",
     vis && plural(vis.takeaways, "takeaway"),
     s.onScreen && plural(s.onScreen, "on-screen note"),
-    ...extras.filter((e) => !e.error).map((e) => MUSE_IMAGE_JOBS[e.name]),
+    ...extras.filter((e) => !e.error).map((e) => MODEL_JOBS[e.name]),
   ].filter(Boolean);
   const failed = extras.filter((e) => e.error);
   const write: Card = {
@@ -163,7 +163,7 @@ function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof run
     line: wrote.length ? wrote.join(", ") : "Writing…",
     seconds: spanOf(spans([...tries, ...ofKind(ev, "section"), ...stages.filter((e) => !LISTEN.includes(e.name) && !WATCH.includes(e.name))])),
     models: uniq([...tries.filter((e) => e.state === "win").map((e) => e.model), ...extras.map((e) => e.model)]),
-    warn: failed.length ? failed.map((e) => `${MUSE_IMAGE_JOBS[e.name][0].toUpperCase()}${MUSE_IMAGE_JOBS[e.name].slice(1)} was dropped: ${e.name === "card" ? "its text didn't match" : e.error}`).join(". ") : undefined,
+    warn: failed.length ? failed.map((e) => `${MODEL_JOBS[e.name][0].toUpperCase()}${MODEL_JOBS[e.name].slice(1)} was dropped: ${e.name === "card" ? "its text didn't match" : e.error}`).join(". ") : undefined,
   };
 
   const checks = ofKind(ev, "check");
@@ -199,8 +199,7 @@ function Pipeline({ view, stats: s }: { view: View; stats: ReturnType<typeof run
   );
 }
 
-/** "muse-voice-transcribe-1.0" → "Muse Voice Transcribe 1.0"; short words are acronyms ("sam-3.1" → "SAM 3.1"). */
-export const pretty = (id: string) => modelName(id).split("-").map((w) => (/^\d/.test(w) ? w : w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
+const pretty = modelName;
 
 /** The trust story: every note was checked before it reached the page; anything unsupported was thrown out, with why. */
 function Trust({ stats: s }: { stats: ReturnType<typeof runStats> }) {

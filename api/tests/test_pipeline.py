@@ -298,17 +298,17 @@ def test_diagram_drops_unsupported_boxes_and_their_edges(monkeypatch):
 
 
 def test_a_muse_key_means_muse_models_only(monkeypatch):
-    from vidmind import synthesize as syn
+    from vidmind import models as mdl
 
     monkeypatch.setenv("LLM_MODELS", "muse:muse-spark-1.3,groq:gpt-oss,muse:muse-spark-1.2,nvidia:x")
     monkeypatch.setenv("MODEL_API_KEY", "k")
     monkeypatch.setenv("GROQ_API_KEY", "k")
     monkeypatch.setenv("NVIDIA_API_KEY", "k")
-    assert syn.models() == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]
+    assert mdl.notes() == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]
     from vidmind import pipeline
-    assert pipeline._model_order(syn.models(), 1) == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]  # no rotation
+    assert pipeline._model_order(mdl.notes(), 1) == ["muse:muse-spark-1.3", "muse:muse-spark-1.2"]  # no rotation
     monkeypatch.delenv("MODEL_API_KEY")
-    assert syn.models() == ["groq:gpt-oss", "nvidia:x"]
+    assert mdl.notes() == ["groq:gpt-oss", "nvidia:x"]
 
 
 def test_clean_article_drops_paragraphs_without_valid_cites():

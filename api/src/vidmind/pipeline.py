@@ -22,11 +22,12 @@ from pathlib import Path
 import numpy as np
 
 from . import frames as fr
+from . import models as mdl
 from . import synthesize as syn
 from .schema import (FRAME_WINDOW_S, ArticleOutput, Chapter, Frame, LearnOutput, LearnResult, Note, Overview,
                      Paragraph, QuizItem, Rejected, SectionOutput, Segment, Slide, SlidesOutput, VisualOutput, _words,
                      ground, ground_notes, snap_quote)
-from .transcribe import SAMPLE_RATE, parse_vtt, quietest, transcribe
+from .transcribe import SAMPLE_RATE, hosted_speech, parse_vtt, quietest, transcribe
 
 log = logging.getLogger(__name__)
 MAX_DURATION_S = 12 * 3600  # Muse ASR caps one request at 10 minutes; audio goes in 6 s pieces, so that cap never applies
@@ -35,9 +36,7 @@ FIRST_S = 20.0  # short first section: its notes are on screen within seconds wh
 SECTION_S = 50.0  # one LLM call per section, all in parallel: shorter sections finish sooner
 SNAP_S = 5.0  # move each cut up to this far to the quietest moment, so sentences are not split
 HEDGE_S = 25.0  # NVIDIA takes 12-60 s a section; start a backup model only when one is clearly stuck
-FAST_HEDGE_S = {"groq": 6.0,  # Groq answers in 1-3 s; still silent at 6 s is usually hung (Qwen once sat 24 s)
-                "muse": 0.0}  # Spark 1.2 and 1.3 at once (separate rate limits), first good answer wins: the job waits
-                              # on its slowest section, and one Spark call varies 3.5-6 s
+# Per-provider hedge delays (Groq 6 s, Muse 0 s = both Sparks at once) are provider traits: see models.py.
 PIPELINE_VERSION = "32"
 Emit = Callable[..., None]  # emit(kind, **data): one event for the live "behind the scenes" view; see jobs.tracer
 
@@ -158,7 +157,7 @@ def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quie
         return (takeaways, diagram, out.questions[:3]), problems, rejected
 
     def attempt(model: str):
-        messages = syn.mode_messages("visual", segments, frames, duration, job_dir, syn.is_vision(model))
+        messages = syn.mode_messages("visual", segments, frames, duration, job_dir, mdl.is_vision(model))
         out, raw = syn.ask(messages, model, VisualOutput)
         checked = check(out)
         if checked[1]:
@@ -199,7 +198,7 @@ def _card(assemble, job_dir: Path, state: dict, emit: Emit = _quiet) -> None:
             [t.text for t in r.takeaways[:5]] or [c.notes[0].text for c in r.chapters[:5] if c.notes]
         if not lines:
             return  # a title-only card would let the image model fill the space with anything
-        emit("stage", name="card", state="start", detail="Drawing a summary card", model=syn.CARD_MODEL)
+        emit("stage", name="card", state="start", detail="Drawing a summary card", model=mdl.role("image"))
         path = job_dir / "frames" / "card.webp"
         for _ in range(2):  # an image model can misspell or add text, so the card is read back like a keyframe
             path.write_bytes(syn.draw_card(CARD_PROMPT.format(title=r.title, lines="\n".join(f"- {x}" for x in lines))))
@@ -212,10 +211,10 @@ def _card(assemble, job_dir: Path, state: dict, emit: Emit = _quiet) -> None:
             path.unlink()
             raise ValueError(f"card text did not match the checked result: {missing[0]!r}")
         state["card"] = "frames/card.webp"
-        emit("stage", name="card", state="end", seconds=_since(started), model=syn.CARD_MODEL)
+        emit("stage", name="card", state="end", seconds=_since(started), model=mdl.role("image"))
     except Exception as e:
         log.exception("summary card failed")
-        emit("stage", name="card", state="end", seconds=_since(started), model=syn.CARD_MODEL, error=f"{type(e).__name__}: {str(e)[:120]}")
+        emit("stage", name="card", state="end", seconds=_since(started), model=mdl.role("image"), error=f"{type(e).__name__}: {str(e)[:120]}")
 
 
 def _clean_article(out: ArticleOutput, n_notes: int) -> ArticleOutput:
@@ -251,8 +250,8 @@ def _finish_articles(jobs: list, started: float, emit: Emit) -> None:
          **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
-FIRST_IMAGES_RACED = 2  # the first pictures to be drawn are sent twice, the faster copy wins
-IMAGES_AT_ONCE = 6  # Muse Image "high": one image 9 s alone; 6 at once finished all 13 in 52 s, 3 at once in 76 s
+FIRST_IMAGES_RACED = mdl.setting("IMAGES_RACED", 2)  # the first pictures to be drawn are sent twice, the faster copy wins
+IMAGES_AT_ONCE = mdl.setting("IMAGES_AT_ONCE", 6)  # Muse Image "high": one image 9 s alone; 6 at once finished all 13 in 52 s, 3 at once in 76 s
 
 
 def _race(draw: Callable[[], bytes], copies: int) -> bytes:
@@ -294,7 +293,7 @@ def _finish_images(jobs: list, started: float, emit: Emit) -> None:
     for e in errors:
         log.warning("illustration failed: %s", e)
     emit("stage", name="images", state="end", seconds=_since(started), drawn=len(jobs) - len(errors), of=len(jobs),
-         model=syn.CARD_MODEL, **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
+         model=mdl.role("image"), **({"error": f"{type(errors[0]).__name__}: {str(errors[0])[:120]}"} if errors else {}))
 
 
 def _slides(frames: list[Frame], segments: list[Segment], pool: list[str], state: dict, emit: Emit = _quiet) -> None:
@@ -329,7 +328,7 @@ def _track_figures(src: Source, emit: Emit = _quiet) -> tuple[dict, float, str |
     """SAM 3.1 tracks diagrams through the whole video in one call. Starts with the job, alongside transcription,
     since it needs only the video. Returns (boxes per frame index, when it started, error)."""
     started = time.monotonic()
-    emit("stage", name="crop", state="start", detail=f"Tracking {syn.FIGURE}s through the video", model=syn.SAM_MODEL)
+    emit("stage", name="crop", state="start", detail=f"Tracking {syn.FIGURE}s through the video", model=mdl.role("segment"))
     try:
         proc = subprocess.run(
             ["ffmpeg", "-v", "error", *fr.ff_input(src.scan or src.video, src.headers), "-an",
@@ -374,7 +373,7 @@ def _find_figures(tracked: Future | None, frames: list[Frame], job_dir: Path, em
     except Exception as e:
         log.warning("figure cropping failed: %s", e)
         error = f"{type(e).__name__}: {str(e)[:120]}"
-    emit("stage", name="crop", state="end", seconds=_since(started), cropped=found, of=len(frames), model=syn.SAM_MODEL,
+    emit("stage", name="crop", state="end", seconds=_since(started), cropped=found, of=len(frames), model=mdl.role("segment"),
          **({"error": error} if error else {}))
 
 
@@ -413,23 +412,24 @@ def _read_screens(frames: list[Frame], job_dir: Path, emit: Emit = _quiet, track
         "frame", i=frames.index(f), at=f.t, url=f.url, text=f.ocr_text, conf=round(f.ocr_conf), low_conf=f.low_conf,
         seconds=round(secs, 2), figure=f.figure_url, box=f.figure_box)
     engine = fr.ocr_engine()
-    if os.environ.get("MODEL_API_KEY"):
-        # Spark reads the screens, 6 at a time, beside the notes; local OCR stays the backup for any frame it fails on.
+    reader = mdl.role("reader")
+    if mdl.available(reader):
+        # The reader model reads the screens, 6 at a time, beside the notes; local OCR stays the backup for any frame it fails on.
         def read(f: Frame) -> bool:
             began = time.monotonic()
             try:
                 f.ocr_text, f.ocr_conf, f.low_conf = syn.read_screen((job_dir / f.url).read_bytes()), 100.0, False
                 ok = True
             except Exception as e:
-                log.warning("Spark could not read %s (%s); using local OCR", f.url, e)
+                log.warning("%s could not read %s (%s); using local OCR", reader, f.url, e)
                 f.ocr_text, f.ocr_conf = fr.ocr(job_dir / f.url)
                 f.low_conf = bool(f.ocr_text) and f.ocr_conf < fr.OCR_LOW_MEAN_CONF
                 ok = False
             report(f, time.monotonic() - began)
             return ok
-        with ThreadPoolExecutor(max_workers=6) as ex:
+        with ThreadPoolExecutor(max_workers=mdl.setting("READER_AT_ONCE", 6)) as ex:
             by_spark = sum(ex.map(read, frames))
-        engine = syn.READER if by_spark == len(frames) else f"{syn.READER} + {engine}"
+        engine = reader if by_spark == len(frames) else f"{reader} + {engine}"
     else:
         fr.read_text(frames, job_dir, report)
     emit("stage", name="ocr", state="end", seconds=_since(started), model=engine)
@@ -447,13 +447,13 @@ def _cover(frames: list[Frame]) -> str | None:
 
 
 def hedged[T](order: list[str], attempt: Callable[[str], T], what: str, emit: Emit = _quiet, task: str = "") -> T:
-    """Runs attempt(order[0]) and adds the next model whenever the hedge delay (FAST_HEDGE_S for the first model's
-    provider, else HEDGE_S) passes without an answer, or an attempt fails.
+    """Runs attempt(order[0]) and adds the next model whenever the hedge delay (the first model's provider hedge_s trait,
+    else HEDGE_S) passes without an answer, or an attempt fails.
     The first success wins. Free hosted models are slow, hang or fail often enough (NVIDIA's gpt-oss-20b once sat
     240 s on a request) that any single-model call left whole jobs waiting. Raises only if every model fails.
     Emits a "model" event when each attempt starts (first / hedge / fallback) and ends, and "win" for the winner."""
     ex = ThreadPoolExecutor(max_workers=len(order))
-    hedge_s = FAST_HEDGE_S.get(syn.provider(order[0]), HEDGE_S)
+    hedge_s = h if (h := mdl.of(order[0]).hedge_s) is not None else HEDGE_S
 
     def start(model: str, reason: str) -> Future:
         began = time.monotonic()
@@ -563,9 +563,9 @@ def _snap(out: SectionOutput, segments: list[Segment]) -> SectionOutput:
 def _model_order(pool: list[str], i: int) -> list[str]:
     """Pool order is priority order. Sections rotate across the leading models from the same provider, spreading
     per-model rate limits (Groq's free tier: 8K tokens a minute per model); the rest follow in order as hedges."""
-    if syn.provider(pool[0]) == "muse":
-        return pool  # 3,000 requests a minute: no need to spread, so the newest Spark always goes first
-    lead = next((k for k, m in enumerate(pool) if syn.provider(m) != syn.provider(pool[0])), len(pool))
+    if not mdl.of(pool[0]).spread:
+        return pool  # e.g. Muse, 3,000 requests a minute: no need to spread, so the first model always goes first
+    lead = next((k for k, m in enumerate(pool) if mdl.provider(m) != mdl.provider(pool[0])), len(pool))
     j = i % lead
     return pool[j:lead] + pool[:j] + pool[lead:]
 
@@ -587,7 +587,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     duration = src.duration
     if duration > MAX_DURATION_S:  # uploads are checked earlier; links only know their real length here
         raise ValueError(f"Video is {duration / 3600:.1f} h; the limit is {MAX_DURATION_S // 3600} hours")
-    pool = syn.models()
+    pool = mdl.notes()
     emit("source", duration=round(duration, 2), streaming=src.scan is not None, youtube_id=src.youtube_id,
          transcript="subtitles" if src.captions is not None else ("speech" if src.audio else "none"),
          caption_lines=len(src.captions or []), models=pool)
@@ -700,10 +700,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
                     art_started.append(time.monotonic())
                     emit("stage", name="article", state="start", detail="Writing the chapters as an article")
                 art_jobs.append(art_ex.submit(_article_one, part.chapter, pool, emit, publish))
-            if part.chapter and os.environ.get("MODEL_API_KEY"):
+            if part.chapter and mdl.available(mdl.role("image")):
                 if not img_started:
                     img_started.append(time.monotonic())
-                    emit("stage", name="images", state="start", detail="Drawing the illustrations", model=syn.CARD_MODEL)
+                    emit("stage", name="images", state="start", detail="Drawing the illustrations", model=mdl.role("image"))
                 img_jobs.append(img_ex.submit(_draw_image, i, part.chapter, job_dir, emit, publish, img_started[0],
                                               2 if len(img_jobs) < FIRST_IMAGES_RACED else 1))
 
@@ -738,7 +738,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     # Muse ASR runs ~8 s per audio minute, so sections go out together (5 x 60 s: 10 s, vs 40 s for one 300 s
     # request). Local ASR is one model on one machine: one worker keeps sections in order, first notes first.
     with (ThreadPoolExecutor(max_workers=len(sections) + 4) as ex,
-          ThreadPoolExecutor(max_workers=len(sections) if os.environ.get("MODEL_API_KEY") else 1) as ears):
+          ThreadPoolExecutor(max_workers=len(sections) if hosted_speech() else 1) as ears):
         frames_f = ex.submit(_keyframes, src, job_dir, emit)  # overlaps with transcription
         # Diagram tracking and screen reading feed the Keyframes tab and Ask, not the notes: their own pool, which
         # the job never waits on.
@@ -749,7 +749,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         # Diagram tracking (ffmpeg clip encoding plus SAM calls) also waits: run from the start it slowed speech
         # recognition, which every note waits on.
         tracked = side.submit(lambda: (notes_out.wait(120), _track_figures(src, emit))[1]) \
-            if os.environ.get("MODEL_API_KEY") else None  # video only
+            if syn.can_track() else None  # video only
         screens_f = side.submit(lambda: (notes_out.wait(120), _read_screens(frames_f.result(), job_dir, emit, tracked)))
         side.shutdown(wait=False)
         heard = [ears.submit(listen, i, lo, hi) for i, (lo, hi) in enumerate(sections)] \
@@ -843,13 +843,13 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             if frames:
                 ex2.submit(on_screen)
             ex2.submit(articles)
-            if os.environ.get("MODEL_API_KEY"):
+            if mdl.available(mdl.role("image")):
                 ex2.submit(illustrations)  # right after the notes, beside the article: the first picture is the long pole
             if frames:
                 ex2.submit(slides)
             whole_video(all_segments, frames, ex2)
         publish()
-        if os.environ.get("MODEL_API_KEY"):
+        if mdl.available(mdl.role("image")):
             _extras(assemble, job_dir, state, emit, lock)
         # Complete only now: the page keeps fetching while pending, so the card appears without a reload too.
         state["pending"] = False

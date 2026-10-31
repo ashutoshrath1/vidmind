@@ -15,7 +15,7 @@ export default function MadeChart({ view, lead = 0 }: { view: View; lead?: numbe
   return (
     <figure aria-label="When each step ran" className="text-[15px]">
       <figcaption className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-graphite">
-        <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-5 rounded-full bg-scan" />Meta model</span>
+        <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-5 rounded-full bg-scan" />AI model</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-5 rounded-full bg-graphite/40" />open-source tool</span>
         <span className="ml-auto tabular">seconds from the link check{lead ? ` (+${formatSeconds(lead)} before the clock starts)` : ""}</span>
       </figcaption>
@@ -36,7 +36,7 @@ export default function MadeChart({ view, lead = 0 }: { view: View; lead?: numbe
                   tabIndex={0}
                   role="img"
                   aria-label={`${r.label}: ${r.tool}, from ${formatSeconds(r.start)} to ${formatSeconds(r.end)}`}
-                  className={`absolute top-0 h-7 min-w-2 rounded-full ${r.meta ? "bg-scan" : "bg-graphite/40"} outline-offset-2 focus-visible:outline-2 focus-visible:outline-scan`}
+                  className={`absolute top-0 h-7 min-w-2 rounded-full ${r.model ? "bg-scan" : "bg-graphite/40"} outline-offset-2 focus-visible:outline-2 focus-visible:outline-scan`}
                   style={{ left: pct(r.start), width: `calc(${pct(r.end - r.start)})` }}
                 />
                 <span

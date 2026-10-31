@@ -11,6 +11,7 @@ import Reveal from "@/components/Reveal";
 import { Button, Chip } from "@/components/ui";
 import { API_URL, MAX_MINUTES, MAX_UPLOAD_MB, formatSeconds, formatTime } from "@/lib/api";
 import { estimate } from "@/lib/estimate";
+import { MODEL_BRAND } from "@/lib/site";
 import { parseRecent, readRecent, subscribeRecent } from "@/lib/recent";
 
 type Created = { id: string; reused?: boolean };
@@ -53,7 +54,7 @@ export default function Home() {
             Any video.<br /><span className="text-graphite">Notes with proof.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-[40ch] text-lg leading-relaxed text-graphite sm:text-xl">
-            VidMind watches, listens and reads every slide with Meta&apos;s Muse models. Each point links to the second it came from.
+            VidMind watches, listens and reads every slide with {MODEL_BRAND}. Each point links to the second it came from.
           </p>
           <div id="start" className="mx-auto mt-10 max-w-2xl text-left">
             <Composer onDone={go} />
