@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FrameBase } from "@/components/Cite";
+import { chapterId } from "@/components/Sections";
 import Highlights from "@/components/Highlights";
 import Logo from "@/components/Logo";
 import { useMiniPlayer } from "@/components/MiniPlayer";
@@ -134,6 +135,8 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
 
         {tab === "notes" && (
           <div>
+            {/* Up to 40 sections fit as dots; a 2-hour talk has 140, and a rail of them would be noise. */}
+            {result && result.chapters.length > 2 && result.chapters.length <= 40 && !replaying && <SectionRail chapters={result.chapters} />}
             <article className="mx-auto w-full max-w-[68ch] min-w-0 font-serif text-[1.1875rem] leading-[1.6] sm:text-[1.25rem]">
               {running && <div className="mb-10 font-sans text-base">{run}</div>}
               <h1 className="font-display text-[1.75rem] leading-[1.2] font-bold tracking-[-0.02em] text-balance sm:text-[2rem]">{title}</h1>
@@ -375,5 +378,35 @@ function KeysSheet({ close }: { close: () => void }) {
         ))}
       </dl>
     </div>
+  );
+}
+
+/** Where you are in a long article: a dot per section on the left edge (wide screens), the current one filled.
+ * Click a dot to jump; hover it for the section's title. */
+function SectionRail({ chapters }: { chapters: LearnResult["chapters"] }) {
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    const on = () => {
+      const tops = chapters.map((c) => document.getElementById(chapterId(c.start_seconds))?.getBoundingClientRect().top ?? Infinity);
+      const i = tops.findLastIndex((t) => t < 200);
+      setAt(Math.max(0, i));
+    };
+    on();
+    addEventListener("scroll", on, { passive: true });
+    return () => removeEventListener("scroll", on);
+  }, [chapters]);
+  const go = (start: number) => document.getElementById(chapterId(start))?.scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  return (
+    <nav aria-label="Sections" className="fixed top-1/2 left-5 z-20 hidden -translate-y-1/2 flex-col items-center py-2 xl:flex print:hidden">
+      <span aria-hidden className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-rule" />
+      {chapters.map((c, i) => (
+        <button key={c.start_seconds} onClick={() => go(c.start_seconds)} aria-label={c.title} aria-current={i === at ? "true" : undefined}
+          title={c.title}
+          className="relative grid size-6 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-scan">
+          <span className={`block rounded-full transition-[transform,background-color] duration-300 ease-spring motion-reduce:transition-none ${i === at ? "size-2.5 scale-110 bg-scan" : i < at ? "size-1.5 bg-scan/60" : "size-1.5 bg-graphite/40"}`} />
+        </button>
+      ))}
+    </nav>
   );
 }
