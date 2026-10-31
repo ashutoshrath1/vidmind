@@ -26,7 +26,7 @@ def ff_input(src: Path | str, headers: str = "") -> list[str]:
     return [*(["-headers", headers] if headers else []), "-i", str(src)]
 
 
-def scene_cuts(video: Path | str, headers: str = "", duration: float = 0) -> list[float]:
+def scene_cuts(video: Path | str, headers: str = "", duration: float = 0, timeout: float | None = None) -> list[float]:
     """Timestamps where ffmpeg's scene score jumps above the threshold. A stream is scanned as 4 ranges at once:
     a 10-minute 360p YouTube stream in 1.04 s vs 2.00 s, with the same 493 cuts."""
     def scan(*span: str) -> list[float]:
@@ -35,7 +35,7 @@ def scene_cuts(video: Path | str, headers: str = "", duration: float = 0) -> lis
             # decoding just those found the frames of a 10-minute 720p talk in 0.36 s vs 6.22 s for every frame.
             ["ffmpeg", "-hide_banner", "-nostats", "-skip_frame", "nokey", *span, *ff_input(video, headers), "-an",
              "-vf", f"select='gt(scene,{SCENE_THRESHOLD})',showinfo", "-f", "null", "-"],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, check=True, timeout=timeout,
         )
         return [float(t) for t in re.findall(r"pts_time:([\d.]+)", proc.stderr)]
 
@@ -49,6 +49,7 @@ def scene_cuts(video: Path | str, headers: str = "", duration: float = 0) -> lis
 
 
 SCAN_RANGES = 4
+GRAB_AT_ONCE = 12
 
 
 def pick_times(cuts: list[float], duration: float) -> list[float]:
@@ -132,7 +133,7 @@ def sample_frames(
 def grab_frames(video: Path | str, times: list[float], out_dir: Path, headers: str = "") -> list[Frame]:
     out_dir.mkdir(exist_ok=True)
     frames = [Frame(t=t, url=f"frames/{i}.jpg") for i, t in enumerate(times)]
-    with ThreadPoolExecutor(6) as ex:
+    with ThreadPoolExecutor(GRAB_AT_ONCE) as ex:  # each grab is a small ranged read: many at once beat a throttled stream
         list(ex.map(lambda f: extract_frame(video, f.t, out_dir / Path(f.url).name, headers), frames))
     return frames
 

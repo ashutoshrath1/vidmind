@@ -388,13 +388,22 @@ def _keyframes(src: Source, job_dir: Path, emit: Emit = _quiet) -> list[Frame]:
         return []
 
 
+SCENE_TIMEOUT_S = float(os.environ.get("SCENE_TIMEOUT_S", "8"))
+
+
 def _read_keyframes(src: Source, job_dir: Path, emit: Emit) -> list[Frame]:
     started = time.monotonic()
     emit("stage", name="scenes", state="start",
          detail="Scanning every frame for slide and scene changes" + (" (360p stream)" if src.scan else ""))
-    cuts = fr.scene_cuts(src.scan or src.video, src.headers, src.duration)
+    try:
+        cuts = fr.scene_cuts(src.scan or src.video, src.headers, src.duration, timeout=SCENE_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        # A throttled stream reads at ~2x real time (an 11-minute talk: 90 s). Evenly spaced keyframes instead.
+        log.warning("scene scan passed %.0f s; using evenly spaced keyframes", SCENE_TIMEOUT_S)
+        cuts = []
     times = fr.pick_times(cuts, src.duration)
-    emit("stage", name="scenes", state="end", seconds=_since(started), cuts=len(cuts), picked=times)
+    emit("stage", name="scenes", state="end", seconds=_since(started), cuts=len(cuts), picked=times,
+         **({} if cuts else {"detail": "Evenly spaced keyframes (the scene scan was too slow)"}))
     started = time.monotonic()
     emit("stage", name="frames", state="start", detail=f"Capturing {len(times)} keyframes")
     frames = fr.grab_frames(src.video, times, job_dir / "frames", src.headers)
@@ -739,7 +748,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     # request). Local ASR is one model on one machine: one worker keeps sections in order, first notes first.
     with (ThreadPoolExecutor(max_workers=len(sections) + 4) as ex,
           ThreadPoolExecutor(max_workers=len(sections) if hosted_speech() else 1) as ears):
-        frames_f = ex.submit(_keyframes, src, job_dir, emit)  # overlaps with transcription
+        # Its own pool, never joined: the notes leave without it (the section pool's `with` would wait for it).
+        keyframe_ex = ThreadPoolExecutor(max_workers=1)
+        frames_f = keyframe_ex.submit(_keyframes, src, job_dir, emit)
+        keyframe_ex.shutdown(wait=False)
         # Diagram tracking and screen reading feed the Keyframes tab and Ask, not the notes: their own pool, which
         # the job never waits on.
         side = ThreadPoolExecutor(max_workers=2)
@@ -775,10 +787,9 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
         all_segments = [s for i in sorted(heard_by) for s in heard_by[i]]
         notes_out.set()
 
-    # A new list: screen reading and diagram tracking may still be walking the keyframe list by index, so it must
-    # never change under them (appending and sorting it once reported one image at two indices).
-    with lock:
-        frames = sorted(frames_f.result(), key=lambda f: f.t)
+    # The notes never wait for the keyframes: on a throttled YouTube stream the scan once took 90 s and held the
+    # finished notes back with it. The keyframes are collected in the follow-up work below, which needs them.
+    frames: list[Frame] = []
     state["pending"] = True  # title, takeaways and diagram follow right after the notes
     result = assemble()
     if not result.chapters:
@@ -790,9 +801,6 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
 
     def save_frames(_=None) -> None:
         (job_dir / "frames.json").write_text(json.dumps([f.__dict__ for f in frames], indent=2))
-
-    save_frames()  # now (times and images), and again with the screen text once that finishes
-    screens_f.add_done_callback(save_frames)  # screen reading isn't part of the notes; the job doesn't wait for it
 
     def on_screen() -> None:
         """Section notes are written from text alone (images cost every call ~0.6 s); this one call reads the
@@ -818,6 +826,15 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             emit("stage", name="screen", state="end", seconds=_since(started), error=type(e).__name__)
 
     def after() -> None:
+        # A new list: screen reading and diagram tracking may still be walking the keyframe list by index, so it must
+        # never change under them (appending and sorting it once reported one image at two indices).
+        with lock:
+            frames[:] = sorted(frames_f.result(), key=lambda f: f.t)
+        save_frames()  # now (times and images), and again with the screen text once that finishes
+        screens_f.add_done_callback(save_frames)
+        _after()
+
+    def _after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
         def articles() -> None:
             if art_jobs:

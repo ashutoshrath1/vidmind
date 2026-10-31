@@ -183,6 +183,39 @@ def test_notes_are_shown_as_they_are_written_but_only_after_the_evidence_check(f
     assert kinds.index("note") < kinds.index("section")  # before the section was finished
 
 
+def test_notes_finish_without_waiting_for_slow_keyframes(fixture_clip, tmp_path, monkeypatch):
+    video, _ = fixture_clip
+    monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
+    monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
+    monkeypatch.setenv("LLM_MODELS", "model-a")
+    monkeypatch.setattr(pipeline.syn, "ask", fake_ask_factory([]))
+    keyframes = pipeline._keyframes
+    monkeypatch.setattr(pipeline, "_keyframes", lambda *a: (time.sleep(3), keyframes(*a))[1])  # a throttled stream
+    captions = [Segment(t + 1, t + 4, f"caption number {t} says something useful here") for t in (0, 21, 41)]
+    src = pipeline.Source(str(video), 60.0, audio=str(video), captions=captions, youtube_id="abc")
+    started = time.monotonic()
+    result = pipeline.run(tmp_path, lambda *a, **k: None, src)
+    assert time.monotonic() - started < 2.5 and result.chapters  # the notes did not wait the 3 s
+    for _ in range(100):
+        if (tmp_path / "frames.json").exists():
+            break
+        time.sleep(0.1)
+    assert json.loads((tmp_path / "frames.json").read_text())  # the keyframes still arrive, afterwards
+
+
+def test_a_slow_scene_scan_falls_back_to_evenly_spaced_keyframes(fixture_clip, tmp_path, monkeypatch):
+    import subprocess as sp
+
+    video, _ = fixture_clip
+    def slow(*a, **k):
+        raise sp.TimeoutExpired("ffmpeg", 8)
+    monkeypatch.setattr(pipeline.fr, "scene_cuts", slow)
+    events = []
+    frames = pipeline._keyframes(pipeline.Source(str(video), 60.0), tmp_path, lambda kind, **d: events.append((kind, d)))
+    assert len(frames) >= 3 and all((tmp_path / f.url).exists() for f in frames)
+    assert any(k == "stage" and d.get("name") == "scenes" and "Evenly spaced" in d.get("detail", "") for k, d in events)
+
+
 def test_probe_rejects_non_video(tmp_path):
     bad = tmp_path / "notes.mp4"
     bad.write_text("not a video")
