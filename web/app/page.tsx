@@ -113,6 +113,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [meta, setMeta] = useState<Meta | null>(null);
+  const [unread, setUnread] = useState(false); // the browser can't read this format (AVI, WMV, .mts); the server checks it
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ loaded: number; total: number; rate: number } | null>(null);
   const [checking, setChecking] = useState<number | null>(null); // performance.now() when the link check began
@@ -140,6 +141,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
   function choose(f: File | undefined) {
     setError(null);
     setMeta(null);
+    setUnread(false);
     setText("");
     if (!f) return setFile(null);
     if (f.size > MAX_UPLOAD_MB * 2 ** 20) return setError(`That file is ${sizeLabel(f.size)}; the limit is ${sizeLabel(MAX_UPLOAD_MB * 2 ** 20)}.`);
@@ -153,7 +155,10 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
       if (v.duration > MAX_MINUTES * 60) setError(`This video is ${(v.duration / 3600).toFixed(1)} hours long; the limit is ${MAX_MINUTES / 60} hours.`);
       URL.revokeObjectURL(url);
     };
-    v.onerror = () => URL.revokeObjectURL(url);
+    v.onerror = () => {
+      setUnread(true);
+      URL.revokeObjectURL(url);
+    };
     v.src = url;
   }
 
@@ -256,7 +261,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
   const plan = file && meta ? estimate({ duration: meta.duration, height: meta.height }) : null;
   const share = progress ? progress.loaded / progress.total : 0;
   const uploadLeft = progress?.rate ? (progress.total - progress.loaded) / progress.rate : null;
-  const ready = file ? !error && !!meta : link;
+  const ready = file ? !error && (!!meta || unread) : link;
 
   return (
     <form
@@ -282,7 +287,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
           <input
             ref={picker}
             type="file"
-            accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mkv,.m4v"
+            accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.3gp,.mpg,.mpeg,.ts,.mts,.m2ts"
             onChange={(e) => choose(e.target.files?.[0])}
             className="sr-only"
             tabIndex={-1}
@@ -337,7 +342,7 @@ function Composer({ onDone }: { onDone: (body: Created) => void }) {
             <Chip>{sizeLabel(file.size)}</Chip>
             {meta && <Chip>{formatTime(meta.duration)} long</Chip>}
             {meta?.height ? <Chip>{meta.height}p</Chip> : null}
-            {!meta && !error && <Chip tone="scan">Reading the file…</Chip>}
+            {!meta && !unread && !error && <Chip tone="scan">Reading the file…</Chip>}
           </p>
           {plan && !error && (
             <>

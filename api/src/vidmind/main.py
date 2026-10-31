@@ -10,6 +10,7 @@ import logging
 import re
 import os
 import shutil
+import subprocess
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -27,7 +28,10 @@ from .pipeline import MAX_BYTES, MAX_DURATION_S, PIPELINE_VERSION, probe
 from .schema import LearnResult
 
 logging.basicConfig(level=logging.INFO)
-ALLOWED_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
+log = logging.getLogger(__name__)
+PLAYABLE_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}  # Chrome, Safari and Firefox play these as uploaded
+# ffmpeg reads these too (each tested through probe, audio and keyframes); the player gets an .mp4 copy of them.
+ALLOWED_EXT = PLAYABLE_EXT | {".avi", ".wmv", ".flv", ".3gp", ".mpg", ".mpeg", ".ts", ".mts", ".m2ts"}
 WEB_ORIGINS = os.environ.get("VIDMIND_WEB_ORIGIN", "http://localhost:3000").split(",")
 
 
@@ -108,7 +112,29 @@ async def create_job(file: UploadFile):
     jobs.write_status(d, cache_key=key)
     jobs.tracer(d)("source_ready", origin="upload", size_mb=round(size / 2**20, 1), duration=round(duration, 2))
     jobs.enqueue(job_id)
+    if ext not in PLAYABLE_EXT:
+        threading.Thread(target=_playable_copy, args=(d / f"video{ext}",), daemon=True).start()
     return {"id": job_id, "reused": False}
+
+
+def _playable_copy(video: Path) -> None:
+    """play.mp4 beside an upload browsers can't play (AVI, WMV, camera .mts...), for the player only; the notes never
+    wait for it. A rewrap when the streams are already H.264/AAC, otherwise a fast 720p encode."""
+    out, tmp = video.with_name("play.mp4"), video.with_name("play.part.mp4")
+    codec = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name",
+                            "-of", "csv=p=0", str(video)], capture_output=True, text=True).stdout.strip()
+    encode = ["-vf", "scale=-2:'min(720,ih)'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p"]
+    # Only H.264 video is copied as is (MPEG-4 Part 2 in an .avi muxes into .mp4 but Chrome can't decode it); audio
+    # is always AAC (camera AC-3 doesn't play either).
+    for codecs in ([["-c:v", "copy"]] if codec == "h264" else []) + [encode]:
+        codecs = [*codecs, "-c:a", "aac", "-b:a", "128k"]
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-map", "0:v:0", "-map", "0:a:0?", *codecs,
+                            "-movflags", "+faststart", "-f", "mp4", str(tmp)], capture_output=True)
+        if r.returncode == 0:
+            os.replace(tmp, out)  # whole or not at all: the player never gets half a file
+            return
+    tmp.unlink(missing_ok=True)
+    log.warning("no playable copy of %s: %s", video.name, r.stderr.decode()[-200:])
 
 
 class LinkJob(BaseModel):
@@ -223,7 +249,8 @@ def get_result(job_id: str):
 @app.get("/jobs/{job_id}/video")
 def get_video(job_id: str):
     # FileResponse honours Range requests, which the browser player needs to seek.
-    video = next(_dir(job_id).glob("video.*"), None)
+    d = _dir(job_id)
+    video = d / "play.mp4" if (d / "play.mp4").exists() else next(d.glob("video.*"), None)
     if video is None:
         raise HTTPException(404, "Video not found")
     return FileResponse(video)

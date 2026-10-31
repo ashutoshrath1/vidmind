@@ -90,7 +90,7 @@ const MEASURED: [string, string][] = [
 const FAQ: [string, string][] = [
   ["What happens to my video?", `It's processed on this server and deleted after 24 hours. The video, its transcript and screen text go to ${MODEL_API} to write the notes.`],
   ["How is a note “proven”?", "Every quote must match the transcript within seconds of when it was said, and every on-screen citation must match a real frame. Notes that fail are fixed once or thrown out, and the page shows what was thrown out and why."],
-  ["What can it read?", "Uploads up to 12 hours and 2 GB (MP4, MOV, WebM, MKV), or YouTube, Vimeo and direct links. Paid and copy-protected courses aren't supported."],
+  ["What can it read?", "Uploads up to 12 hours and 2 GB (MP4, MOV, WebM, MKV, AVI, WMV, FLV, 3GP, MPEG, camera MTS/M2TS), or YouTube, Vimeo and direct links. Paid and copy-protected courses aren't supported."],
 ];
 
 const H2 = "font-display text-4xl leading-[1.08] font-bold tracking-[-0.03em] text-balance sm:text-6xl";

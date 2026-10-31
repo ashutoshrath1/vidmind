@@ -1,4 +1,5 @@
 import json
+import subprocess
 import time
 import threading
 
@@ -45,6 +46,23 @@ def test_upload_creates_queued_job_and_serves_video(fixture_clip):
     assert client.delete(f"/jobs/{job_id}").status_code == 204
     assert client.get(f"/jobs/{job_id}").status_code == 404
 
+
+
+def test_avi_upload_is_accepted_and_the_player_gets_an_mp4_copy(fixture_clip, tmp_path):
+    video, _ = fixture_clip
+    avi = tmp_path / "talk.avi"  # MPEG-4 Part 2 + MP3: ffmpeg reads it, browsers can't play it
+    subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-t", "5", "-c:v", "mpeg4", "-c:a", "libmp3lame", str(avi)], check=True)
+    r = client.post("/jobs", files={"file": ("talk.avi", avi.read_bytes(), "video/x-msvideo")})
+    assert r.status_code == 201
+    d = jobs.job_dir(r.json()["id"])
+    for _ in range(100):
+        if (d / "play.mp4").exists():
+            break
+        time.sleep(0.1)
+    codecs = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", str(d / "play.mp4")],
+                            capture_output=True, text=True).stdout.split()
+    assert codecs == ["h264", "aac"] and (d / "video.avi").exists()  # the original stays for the pipeline
+    assert client.get(f"/jobs/{r.json()['id']}/video").content == (d / "play.mp4").read_bytes()
 
 @pytest.mark.parametrize("job_id", ["nope", "../../etc", "0" * 32])
 def test_unknown_or_malformed_job_ids_404(job_id):

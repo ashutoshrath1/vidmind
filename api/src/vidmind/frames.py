@@ -69,7 +69,7 @@ def pick_times(cuts: list[float], duration: float) -> list[float]:
 def extract_frame(video: Path | str, t: float, out: Path, headers: str = "") -> None:
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", str(t), *ff_input(video, headers),
-         "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", "-q:v", "3", str(out)],
+         "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2:out_range=full,format=yuvj420p", "-q:v", "3", str(out)],  # JPEG needs full range; camera .mts is TV range
         check=True,
     )
 
