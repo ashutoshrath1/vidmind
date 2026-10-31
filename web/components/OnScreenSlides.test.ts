@@ -32,7 +32,8 @@ test("explanations match slides within 2 s; quiet screens and filler speech are 
   assert.equal(s[0].explained, undefined);
   assert.equal(s[1].explained?.title, "T");
   assert.equal(isQuiet(s[0]), true);
-  assert.equal(isQuiet({ ...s[1], explained: undefined }), false);
+  assert.equal(isQuiet({ ...s[1], explained: undefined }), true); // explanations exist, this screen has none
+  assert.equal(isQuiet({ ...s[1], explained: undefined }, false), false); // old result: real text stays
   assert.equal(isFiller({ start: 0, end: 1, text: "Yeah." }), true);
   assert.equal(isFiller({ start: 0, end: 1, text: "Kubernetes runs pods" }), false);
 });

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test lib/*.test.ts"
+    "test": "node --test lib/*.test.ts components/*.test.ts"
   },
   "dependencies": {
     "mermaid": "11.17.2",

@@ -69,7 +69,8 @@ export default function Workspace({ jobId, at, job, result, view, now, error, re
       <header className="sticky top-0 z-20 px-3 pt-3 sm:px-6">
         <div className="glass mx-auto flex h-13 max-w-5xl items-center gap-3 rounded-full pr-2 pl-4">
           <Logo size={24} />
-          <ShellTitle title={title} />
+          {/* The heading belongs to the article; the other tabs keep the bar clear. */}
+          {tab === "notes" ? <ShellTitle title={title} /> : <span className="flex-1" />}
           {!view.events.length && <Status job={job} />}
           {!replaying && job?.status === "done" && result && <CopyMd result={result} />}
           {result && jobId !== "sample" && !job?.shared && (

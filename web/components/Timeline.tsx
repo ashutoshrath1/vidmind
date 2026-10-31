@@ -1,4 +1,5 @@
 import { formatSeconds, formatTime, modelName } from "@/lib/api";
+import MadeChart from "@/components/MadeChart";
 import SlidesGlyph, { type GlyphName } from "@/components/SlidesGlyph";
 import { type Bar, type Rejected, type TraceEvent, type View, lanesOf } from "@/lib/trace";
 
@@ -16,8 +17,14 @@ export function runStats(view: View) {
   const used = ofKind(ev, "check").filter((c) => secs.some((s) => s.task === c.task && s.model === c.model));
   const kept = secs.reduce((n, e) => n + e.notes, 0);
   const dropped = secs.reduce((n, e) => n + e.rejected, 0);
+  // The trace clock starts when the job is created, after the link was checked (source_ready.seconds, links only):
+  // add it, so the numbers are what the person waited from pressing Make notes (not counting their own network).
+  const lead = ofKind(ev, "source_ready")[0]?.seconds ?? 0;
+  const first = (ev.find((e) => e.kind === "note") ?? secs[0])?.t;
   return {
-    firstNote: (ev.find((e) => e.kind === "note") ?? secs[0])?.t,
+    lead,
+    firstNote: first === undefined ? undefined : first + lead,
+    finished: view.last + lead,
     sections: secs.length,
     kept, dropped,
     proven: kept + dropped ? Math.round((100 * kept) / (kept + dropped)) : undefined,
@@ -36,17 +43,22 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
     const text = sentence(e);
     return text ? [{ t: e.t, text, tone: tone(e), phase: phaseOf(e) }] : [];
   });
-  const total = view.end?.t ?? (running ? now : view.last);
   const s = runStats(view);
+  const total = (view.end?.t ?? (running ? now : view.last)) + s.lead;
   const hero: [string, string, string][] = [
     ...(s.firstNote !== undefined ? [[formatSeconds(s.firstNote), "first note", "First checked note on the page"] as [string, string, string]] : []),
-    [formatSeconds(total), running ? "so far" : "all notes", running ? "Time so far" : "Every section written and checked"],
+    [formatSeconds(total), running ? "so far" : "all notes", running ? "Time so far" : "From pressing Make notes: link check, every section written and checked"],
     ...(s.proven !== undefined ? [[`${s.proven}%`, "proven", `${s.kept} of ${s.kept + s.dropped} notes matched the transcript or a keyframe`] as [string, string, string]] : []),
   ];
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header className={CARD}>
         <h2 className="font-display text-2xl font-semibold tracking-tight">{running ? "Making the notes" : "From video to checked notes"}</h2>
+        {!running && s.finished - total > 2 && (
+          <p className="mt-1 text-[15px] text-graphite">
+            The notes were done at {formatSeconds(total)}. The article, illustrations and slide explanations kept arriving until {formatSeconds(s.finished)}; the page fills them in as they land.
+          </p>
+        )}
         <dl className="mt-5 grid grid-cols-3 divide-x divide-rule">
           {hero.map(([n, label, long], i) => (
             <div key={label} className={`min-w-0 ${i ? "pl-4 sm:pl-6" : ""} pr-2`}>
@@ -60,13 +72,17 @@ export default function Timeline({ view, now, running }: { view: View; now: numb
       </header>
       <Pipeline view={view} stats={s} />
       <Trust stats={s} />
+      <section aria-labelledby="timeline-title" className={CARD}>
+        <h2 id="timeline-title" className="font-display text-xl font-semibold tracking-tight">When each step ran</h2>
+        <p className="mt-1 text-[15px] text-graphite">One bar per step, with the Meta model or open-source tool that did it.</p>
+        <div className="mt-8"><MadeChart view={view} lead={s.lead} /></div>
+      </section>
       <details className="group overflow-hidden rounded-[20px] bg-sheet shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
         <summary className="hit flex cursor-pointer list-none items-center justify-between px-5 py-3.5 font-medium [&::-webkit-details-marker]:hidden">
-          <span>Run details</span>
+          <span>Every event, in order</span>
           <span className="flex items-center gap-1.5 text-[15px] text-graphite"><span className="tabular">{steps.length} events</span>
             <SlidesGlyph name="right" className="size-3.5 transition-transform duration-300 ease-spring group-open:rotate-90 motion-reduce:transition-none" /></span>
         </summary>
-        <div className="border-t border-rule p-3 sm:p-4"><RunChart events={view.events} now={now} running={running} /></div>
         <ol aria-label="Every event, in order" className="divide-y divide-rule border-t border-rule text-sm">
           {steps.map((s, i) => (
             <li key={i} className="grid grid-cols-[3.75rem_minmax(0,1fr)] items-baseline gap-x-3 px-4 py-2 hover:bg-lightbox sm:grid-cols-[4rem_4.5rem_minmax(0,1fr)]">
@@ -337,8 +353,12 @@ function tone(e: TraceEvent) {
   return "";
 }
 
-const OTHER: Record<string, string> = { overview: "the title and summary", test: "the test scenarios", meet: "the actions", visual: "the takeaways and diagram" };
-const task = (t: string) => OTHER[t] ?? `section ${Number(t.slice(1)) + 1}`;
+const OTHER: Record<string, string> = {
+  overview: "the title and summary", test: "the test scenarios", meet: "the actions", visual: "the takeaways and diagram",
+  article: "the article", screen: "the on-screen notes", slides: "the slide explanations", images: "the illustrations",
+};
+// Sections are "s0", "s1"…; any other task reads as its own name, never "section NaN".
+const task = (t: string) => OTHER[t] ?? (/^s\d+$/.test(t) ? `section ${Number(t.slice(1)) + 1}` : t);
 const Task = (t: string) => task(t)[0].toUpperCase() + task(t).slice(1); // at the start of a sentence
 
 export function sentence(e: TraceEvent): string | null {

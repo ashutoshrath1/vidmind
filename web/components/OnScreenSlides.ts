@@ -45,5 +45,7 @@ export const explain = (slides: Slide[], explained: Explained[] = []): Slide[] =
 const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
 /** Speech filler worth hiding: "Yeah", "Okay.", "Thank you". */
 export const isFiller = (l: Line) => words(l.text) <= 2;
-/** A logo, title or blank screen: nothing explains it, no note cites it, and it holds only a few words. */
-export const isQuiet = (s: Slide) => !s.explained && !s.notes.length && words(s.text) < 6;
+/** Nothing to say about it: no explanation and no note cites it (a logo, a title card, or a screen the explainer
+ * skipped as not meaningful). Old results without explanations keep any screen with real text on it. */
+export const isQuiet = (s: Slide, explained = true) =>
+  !s.explained && !s.notes.length && (explained || words(s.text) < 6);

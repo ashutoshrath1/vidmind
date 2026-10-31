@@ -102,16 +102,18 @@ function Job({ id, at }: { id: string; at: number }) {
   }, [running]);
   // The title, takeaways and diagram, then the card, land a few seconds after
   // the notes; pick each up as it arrives.
-  const pending = job?.status === "done" && !!result && (!!result.pending || !result.card_url);
+  // The article, illustrations (~15-30 s), slide explanations and card land after the notes: keep fetching until the
+  // server says the result is complete, so they appear without a reload. The card may fail; pending is the signal.
+  const pending = job?.status === "done" && !!result && !!result.pending;
   useEffect(() => {
     if (!pending) return;
     let tries = 0;
     const timer = setInterval(async () => {
-      if (++tries > 20) return clearInterval(timer);
+      if (++tries > 120) return clearInterval(timer); // 3 min: past the slowest measured run (~71 s)
       const body: LearnResult | null = await fetch(`${jobUrl(id)}/result`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (!body) return;
       setResult(body);
-      if (!body.pending && body.card_url) clearInterval(timer);
+      if (!body.pending) clearInterval(timer);
     }, 1500);
     return () => clearInterval(timer);
   }, [pending, id]);

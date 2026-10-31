@@ -38,7 +38,7 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
           )}
         </div>
         <p className="tabular shrink-0 font-display text-2xl leading-none font-semibold tracking-tight" title={running ? "so far" : "total"}>
-          {formatSeconds(end && !running ? end.t : now)}
+          {formatSeconds((end && !running ? end.t : now) + lead(view))}
         </p>
         {end && !running && onReplay && (
           <Button variant="quiet" onClick={onReplay} className="!min-h-9 !px-3 text-sm">↻ Replay</Button>
@@ -48,12 +48,14 @@ export default function RunPanel({ view, now, running, replaying, celebrate, onR
       <Track steps={steps} now={now} left={left} running={running} done={!!end} />
       {/* One announcement for screen readers when the run ends; the narration line changes too fast to read out. */}
       <p className="sr-only" aria-live="polite">
-        {end ? (end.ok ? `Finished in ${formatSeconds(end.t)}` : `Stopped: ${end.error}`) : firstNote(view) !== undefined ? `First note after ${formatSeconds(firstNote(view)!)}` : ""}
+        {end ? (end.ok ? `Finished in ${formatSeconds(end.t + lead(view))}` : `Stopped: ${end.error}`) : firstNote(view) !== undefined ? `First note after ${formatSeconds(firstNote(view)! + lead(view))}` : ""}
       </p>
     </section>
   );
 }
 
+/** The link was checked before the job's clock started (links only): count it, so the clock is what was waited. */
+const lead = (v: View) => v.ready?.seconds ?? 0;
 const firstNote = (v: View) => (v.events.find((e) => e.kind === "note") ?? v.events.find((e) => e.kind === "section" && e.ok))?.t;
 
 const Item = ({ n, label }: { n: string; label: string }) => (
@@ -68,11 +70,11 @@ function Pace({ view, now, running }: { view: View; now: number; running: boolea
   const end = view.end && !running ? view.end.t : undefined;
   return (
     <p aria-hidden className="mt-2 flex flex-wrap items-baseline gap-x-2 text-[13px]">
-      <Item label="First note" n={formatSeconds(first)} />
+      <Item label="First note" n={formatSeconds(first + lead(view))} />
       <span className="text-graphite">·</span>
       <Item label="notes" n={String(streamed)} />
       <span className="text-graphite">·</span>
-      <Item label={end !== undefined ? "done" : "clock"} n={formatSeconds(end ?? now)} />
+      <Item label={end !== undefined ? "done" : "clock"} n={formatSeconds((end ?? now) + lead(view))} />
     </p>
   );
 }

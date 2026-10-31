@@ -36,8 +36,8 @@ export default function ScreenText({ view, base, seek }: { view: View; base: str
   const withText = searchFrames(texts, "");
   const q = query.trim();
   const hits = new Set(searchFrames(slides.map((s) => ({ at: s.start, url: s.frames[0].url, text: slideText(s) })), q).map((f) => f.url));
-  const shown = q ? slides.filter((s) => hits.has(s.frames[0].url)) : slides.filter((s) => !isQuiet(s));
-  const quiet = q ? [] : slides.filter(isQuiet);
+  const shown = q ? slides.filter((s) => hits.has(s.frames[0].url)) : slides.filter((s) => !isQuiet(s, !!explained?.length));
+  const quiet = q ? [] : slides.filter((s) => isQuiet(s, !!explained?.length));
   const reading = !!view.stages.ocr && !view.stages.ocr.end;
   const readCount = view.frames.filter((f) => f?.read).length;
 

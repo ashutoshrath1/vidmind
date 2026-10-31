@@ -76,13 +76,12 @@ test.describe("result page", () => {
 
   test("tabs: on screen, how it was made", async ({ page }) => {
     await page.getByRole("tab", { name: /Keyframes|On screen/ }).click();
-    await expect(page.getByText(/^\d+ screens, in order$/)).toBeVisible();
+    await expect(page.getByText(/^\d+ screens?, in order|slides?, explained/i).first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "Ask the video" })).toHaveCount(0);
     await page.getByRole("tab", { name: /How it was made|Behind the scenes/ }).click();
-    await page.getByText("Run details").click({ force: true });
-    const chart = page.getByRole("region", { name: "The run, step by step" });
-    await expect(chart.getByText("Write", { exact: true })).toBeVisible();
-    await expect(chart.getByText("Listen", { exact: true })).toBeVisible();
+    const chart = page.getByRole("figure", { name: "When each step ran" });
+    await expect(chart.getByText("Writing the notes", { exact: true })).toBeVisible();
+    await expect(chart.getByText("Getting the video", { exact: true })).toBeVisible();
   });
 
   test("models are open by default; models are named from the run log", async ({ page }) => {

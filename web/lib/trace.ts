@@ -267,7 +267,7 @@ export function lanesOf(events: TraceEvent[], now: number): Lane[] {
   const put = (lane: string, bar: Bar) => lanes.set(lane, [...(lanes.get(lane) ?? []), bar]);
   const open = new Map<string, Extract<TraceEvent, { kind: "stage" }>>();
   const tries = new Map<string, Extract<TraceEvent, { kind: "model" }>>();
-  const taskName = (t: string) => LANE_OF_TASK[t] ? t : `section ${Number(t.slice(1)) + 1}`;
+  const taskName = (t: string) => (/^s\d+$/.test(t) ? `section ${Number(t.slice(1)) + 1}` : t);
   for (const e of events) {
     if (e.kind === "stage" && e.state === "start") open.set(e.name, e);
     if (e.kind === "stage" && e.state === "end" && LANE_OF_STAGE[e.name]) {

@@ -176,10 +176,17 @@ def _visual(segments, frames, job_dir, duration, pool, state, emit: Emit = _quie
     emit("visual", takeaways=len(takeaways), diagram=diagram.kind if diagram else None)
 
 
+def _save(path: Path, text: str) -> None:
+    """Atomic: the API and the page read result.json while it is rewritten, and must never see half of it."""
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
 def _extras(assemble, job_dir: Path, state: dict, emit: Emit, lock: threading.Lock) -> None:
     _card(assemble, job_dir, state, emit)
     with lock:
-        (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
+        _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
     emit("extras", card=state["card"])
 
 
@@ -650,7 +657,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
              notes=len(part.chapter.notes) if part.chapter else 0, rejected=len(part.rejected))
         with lock:  # partial result first, then the counter the UI polls, so it never sees a count without data
             done[i] = part
-            (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
+            _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
             update(None, sections_done=len(done))
 
     first_queued = threading.Event()
@@ -729,7 +736,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
     result = assemble()
     if not result.chapters:
         raise RuntimeError("No section produced grounded notes; see the API log for model errors")
-    (job_dir / "result.json").write_text(result.model_dump_json(indent=2))
+    _save(job_dir / "result.json", result.model_dump_json(indent=2))
     # Transcript and frames stay next to the result: "Ask the video" answers from them, and evaluation and
     # debugging can see what the model saw.
     (job_dir / "transcript.json").write_text(json.dumps([s.__dict__ for s in all_segments], indent=2))
@@ -763,6 +770,11 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             log.exception("on-screen notes failed; the notes stand without them")
             emit("stage", name="screen", state="end", seconds=_since(started), error=type(e).__name__)
 
+    def publish() -> None:
+        """Each part of the follow-up work is saved as it lands, so the page shows it without waiting for the rest."""
+        with lock:
+            _save(job_dir / "result.json", assemble().model_dump_json(indent=2))
+
     def after() -> None:
         """The work that follows the notes: whole-video outputs, then the card."""
         def article_then_images() -> None:
@@ -771,8 +783,10 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             with lock:
                 chapters = [p.chapter for i, p in sorted(done.items()) if p.chapter]
             _articles(chapters, pool, emit)
+            publish()  # the article shows while the illustrations are drawn
             if os.environ.get("MODEL_API_KEY"):
                 _images(chapters, job_dir, emit)
+                publish()
 
         def slides() -> None:
             try:
@@ -780,6 +794,7 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             except Exception:
                 pass  # read or not, the keyframes are explained from what is there
             _slides(frames, all_segments, pool, state, emit)
+            publish()
 
         with ThreadPoolExecutor(max_workers=6) as ex2:
             screen = ex2.submit(on_screen) if frames else None
@@ -787,11 +802,12 @@ def run(job_dir: Path, update: Callable[..., None], src: Source | None = None, e
             if frames:
                 ex2.submit(slides)
             whole_video(all_segments, frames, ex2)
-        state["pending"] = False
-        with lock:
-            (job_dir / "result.json").write_text(assemble().model_dump_json(indent=2))
+        publish()
         if os.environ.get("MODEL_API_KEY"):
             _extras(assemble, job_dir, state, emit, lock)
+        # Complete only now: the page keeps fetching while pending, so the card appears without a reload too.
+        state["pending"] = False
+        publish()
 
     threading.Thread(target=after, daemon=True).start()
     return result
