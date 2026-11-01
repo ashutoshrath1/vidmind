@@ -18,13 +18,13 @@ refuses caption requests after many runs (HTTP 429), and the run then takes the 
 | 0:50-1:00 | Scroll to the end: "All N claims checked against the video" (or the removed ones, listed with why) | "Anything the video doesn't back is thrown out, and you can see what and why." |
 | 1:00-1:25 | On screen tab: a slide, its explanation, what was said around it; click its time | "It reads the slides too: what's only on screen makes it into the notes." |
 | 1:25-1:55 | How it was made: "N notes verified in X s", then the "When each step ran" chart | "Every step and model, with real timings from this run: Muse Voice Transcribe, Muse Spark, Muse Image." |
-| 1:55-2:15 | Example (Karpathy's 2-hour "Let's build GPT"): scroll its 140 sections | "It scales: a 2-hour talk had its first note in 13 seconds and all 440 checked notes in a minute and 11." |
+| 1:55-2:15 | Example (Karpathy's 2-hour "Let's build GPT"): scroll its 140 sections | "It scales: a 2-hour talk had its first note in 14 seconds and about 440 checked notes in a minute and a quarter." |
 | 2:15-2:30 | Back on your run: Copy as Markdown, paste into any editor | "And it's yours as a clean article, one click. That's VidMind." |
 
 Numbers you may say (measured on this laptop; say "on my laptop" with them):
 - a 10-minute YouTube talk with captions to all checked notes: 4.2-5.1 s (4 runs); first notes 4.0-6.5 s;
 - a video without usable captions (speech recognition): first notes about 8-9 s;
-- the 2-hour example: first note 13 s, 440 checked notes in 1 min 11 s.
+- the 2-hour example (2 runs): first note 13-14 s, 439-440 checked notes in 1 min 11-14 s.
 
 Mention the models the run card shows. SAM 3.1 is listed only when its diagram tracking finished in that run.
 

@@ -139,7 +139,7 @@ test("home → result → VidMind logo shows the home page again, and stays ther
   await expect(page).toHaveURL("/");
   expect(await page.locator("main").evaluate((m) => getComputedStyle(m).opacity)).toBe("1");
   // The finished notes are listed, and the box takes another video (it used to stay stuck on "Opening the video").
-  await expect(page.getByRole("navigation", { name: "Your recent notes" })).toContainText("ago");
+  await expect(page.getByRole("navigation", { name: "Your recent notes" })).toContainText(/ ago|just now/);
   await expect(page.getByLabel("Video link")).toHaveValue("");
   await page.getByLabel("Video link").fill(CACHED);
   await page.getByRole("button", { name: /make notes/ }).click();
@@ -178,13 +178,13 @@ test("on screen: each slide with a time that plays that moment; no search box, n
   await page.goto("/jobs/sample");
   await page.getByRole("tab", { name: /On screen/ }).click({ timeout: 15_000 });
   const vault = page.getByRole("region", { name: "On screen" });
-  await expect(vault.getByRole("img", { name: "The screen at 7:30" })).toBeVisible(); // the Shakespeare text
+  await expect(vault.getByRole("img", { name: "The screen at 8:30" })).toBeVisible(); // the Shakespeare dataset slide
   await expect(vault.getByRole("searchbox")).toHaveCount(0);
   await expect(vault.getByText(/titles, logos and blank frames/)).toHaveCount(0);
-  await vault.getByRole("button", { name: "Play from 7:30" }).first().click();
+  await vault.getByRole("button", { name: "Play from 8:30" }).first().click();
   // The player opens on demand, so wait for its frame before reading what it was sent.
   await expect.poll(async () => (await page.frame({ url: /youtube-nocookie/ })?.evaluate(() => (window as unknown as { got: { func: string; args: unknown[] }[] }).got)) ?? [])
-    .toContainEqual({ event: "command", func: "seekTo", args: [450, true] });
+    .toContainEqual({ event: "command", func: "seekTo", args: [510, true] });
   await expect(vault.getByRole("button", { name: "Copy all screen text" })).toBeVisible();
 });
 
@@ -201,14 +201,14 @@ test("library: the sample is listed after visiting it, search filters it, and th
   await page.goto("/jobs/sample");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("vidmind-recent") ?? ""), { timeout: 15_000 }).toContain('"sample"');
   await page.goto("/library");
-  const row = page.getByRole("listitem").filter({ hasText: "Build GPT" });
-  await expect(row.getByRole("link", { name: /Build GPT/ })).toBeVisible();
+  const row = page.getByRole("listitem").filter({ hasText: "Build a Transformer" });
+  await expect(row.getByRole("link", { name: /Build a Transformer/ })).toBeVisible();
   await page.getByLabel("Search by title").fill("kafka");
   await expect(page.getByText("No titles match “kafka”.")).toBeVisible();
   await page.getByLabel("Search by title").fill("");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await noSideScroll(page)).toBe(true);
-  await row.getByRole("link", { name: /Build GPT/ }).click();
+  await row.getByRole("link", { name: /Build a Transformer/ }).click();
   await expect(page).toHaveURL("/jobs/sample");
 });
 

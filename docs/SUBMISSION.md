@@ -55,7 +55,7 @@ reason.
 - **Images slow the notes down.** Sending keyframes with every notes call added 0.6 s per call. Notes are now
   text-only, and one separate pass reads the keyframes and adds checked on-screen notes.
 - **A 2-hour video never finished.** YouTube throttles long streamed reads, so pulling the audio took 11+ minutes.
-  Fetching it as parallel 10 MB ranges brought 42 MB down in 1.6 s; the 2-hour talk now has its first note in 13 s.
+  Fetching it as parallel 10 MB ranges brought 42 MB down in 1.6 s; the 2-hour talk now has its first note in 13-14 s.
 - **Every video had exactly 30 frames.** The scene scan kept every Nth change. It now keeps the biggest picture
   changes, scaled to the video's length, and drops repeated slides by perceptual hash.
 - **Strict checks drop good notes.** Paraphrased quotes failed the check. Snapping near-miss quotes to the
@@ -71,8 +71,8 @@ Measured on one 10-minute English talk on an M2 MacBook Air:
 - Keyframe-only scene scan: 0.36-0.48 s instead of 6.22 s. Audio decode in 4 parallel ranges: 0.31 s instead of
   0.81 s.
 - Benchmarked 11 audio methods, 12 keyframe methods and 12+ speech engines before choosing.
-- Andrej Karpathy's 2-hour "Let's build GPT" (the bundled example): first note in **13 s**, all **440** checked
-  notes in **1 min 11 s**, 140 sections, each with an article.
+- Andrej Karpathy's 2-hour "Let's build GPT" (the bundled example): first note in **13-14 s**, all ~**440** checked
+  notes in **1 min 11-14 s** (2 runs), 140 sections with articles, 70 drawn illustrations and 17 real slides.
 - One-command install and uninstall, tested on fresh macOS, Ubuntu and Windows machines on every change.
 - Fully offline on a 16 GB MacBook Air with Ollama (qwen2.5:3b): first checked section in 7.8 s, nothing leaves the
   machine.

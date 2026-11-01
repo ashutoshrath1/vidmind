@@ -26,7 +26,7 @@ it plays that second. Anything the video doesn't support is removed before you s
 
 | | |
 |---|---|
-| ⚡ **Fast** | A 10-minute YouTube talk to all checked notes in **4.2–5.1 s**. A 2-hour talk: first note in **13 s**, all 440 notes in **1 min 11 s**. |
+| ⚡ **Fast** | A 10-minute YouTube talk to all checked notes in **4.2–5.1 s**. A 2-hour talk: first note in **13–14 s**, all ~440 notes in **1 min 11–14 s**. |
 | ✓ **Checked** | Each quote must match the transcript within 5 s of the time it cites; each screen citation must be a real keyframe within 2 s. |
 | 🖼 **Reads the screen** | Slides, code and diagrams are read and explained, so facts only shown on screen make it into the notes. |
 | 📝 **Yours** | One click copies a clean Markdown article. Bring any AI: Muse, OpenAI, Claude, free Groq / NVIDIA / OpenRouter, or fully offline with Ollama. |
@@ -158,7 +158,7 @@ On an M2 MacBook Air, warm server, Meta Muse:
 |---|---|---|
 | 10-minute YouTube talk with captions | – | **4.2–5.1 s** (4 runs) |
 | 10-minute video without captions (speech recognition) | 4.0–6.5 s | 9.0–9.4 s |
-| Karpathy's 2-hour "Let's build GPT" | **13 s** | **1 min 11 s** (440 notes) |
+| Karpathy's 2-hour "Let's build GPT" (2 runs) | **13–14 s** | **1 min 11–14 s** (439–440 notes) |
 
 What makes it fast: captions before speech recognition; audio downloaded as parallel 10 MB ranges (42 MB in 1.6 s
 where streaming took 11+ minutes); a keyframe-only scene scan (0.4 s instead of 6.2 s); every section written at
