@@ -121,6 +121,7 @@ def test_sections_written_before_the_keyframes_get_checked_on_screen_notes_after
     monkeypatch.setattr(pipeline, "SECTION_S", 20.0)
     monkeypatch.setattr(pipeline, "FIRST_S", 20.0)
     monkeypatch.setenv("LLM_MODELS", "model-a")
+    monkeypatch.setenv("LLM_VISION_MODELS", "model-a")  # the on-screen step sends images: only for a model that sees
     keyframes = pipeline._keyframes
     monkeypatch.setattr(pipeline, "_keyframes", lambda *a: (time.sleep(1.0), keyframes(*a))[1])  # captions come first
     sections_ask = fake_ask_factory([])

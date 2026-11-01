@@ -202,7 +202,8 @@ def test_events_resume_after_last_event_id():
 def test_frames_serves_only_pipeline_file_names():
     from vidmind.main import FRAME_NAME
 
-    for ok in ("0.jpg", "ch0.webp"):  # files the sample has
+    drawn = next(jobs.SAMPLE_DIR.glob("frames/ch*.webp")).name  # an illustration the sample has (which varies per run)
+    for ok in ("0.jpg", drawn):
         assert client.get(f"/jobs/sample/frames/{ok}").status_code == 200, ok
     assert all(FRAME_NAME.fullmatch(n) for n in ("0_fig.jpg", "at12.jpg", "card.webp"))
     for bad in ("../result.json", "x.png", "ch0.webp.jpg", "0.jpeg", "result.json"):
